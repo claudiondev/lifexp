@@ -11,6 +11,7 @@ const user = {
   name: 'Ana',
   email: 'ana@mail.com',
   timezone: 'UTC',
+  avatarKey: 'swords',
   createdAt: '2026-10-01T12:00:00.000Z',
 };
 

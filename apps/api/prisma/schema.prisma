@@ -1,4 +1,4 @@
-// Entidades entram por marco; este arquivo cresce junto (Marco 1a: User e Session).
+// Entidades entram por marco; este arquivo cresce junto (1a: User e Session; 1b: Area e Activity).
 // Prisma 7: a URL do banco NÃO fica aqui, e sim em prisma.config.ts.
 
 generator client {
@@ -18,10 +18,14 @@ model User {
   email        String   @unique
   passwordHash String
   timezone     String   @default("America/Sao_Paulo")
+  // Emblema escolhido pela pessoa (RF04). Chave de uma lista fixa em @lifexp/shared.
+  avatarKey    String   @default("swords")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions Session[]
+  sessions   Session[]
+  areas      Area[]
+  activities Activity[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -41,4 +45,42 @@ model Session {
 
   @@index([userId])
   @@index([tokenFamily])
+}
+
+// Área da vida = atributo do personagem. Cor e ícone são chaves de listas fixas em @lifexp/shared.
+// Nunca é apagada: arquivar preserva o histórico (RN27).
+model Area {
+  id         String    @id @default(uuid(7))
+  userId     String
+  name       String
+  color      String
+  icon       String
+  position   Int
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@index([userId])
+}
+
+// userId repetido de propósito: toda consulta filtra pelo dono sem precisar de join (RS06).
+// O service garante que userId da atividade é o mesmo userId da área.
+model Activity {
+  id         String    @id @default(uuid(7))
+  userId     String
+  areaId     String
+  name       String
+  xpWeight   Float     @default(1.0)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([areaId])
 }
