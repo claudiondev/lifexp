@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
@@ -30,6 +31,7 @@
     "react-router": "^8.4.0",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
+    "workbox-window": "7.4.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -43,8 +45,11 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "jsdom": "^30.1.1",
+    "sharp": "0.35.5",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.2",
-    "vitest": "^5.0.3"
+    "vite-plugin-pwa": "1.3.0",
+    "vitest": "^5.0.3",
+    "workbox-build": "7.4.1"
   }
 }
