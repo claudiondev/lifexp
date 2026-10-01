@@ -31,6 +31,15 @@
   --ring: #9d84ff;
   --xp: #ffb547;
   --mana: #3ddbb0;
+  /* Cores das áreas da vida (chaves de AREA_COLORS em @lifexp/shared). */
+  --area-violet: #9d84ff;
+  --area-gold: #ffb547;
+  --area-moss: #3ddbb0;
+  --area-rose: #ff7a93;
+  --area-sky: #4cc2ff;
+  --area-orange: #ff8a4c;
+  --area-pink: #ff6bd6;
+  --area-slate: #9aa6c4;
   --radius: 0.75rem;
   color-scheme: dark;
 }
@@ -57,6 +66,14 @@
     --ring: #5b3be0;
     --xp: #b86e00;
     --mana: #0f8f6e;
+    --area-violet: #5b3be0;
+    --area-gold: #b86e00;
+    --area-moss: #0f8f6e;
+    --area-rose: #c2304f;
+    --area-sky: #0a74b8;
+    --area-orange: #c2540a;
+    --area-pink: #b3248f;
+    --area-slate: #55607f;
     color-scheme: light;
   }
 }
@@ -82,6 +99,14 @@
   --color-ring: var(--ring);
   --color-xp: var(--xp);
   --color-mana: var(--mana);
+  --color-area-violet: var(--area-violet);
+  --color-area-gold: var(--area-gold);
+  --color-area-moss: var(--area-moss);
+  --color-area-rose: var(--area-rose);
+  --color-area-sky: var(--area-sky);
+  --color-area-orange: var(--area-orange);
+  --color-area-pink: var(--area-pink);
+  --color-area-slate: var(--area-slate);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
