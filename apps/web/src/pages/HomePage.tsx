@@ -1,13 +1,23 @@
-import { Scroll } from 'lucide-react';
+import { ArrowRight, Scroll } from 'lucide-react';
+import { Link } from 'react-router';
 import { CharacterCard } from '@/components/game/CharacterCard';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/useAuth';
 import { useCharacter } from '@/features/character/useCharacter';
 import { HealthStatus } from '@/features/health/HealthStatus';
+import { dayProgress, findNext, splitByDay } from '@/features/today/todayModel';
+import { useToday } from '@/features/today/useToday';
 
 export function HomePage() {
   const { state } = useAuth();
   const character = useCharacter();
+  const today = useToday();
   if (state.status !== 'authenticated') return null;
+
+  const groups = today.data ? splitByDay(today.data.items, today.data.date) : null;
+  const progress = groups ? dayProgress(groups.today) : null;
+  const next = groups ? findNext(groups.today) : undefined;
+  const openCarryover = groups?.carryover.filter((item) => item.status === 'open').length ?? 0;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-10">
@@ -32,9 +42,20 @@ export function HomePage() {
             Missão de hoje
           </h2>
           <p className="max-w-md text-muted-foreground">
-            Nenhum bloco planejado para hoje. Quando o planejador da semana chegar, é aqui que você
-            conclui blocos e ganha XP.
+            {!progress && 'Carregando os blocos de hoje…'}
+            {progress && progress.total === 0 && 'Nenhum bloco planejado para hoje.'}
+            {progress &&
+              progress.total > 0 &&
+              `${progress.done} de ${progress.total} blocos concluídos hoje.`}
+            {next && ` Próximo: ${next.startTime}.`}
+            {openCarryover > 0 && ` Há ${openCarryover} de ontem ainda abertos.`}
           </p>
+          <Button asChild>
+            <Link to="/hoje">
+              Abrir missões de hoje
+              <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </Button>
         </section>
       </div>
 

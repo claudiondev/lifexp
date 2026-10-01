@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CivilDate, PutExceptionInput, UpdateBlockInput } from '@lifexp/shared';
 import { createBlock, deleteBlock, putException, removeException, updateBlock } from './blocksApi';
+import { todayKey } from '../today/useToday';
 import { blocksKey } from './useWeek';
 
 interface OccurrenceRef {
@@ -11,8 +12,12 @@ interface OccurrenceRef {
 
 export function useBlockMutations() {
   const queryClient = useQueryClient();
-  // Qualquer mudança em blocos pode alterar várias semanas em cache: invalida todas.
-  const refresh = () => queryClient.invalidateQueries({ queryKey: blocksKey });
+  // Qualquer mudança em blocos pode alterar várias semanas em cache (e a tela Hoje): invalida tudo.
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: blocksKey }),
+      queryClient.invalidateQueries({ queryKey: todayKey }),
+    ]);
 
   return {
     create: useMutation({ mutationFn: createBlock, onSuccess: refresh }),
