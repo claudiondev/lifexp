@@ -52,7 +52,8 @@ export type EditPlan =
     };
 
 export type DeletePlan =
-  | { kind: 'invalid'; reason: 'FROM_AFTER_END' }
+  /** A série já terminou antes da data: não há nada a excluir (idempotente, não é erro). */
+  | { kind: 'noop' }
   /** Bloco avulso: a linha é removida. */
   | { kind: 'delete-row' }
   /**
@@ -166,9 +167,7 @@ export function planDelete(
   if (block.recurrence === 'once') return { kind: 'delete-row' };
 
   const validFrom = block.validFrom as CivilDate;
-  if (block.validUntil !== null && from > block.validUntil) {
-    return { kind: 'invalid', reason: 'FROM_AFTER_END' };
-  }
+  if (block.validUntil !== null && from > block.validUntil) return { kind: 'noop' };
 
   // Nunca antes de "validFrom - 1": é o menor valor permitido (série encerrada sem ocorrências).
   const dayBefore = addDays(from, -1);

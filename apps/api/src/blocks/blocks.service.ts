@@ -1,10 +1,42 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { addDays, type Block, type CreateBlockInput, type WeekResponse } from '@lifexp/shared';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  addDays,
+  type Block,
+  type CreateBlockInput,
+  type UpdateBlockInput,
+  type WeekResponse,
+} from '@lifexp/shared';
+import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { planDelete, planEdit, type NewBlockData } from './domain/series-split.js';
 import { computeWeekOccurrences } from './domain/week-occurrences.js';
 import { fromCivil, toBlockResponse, toBlockTemplate, toExceptionRule } from './blocks.mapper.js';
 
 const ACTIVITY_ARCHIVED = 'A atividade está arquivada. Restaure a atividade e a área primeiro';
+const FROM_AFTER_END = 'A série já terminou antes dessa data';
+const CROSSES_MIDNIGHT = 'O bloco não pode atravessar a meia-noite';
+const NOT_APPLICABLE = 'Esse campo não se aplica ao tipo do bloco';
+
+type TransactionClient = Prisma.TransactionClient;
+
+/** Campos de data do plano (texto civil) viram Date UTC para o Prisma. */
+function toBlockData(fields: Partial<NewBlockData>): Prisma.BlockUncheckedUpdateInput {
+  const { date, validFrom, validUntil, recurrence, ...rest } = fields;
+  return {
+    ...rest,
+    ...(recurrence !== undefined && { recurrence: recurrence === 'weekly' ? 'WEEKLY' : 'ONCE' }),
+    ...(date !== undefined && { date: date === null ? null : fromCivil(date) }),
+    ...(validFrom !== undefined && { validFrom: validFrom === null ? null : fromCivil(validFrom) }),
+    ...(validUntil !== undefined && {
+      validUntil: validUntil === null ? null : fromCivil(validUntil),
+    }),
+  };
+}
 
 @Injectable()
 export class BlocksService {
@@ -72,6 +104,110 @@ export class BlocksService {
             },
     });
     return toBlockResponse(block);
+  }
+
+  /**
+   * Edita "a partir de `from`" (esta e as próximas). Com passado, a série atual é encerrada no dia
+   * anterior e uma nova começa em `from`; sem passado, o bloco é atualizado no lugar. As
+   * ocorrências anteriores a `from` nunca mudam. Devolve o bloco que vale a partir de `from`.
+   */
+  async update(userId: string, id: string, input: UpdateBlockInput): Promise<Block> {
+    const { from, ...changes } = input;
+
+    if (changes.activityId !== undefined) {
+      await this.assertActivityUsable(userId, changes.activityId);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const current = await this.lockAndLoad(tx, userId, id);
+      const plan = planEdit(
+        toBlockTemplate(current, current.activity.areaId),
+        from,
+        changes,
+        current.exceptions.map(toExceptionRule),
+      );
+
+      if (plan.kind === 'invalid') {
+        if (plan.reason === 'FROM_AFTER_END') throw new ConflictException(FROM_AFTER_END);
+        if (plan.reason === 'CROSSES_MIDNIGHT') throw new BadRequestException(CROSSES_MIDNIGHT);
+        throw new BadRequestException(NOT_APPLICABLE);
+      }
+
+      const dropExceptions = (dates: string[]) =>
+        dates.length === 0
+          ? Promise.resolve()
+          : tx.blockException.deleteMany({
+              where: { blockId: id, occurrenceDate: { in: dates.map(fromCivil) } },
+            });
+
+      if (plan.kind === 'in-place') {
+        await dropExceptions(plan.dropExceptions);
+        const updated = await tx.block.update({ where: { id }, data: toBlockData(plan.update) });
+        return toBlockResponse(updated);
+      }
+
+      await tx.block.update({
+        where: { id },
+        data: { validUntil: fromCivil(plan.closeCurrentAt) },
+      });
+      const created = await tx.block.create({
+        data: { ...(toBlockData(plan.newBlock) as Prisma.BlockUncheckedCreateInput), userId },
+      });
+      await dropExceptions(plan.dropExceptions);
+      if (plan.moveExceptions.length > 0) {
+        await tx.blockException.updateMany({
+          where: { blockId: id, occurrenceDate: { in: plan.moveExceptions.map(fromCivil) } },
+          data: { blockId: created.id },
+        });
+      }
+      return toBlockResponse(created);
+    });
+  }
+
+  /**
+   * Exclui "a partir de `from`". Bloco avulso é removido; série semanal só é encerrada (a linha
+   * fica, para preservar o histórico). Excluir de novo, ou depois do fim, não faz nada.
+   */
+  async remove(userId: string, id: string, from: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const current = await this.lockAndLoad(tx, userId, id);
+      const plan = planDelete(
+        toBlockTemplate(current, current.activity.areaId),
+        from,
+        current.exceptions.map(toExceptionRule),
+      );
+
+      if (plan.kind === 'noop') return;
+      if (plan.kind === 'delete-row') {
+        await tx.block.delete({ where: { id } });
+        return;
+      }
+
+      await tx.block.update({ where: { id }, data: { validUntil: fromCivil(plan.validUntil) } });
+      if (plan.dropExceptions.length > 0) {
+        await tx.blockException.deleteMany({
+          where: { blockId: id, occurrenceDate: { in: plan.dropExceptions.map(fromCivil) } },
+        });
+      }
+    });
+  }
+
+  /**
+   * Carrega o bloco da pessoa já travando a linha (SELECT ... FOR UPDATE): duas edições simultâneas
+   * da mesma série esperam uma pela outra em vez de se atropelarem. Bloco de outra pessoa
+   * responde 404, igual a um que não existe (RS06).
+   */
+  private async lockAndLoad(tx: TransactionClient, userId: string, id: string) {
+    const owned = await tx.block.findFirst({ where: { id, userId }, select: { id: true } });
+    if (!owned) throw new NotFoundException('Bloco não encontrado');
+
+    await tx.$queryRaw`SELECT "id" FROM "Block" WHERE "id" = ${id} FOR UPDATE`;
+
+    // Relê depois do bloqueio: outra edição pode ter terminado enquanto esperávamos.
+    return tx.block.findUniqueOrThrow({
+      where: { id },
+      include: { activity: { select: { areaId: true } }, exceptions: true },
+    });
   }
 
   /**

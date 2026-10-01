@@ -112,7 +112,7 @@ function applyDelete(world: World, blockId: string, from: CivilDate): World {
     from,
     world.exceptions.filter((e) => e.blockId === blockId),
   );
-  if (plan.kind === 'invalid') throw new Error(`plano inválido: ${plan.reason}`);
+  if (plan.kind === 'noop') return world;
   if (plan.kind === 'delete-row') {
     return {
       blocks: world.blocks.filter((b) => b.id !== blockId),
@@ -469,11 +469,18 @@ describe('planDelete', () => {
     expect(plan).toMatchObject({ kind: 'end-series', dropExceptions: ['2026-10-14'] });
   });
 
-  it('data de corte depois do fim da série é inválida', () => {
+  it('data de corte depois do fim da série não faz nada (idempotente, como um segundo clique)', () => {
     expect(planDelete(series({ validUntil: '2026-10-28' }), '2026-11-04', [])).toEqual({
-      kind: 'invalid',
-      reason: 'FROM_AFTER_END',
+      kind: 'noop',
     });
+    // excluir de novo a partir da mesma data, depois de já ter encerrado a série
+    const ended = series({ validUntil: '2026-10-06' });
+    expect(planDelete(ended, '2026-10-07', [])).toEqual({ kind: 'noop' });
+  });
+
+  it('a última data da série ainda pode ser excluída (limite inclusivo)', () => {
+    const plan = planDelete(series({ validUntil: '2026-10-28' }), '2026-10-28', []);
+    expect(plan).toEqual({ kind: 'end-series', validUntil: '2026-10-27', dropExceptions: [] });
   });
 
   it('bloco avulso é removido', () => {
