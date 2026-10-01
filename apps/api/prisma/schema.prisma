@@ -1,4 +1,4 @@
-// Schema inicial: apenas conexão. As entidades entram a partir do Marco 1.
+// Entidades entram por marco; este arquivo cresce junto (Marco 1a: User e Session).
 // Prisma 7: a URL do banco NÃO fica aqui, e sim em prisma.config.ts.
 
 generator client {
@@ -10,4 +10,35 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid(7))
+  name         String
+  email        String   @unique
+  passwordHash String
+  timezone     String   @default("America/Sao_Paulo")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions Session[]
+}
+
+// Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
+// e revoga a anterior; reuso de um token revogado revoga a família inteira (RS04).
+model Session {
+  id               String    @id @default(uuid(7))
+  userId           String
+  refreshTokenHash String    @unique
+  tokenFamily      String
+  userAgent        String?
+  createdAt        DateTime  @default(now())
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenFamily])
 }
