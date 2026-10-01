@@ -11,11 +11,13 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
+import { useIsDesktop } from '@/lib/useIsDesktop';
 import { formatWeekRange } from '@/lib/civilFormat';
 import { useActivities } from '@/features/activities/useActivities';
 import { useAreas } from '@/features/areas/useAreas';
 import { useAuth } from '@/features/auth/useAuth';
 import { BlockFormDialog } from '@/features/blocks/BlockFormDialog';
+import { DayView } from '@/features/blocks/DayView';
 import { OccurrenceDialog } from '@/features/blocks/OccurrenceDialog';
 import type { OccurrenceDisplay } from '@/features/blocks/OccurrenceCard';
 import { useNow } from '@/features/blocks/useNow';
@@ -38,11 +40,21 @@ export function WeekPage() {
   const now = useNow();
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<OccurrenceDisplay | null>(null);
+  const [pickedDay, setPickedDay] = useState<CivilDate | null>(null);
+  const isDesktop = useIsDesktop();
 
   const timezone = state.status === 'authenticated' ? state.user.timezone : 'UTC';
   const today = todayIn(timezone, now);
   const currentWeek = weekStartOf(today);
   const weekStart = resolveWeekStart(params.get(WEEK_PARAM), currentWeek);
+
+  // Dia aberto na visão do celular: o escolhido, se ainda pertence a esta semana; senão hoje (na
+  // semana atual) ou a segunda. Ao trocar de semana o dia escolhido deixa de valer sozinho.
+  const defaultDay = today >= weekStart && today <= addDays(weekStart, 6) ? today : weekStart;
+  const selectedDay =
+    pickedDay !== null && pickedDay >= weekStart && pickedDay <= addDays(weekStart, 6)
+      ? pickedDay
+      : defaultDay;
 
   const week = useWeek(weekStart);
   // Inclui arquivadas: blocos antigos de uma atividade arquivada continuam aparecendo.
@@ -157,13 +169,24 @@ export function WeekPage() {
                 Nenhum bloco nesta semana.
               </p>
             )}
-            <WeekGrid
-              weekStart={weekStart}
-              today={today}
-              nowMinutes={nowMinutes}
-              items={items}
-              onSelect={setSelected}
-            />
+            {isDesktop ? (
+              <WeekGrid
+                weekStart={weekStart}
+                today={today}
+                nowMinutes={nowMinutes}
+                items={items}
+                onSelect={setSelected}
+              />
+            ) : (
+              <DayView
+                weekStart={weekStart}
+                today={today}
+                selectedDate={selectedDay}
+                onSelectDate={setPickedDay}
+                items={items}
+                onSelect={setSelected}
+              />
+            )}
           </>
         )}
       </section>
