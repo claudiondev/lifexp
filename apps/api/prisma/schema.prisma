@@ -1,4 +1,4 @@
-// Entidades entram por marco; este arquivo cresce junto (1a: User e Session; 1b: Area e Activity; 1c: Block e BlockException).
+// Entidades entram por marco; este arquivo cresce junto (1a: User e Session; 1b: Area e Activity; 1c: Block e BlockException; 1d: Completion, XpTransaction e AreaProgress).
 // Prisma 7: a URL do banco NÃO fica aqui, e sim em prisma.config.ts.
 
 generator client {
@@ -29,6 +29,13 @@ model User {
   areas      Area[]
   activities Activity[]
   blocks     Block[]
+
+  // Cache do XP total (derivado do livro-caixa XpTransaction, RN29).
+  cachedTotalXp Int @default(0)
+
+  completions    Completion[]
+  xpTransactions XpTransaction[]
+  areaProgress   AreaProgress[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -63,8 +70,10 @@ model Area {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activities Activity[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activities     Activity[]
+  progress       AreaProgress?
+  xpTransactions XpTransaction[]
 
   @@index([userId])
 }
@@ -117,9 +126,10 @@ model Block {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  activity   Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  exceptions BlockException[]
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity    Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  exceptions  BlockException[]
+  completions Completion[]
 
   @@index([userId, recurrence, validFrom])
   @@index([userId, date])
@@ -142,4 +152,73 @@ model BlockException {
   block Block @relation(fields: [blockId], references: [id], onDelete: Cascade)
 
   @@unique([blockId, occurrenceDate])
+}
+
+enum XpTransactionType {
+  COMPLETION
+  REVERSAL
+}
+
+// Uma ocorrência concluída (RN07, RN32: única por bloco + data). Desfazer NÃO apaga a linha: marca
+// `undoneAt` e cria um estorno no livro-caixa; concluir de novo reaproveita a mesma linha.
+// Guarda uma "foto" da atividade, da área, da duração e do XP no momento (o histórico não muda se
+// o bloco ou a atividade forem editados depois).
+// Sem onDelete explícito no bloco (NoAction): não dá para apagar um bloco que tem conclusões, mas
+// apagar a pessoa leva tudo junto (o NoAction só é verificado no fim do comando).
+model Completion {
+  id             String    @id @default(uuid(7))
+  userId         String
+  blockId        String
+  occurrenceDate DateTime  @db.Date
+  completedAt    DateTime
+  undoneAt       DateTime?
+  activityId     String
+  areaId         String
+  durationMin    Int
+  xpAmount       Int
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  block Block @relation(fields: [blockId], references: [id], onDelete: NoAction)
+
+  @@unique([blockId, occurrenceDate])
+  @@index([userId, completedAt])
+}
+
+// Livro-caixa de XP (RN29): imutável e a fonte da verdade. cachedTotalXp e AreaProgress são caches
+// que podem ser reconstruídos somando estes lançamentos. Estorno = valor negativo ligado ao original;
+// cada lançamento só pode ser estornado uma vez (reversedTransactionId é único).
+model XpTransaction {
+  id                    String            @id @default(uuid(7))
+  userId                String
+  areaId                String?
+  amount                Int
+  type                  XpTransactionType
+  sourceId              String? // id da Completion que originou o lançamento
+  reversedTransactionId String?           @unique
+  createdAt             DateTime          @default(now())
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area     Area?          @relation(fields: [areaId], references: [id], onDelete: NoAction)
+  reversed XpTransaction? @relation("Reversal", fields: [reversedTransactionId], references: [id], onDelete: NoAction)
+  reversal XpTransaction? @relation("Reversal")
+
+  @@index([userId, createdAt])
+  @@index([areaId])
+}
+
+// Cache de XP e nível por área (1:1 com Area), derivado do livro-caixa.
+model AreaProgress {
+  id          String   @id @default(uuid(7))
+  userId      String
+  areaId      String   @unique
+  cachedXp    Int      @default(0)
+  cachedLevel Int      @default(1)
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
