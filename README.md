@@ -34,7 +34,7 @@ pnpm install
 cp apps/api/.env.example apps/api/.env
 
 # 3. banco de dados
-docker compose up -d
+docker compose up -d   # Postgres em localhost:5433
 
 # 4. api (http://localhost:3000) e web (http://localhost:5173)
 pnpm dev

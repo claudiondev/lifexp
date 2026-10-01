@@ -10,7 +10,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Monorepo **pnpm workspaces**: `apps/api` (NestJS 12), `apps/web` (React 19 + Vite + TS + Tailwind 4),
   `packages/shared` (`@lifexp/shared`).
 - Validação com **Zod** (`nestjs-zod` na api). Schemas, tipos e regras puras ficam em `packages/shared`.
-- **PostgreSQL** via Docker Compose + **Prisma 7** (driver adapter `@prisma/adapter-pg`; a URL do banco
+- **PostgreSQL** via Docker Compose (porta do host **5433**, para não colidir com um Postgres local em 5432) + **Prisma 7** (driver adapter `@prisma/adapter-pg`; a URL do banco
   fica em `prisma.config.ts`, não no `schema.prisma`; client gerado em `apps/api/src/generated`, ignorado no git).
 - **Vitest** em api, web e shared. (Desvio do requisito original "Jest na api": o Nest 12 é ESM-only e o
   template oficial usa Vitest.) TypeScript 5.9.
