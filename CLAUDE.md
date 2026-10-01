@@ -56,6 +56,26 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: TanStack Query; o cache é LIMPO ao entrar, sair e quando a sessão expira (dados de uma pessoa nunca
   aparecem para outra). Atividades vêm numa chamada só e são agrupadas por área no cliente.
 
+## Blocos e Semana (decisões do 1c)
+
+- `Block` é TEMPLATE (`weekly`/`once`, `weekday` 1=segunda..7, `startTime` "HH:mm", `durationMin`, `validFrom`/
+  `validUntil`); `BlockException` (`skip`|`override`) é única por (blockId, occurrenceDate), RN32. Nada de
+  ocorrência futura no banco (RN31): `computeWeekOccurrences` (puro, `blocks/domain`) calcula a semana.
+- Datas civis são `DATE`/`AAAA-MM-DD` (sem fuso, convertidas SEMPRE em UTC); horário é hora de relógio.
+  `todayIn(timezone)` decide "hoje". Helpers de datas ficam em `@lifexp/shared/civil-date` (api e web).
+- Semana começa na SEGUNDA. Bloco não atravessa a meia-noite (duração 15 min a 12 h, passo 5). Sobreposição
+  permitida (`layoutDay` põe lado a lado). Mover uma ocorrência só dentro da mesma semana (regra e CHECK no banco).
+- Editar/excluir "esta e as próximas" = `planEdit`/`planDelete` (puros, `series-split`): com passado, encerra a
+  série em `from-1` e cria nova (exceções futuras acompanham, a menos que o dia da semana mude); sem passado,
+  edita no lugar. **O passado nunca muda.** Excluir série só encerra (a linha fica; é idempotente). Bloco avulso
+  é removido (no 1d, se houver Completion, converter em exceção skip em vez de apagar).
+- Edições e exceções serializam por bloco com `SELECT ... FOR UPDATE` (`lockAndLoad`).
+- A consulta da semana é UMA query (`relationLoadStrategy: 'join'` + preview `relationJoins`); há teste que
+  conta queries.
+- Restrições CHECK no banco (migration `blocks`) repetem as regras da aplicação como defesa em profundidade.
+- Front: grade (desktop) x abas/agenda (celular) decididas por `useIsDesktop` (JS), não por CSS, para não duplicar
+  blocos no DOM. Cartão da grade é `<button>`. Painel de ações em `OccurrenceDialog`.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -66,6 +86,11 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   O timeout é de 30 s porque argon2 é caro de propósito.
 - Front: testes com API falsa em memória que imita as regras do servidor (409, arquivar...). Mocke `sonner`
   com `vi.hoisted`.
+- Teste de mutação manual: ao rodar o roteiro de mutantes, o trecho trocado precisa EXISTIR no arquivo (o
+  Prettier quebra linhas e o texto deixa de casar). O roteiro deve acusar "NÃO APLICADO"; um "todos passaram"
+  de mutante não aplicado não prova nada. Mutante sobrevivente = teste fraco OU mutante equivalente (decida qual).
+- Testes de domínio de datas/semanas cobrem virada de mês/ano, ano bissexto, horário de verão e fusos extremos;
+  rode a suíte e2e com `TZ=Pacific/Kiritimati` e `TZ=America/Los_Angeles` quando mexer em datas.
 - Ao encadear verificações em script, NÃO use `| tail` no meio: ele mascara o código de saída. Use
   `set -o pipefail` ou redirecione para arquivo e confira `$?` antes de commitar.
 
@@ -102,8 +127,8 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Commits pequenos, semânticos e em português (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `ci:`),
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
-- Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)** e **1b (Perfil, áreas e atividades)**.
-  Roadmap do Marco 1: 1c blocos + BlockException + Semana → 1d Completion/XP/níveis + Hoje → 1e streak → 1f PWA.
+- Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
+  **1c (Blocos e Semana)**. Roadmap do Marco 1: 1d Completion/XP/níveis + Hoje → 1e streak → 1f PWA.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em

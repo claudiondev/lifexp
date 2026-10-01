@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 1b (Perfil, áreas e atividades)** concluído, sobre a autenticação (1a) e a fundação
-> (0). Próximos: blocos e tela Semana (1c), tela Hoje e XP (1d).
+> Status: **Marco 1c (Blocos e tela Semana)** concluído, sobre perfil/áreas (1b), autenticação (1a) e a
+> fundação (0). Próximos: tela Hoje, conclusão de blocos e XP (1d).
 
 ## Stack
 
@@ -93,6 +93,49 @@ cada uma com uma atividade de mesmo nome (peso de XP 1,0). Tudo é editável e a
 
 Dados de outra pessoa respondem **404** (igual a um recurso que não existe). Corpos com campos extras
 são rejeitados com 400. Telas: Painel, Áreas e Perfil.
+
+## Blocos e tela Semana (Marco 1c)
+
+Um **bloco** é uma atividade num dia e horário. Pode ser **semanal** (toda semana) ou **avulso** (uma vez).
+
+**Como a recorrência funciona:** o banco guarda só o _template_ do bloco (dia da semana, horário, duração
+e de quando a regra vale) e as _exceções_ por data. As ocorrências de cada semana são **calculadas na hora
+da consulta**; nada de ocorrências futuras gravadas.
+
+- **Pular só esta ocorrência** e **alterar só esta** (dia na mesma semana, horário ou duração) viram uma
+  _exceção_ daquela data.
+- **Editar/excluir "esta e as próximas"** encerra a série no dia anterior e cria uma nova a partir da data.
+  **O passado nunca muda.** "Toda a série" é "esta e as próximas" na primeira ocorrência.
+- A semana começa na **segunda-feira**. Datas são civis (`AAAA-MM-DD`, sem fuso); o horário é hora de relógio
+  (`HH:mm`). Mudar de fuso preserva o horário local. Bloco não atravessa a meia-noite; blocos podem se sobrepor.
+
+| Método | Rota                               | O que faz                                         |
+| ------ | ---------------------------------- | ------------------------------------------------- |
+| GET    | `/api/blocks/week?weekStart=`      | Ocorrências da semana (uma única consulta)        |
+| POST   | `/api/blocks`                      | Cria bloco semanal ou avulso                      |
+| PATCH  | `/api/blocks/:id`                  | Edita a partir de uma data (`from`)               |
+| DELETE | `/api/blocks/:id?from=`            | Encerra/exclui a partir de uma data (idempotente) |
+| PUT    | `/api/blocks/:id/exceptions/:date` | Pula ou altera só uma ocorrência                  |
+| DELETE | `/api/blocks/:id/exceptions/:date` | Restaura a ocorrência original                    |
+
+Telas: **Semana** (grade no desktop; abas dos dias no celular) com navegação entre semanas, criação de
+blocos e um painel de ações ao clicar num bloco.
+
+## Glossário (para quem vem de Java/Spring)
+
+| Termo                         | O que é                                                                                                                                                                                                                               | Equivalente em Java                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Lint** (`pnpm lint`)        | Analisa o código **sem executar**: acusa `import` sobrando, variável não usada, formatação fora do padrão. Não testa se o programa funciona.                                                                                          | Checkstyle / SpotBugs / Sonar + formatter    |
+| **Teste unitário**            | Executa uma função isolada e confere o resultado.                                                                                                                                                                                     | JUnit                                        |
+| **Teste e2e** (ponta a ponta) | Sobe a API de verdade, com banco, e faz requisições HTTP.                                                                                                                                                                             | `@SpringBootTest` + MockMvc / Testcontainers |
+| **Cobertura**                 | % das linhas que os testes executaram. Não diz se alguém **conferiu o resultado**.                                                                                                                                                    | JaCoCo                                       |
+| **Mutação / mutante**         | Técnica para saber se os testes são bons: **estraga-se o código de propósito** (o _mutante_) e roda-se os testes. Se algum falha, o mutante foi **morto** (bom); se todos passam, **sobreviveu** (existe um bug que ninguém notaria). | PIT (Pitest)                                 |
+| **Mutante equivalente**       | Mudança que não altera o comportamento visível; não indica teste fraco.                                                                                                                                                               |                                              |
+| **Migration**                 | Arquivo versionado que altera o banco.                                                                                                                                                                                                | Flyway / Liquibase                           |
+| **Schema (Zod)**              | Descreve e valida o formato dos dados, e gera o tipo TypeScript.                                                                                                                                                                      | Bean Validation (`@Valid`) + DTO             |
+| **Guard**                     | Barra a requisição antes do controller (autenticação).                                                                                                                                                                                | Filtro do Spring Security                    |
+| **CI**                        | Roda lint, testes e build a cada push.                                                                                                                                                                                                | Pipeline (Jenkins/GitHub Actions)            |
+| **Domínio puro (`domain/`)**  | Regras de negócio sem Nest nem banco; fáceis de testar.                                                                                                                                                                               | Classes de domínio sem Spring                |
 
 ## Testes
 
