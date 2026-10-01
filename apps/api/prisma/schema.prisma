@@ -1,0 +1,13 @@
+// Schema inicial: apenas conexão. As entidades entram a partir do Marco 1.
+// Prisma 7: a URL do banco NÃO fica aqui, e sim em prisma.config.ts.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

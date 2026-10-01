@@ -1,0 +1,45 @@
+{
+  "name": "@lifexp/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "test": "vitest run && vitest run --config vitest.config.e2e.ts",
+    "test:unit": "vitest run",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@lifexp/shared": "workspace:^",
+    "@nestjs/common": "^12.1.2",
+    "@nestjs/config": "^12.0.1",
+    "@nestjs/core": "^12.1.2",
+    "@nestjs/platform-express": "^12.1.2",
+    "@nestjs/swagger": "^12.0.2",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "dotenv": "^18.0.5",
+    "nestjs-zod": "^5.5.0",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.8",
+    "@nestjs/schematics": "^12.0.6",
+    "@nestjs/testing": "^12.1.2",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.3",
+    "prisma": "7",
+    "supertest": "^7.3.0",
+    "vitest": "^5.0.3"
+  },
+  "type": "module"
+}
