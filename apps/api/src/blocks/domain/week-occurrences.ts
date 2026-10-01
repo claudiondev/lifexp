@@ -29,7 +29,7 @@ export interface ExceptionRule {
 }
 
 /** A ocorrência cai nesta data civil? (a regra semanal vale entre validFrom e validUntil, inclusive) */
-function occursOn(block: BlockTemplate, date: CivilDate): boolean {
+export function occursOn(block: BlockTemplate, date: CivilDate): boolean {
   if (block.recurrence === 'once') return block.date === date;
   if (block.weekday !== weekdayOf(date)) return false;
   if (block.validFrom !== null && date < block.validFrom) return false;

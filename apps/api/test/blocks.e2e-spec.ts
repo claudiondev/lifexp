@@ -768,4 +768,466 @@ describe('Blocos (e2e)', () => {
       expect((await allOccurrences(a.user)).map(view)).toEqual(before.map(view));
     });
   });
+
+  // ---------------------------------------------------------------------------------------------
+  // Exceções por ocorrência (pular, alterar só uma, restaurar)
+  // ---------------------------------------------------------------------------------------------
+
+  const putException = (user: TestUser, id: string, date: string, body: object) =>
+    request(server()).put(`/api/blocks/${id}/exceptions/${date}`).set(bearer(user)).send(body);
+
+  const removeException = (user: TestUser, id: string, date: string) =>
+    request(server()).delete(`/api/blocks/${id}/exceptions/${date}`).set(bearer(user));
+
+  const occurrenceOn = async (user: TestUser, weekStart: string, occurrenceDate: string) =>
+    (await getWeek(user, weekStart)).body.occurrences.find(
+      (o: Occurrence) => o.occurrenceDate === occurrenceDate,
+    ) as Occurrence | undefined;
+
+  describe('PUT/DELETE /blocks/:id/exceptions/:date', () => {
+    it('exigem autenticação', async () => {
+      const id = '0192f1a0-7b3c-7000-8000-000000000001';
+      expect(
+        (
+          await request(server())
+            .put(`/api/blocks/${id}/exceptions/2026-10-07`)
+            .send({ type: 'skip' })
+        ).status,
+      ).toBe(401);
+      expect(
+        (await request(server()).delete(`/api/blocks/${id}/exceptions/2026-10-07`)).status,
+      ).toBe(401);
+    });
+
+    describe('pular (RF17)', () => {
+      it('marca só aquela ocorrência como pulada e não afeta as outras semanas', async () => {
+        const { user, block } = await setupSeries();
+
+        const res = await putException(user, block.id, '2026-10-07', { type: 'skip' });
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({
+          blockId: block.id,
+          occurrenceDate: '2026-10-07',
+          type: 'skip',
+          newDate: null,
+          newStartTime: null,
+          newDurationMin: null,
+        });
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          skipped: true,
+          modified: false,
+        });
+        expect(await occurrenceOn(user, '2026-09-28', '2026-09-30')).toMatchObject({
+          skipped: false,
+        });
+        expect(await occurrenceOn(user, '2026-10-12', '2026-10-14')).toMatchObject({
+          skipped: false,
+        });
+      });
+
+      it('a ocorrência pulada continua na lista, para poder ser restaurada', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', { type: 'skip' });
+        expect((await getWeek(user, '2026-10-05')).body.occurrences).toHaveLength(1);
+      });
+
+      it('é idempotente: repetir não duplica nem dá erro', async () => {
+        const { user, block } = await setupSeries();
+        expect((await putException(user, block.id, '2026-10-07', { type: 'skip' })).status).toBe(
+          200,
+        );
+        expect((await putException(user, block.id, '2026-10-07', { type: 'skip' })).status).toBe(
+          200,
+        );
+        expect(await prisma.blockException.count({ where: { blockId: block.id } })).toBe(1);
+      });
+
+      it('funciona também em bloco avulso', async () => {
+        const { user, activity } = await setup();
+        const created = await createBlock(user, once(activity.id));
+
+        expect(
+          (await putException(user, created.body.id, '2026-10-07', { type: 'skip' })).status,
+        ).toBe(200);
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          skipped: true,
+        });
+      });
+    });
+
+    describe('alterar só uma ocorrência (RF49)', () => {
+      it('muda o horário só daquela ocorrência', async () => {
+        const { user, block } = await setupSeries();
+
+        const res = await putException(user, block.id, '2026-10-07', {
+          type: 'override',
+          newStartTime: '14:30',
+        });
+
+        expect(res.status).toBe(200);
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          startTime: '14:30',
+          durationMin: 60,
+          modified: true,
+          skipped: false,
+        });
+        expect(await occurrenceOn(user, '2026-10-12', '2026-10-14')).toMatchObject({
+          startTime: '09:00',
+          modified: false,
+        });
+      });
+
+      it('muda a duração', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', { type: 'override', newDurationMin: 90 });
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          startTime: '09:00',
+          durationMin: 90,
+        });
+      });
+
+      it('move para outro dia da mesma semana, mantendo a data original como identidade', async () => {
+        const { user, block } = await setupSeries();
+
+        await putException(user, block.id, '2026-10-07', {
+          type: 'override',
+          newDate: '2026-10-11',
+        }); // quarta -> domingo
+
+        const week = (await getWeek(user, '2026-10-05')).body.occurrences as Occurrence[];
+        expect(week).toHaveLength(1);
+        expect(week[0]).toMatchObject({
+          occurrenceDate: '2026-10-07',
+          date: '2026-10-11',
+          modified: true,
+        });
+        expect((await getWeek(user, '2026-10-12')).body.occurrences[0].date).toBe('2026-10-14');
+      });
+
+      it('combina dia, horário e duração numa única chamada', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', {
+          type: 'override',
+          newDate: '2026-10-09',
+          newStartTime: '18:00',
+          newDurationMin: 45,
+        });
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          date: '2026-10-09',
+          startTime: '18:00',
+          durationMin: 45,
+        });
+      });
+
+      it('mover para outra semana é rejeitado (400) e nada é gravado', async () => {
+        const { user, block } = await setupSeries();
+
+        for (const newDate of ['2026-10-12', '2026-10-04', '2026-11-01']) {
+          const res = await putException(user, block.id, '2026-10-07', {
+            type: 'override',
+            newDate,
+          });
+          expect([newDate, res.status]).toEqual([newDate, 400]);
+        }
+        expect(await prisma.blockException.count({ where: { blockId: block.id } })).toBe(0);
+      });
+
+      it('os limites da semana (segunda e domingo) são aceitos', async () => {
+        const { user, block } = await setupSeries();
+        expect(
+          (
+            await putException(user, block.id, '2026-10-07', {
+              type: 'override',
+              newDate: '2026-10-05',
+            })
+          ).status,
+        ).toBe(200);
+        expect(
+          (
+            await putException(user, block.id, '2026-10-07', {
+              type: 'override',
+              newDate: '2026-10-11',
+            })
+          ).status,
+        ).toBe(200);
+      });
+
+      it('rejeita resultado que atravessa a meia-noite, considerando o que é herdado do bloco', async () => {
+        const { user, block } = await setupSeries(); // 09:00, 60 min
+        const lateStart = await putException(user, block.id, '2026-10-07', {
+          type: 'override',
+          newStartTime: '23:30',
+        });
+        expect(lateStart.status).toBe(400);
+
+        const { user: user2, activity } = await setup();
+        const afternoon = await createBlock(
+          user2,
+          weekly(activity.id, { startTime: '15:00', validFrom: '2026-09-02' }),
+        );
+        const longDuration = await putException(user2, afternoon.body.id, '2026-10-07', {
+          type: 'override',
+          newDurationMin: 720,
+        });
+        expect(longDuration.status).toBe(400); // 15:00 herdado + 12 h passa de 24:00
+        expect(await prisma.blockException.count({ where: { blockId: afternoon.body.id } })).toBe(
+          0,
+        );
+      });
+
+      it('trocar de "pular" para "alterar" (e vice-versa) substitui a exceção, sem duplicar', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', { type: 'skip' });
+        await putException(user, block.id, '2026-10-07', {
+          type: 'override',
+          newStartTime: '14:30',
+        });
+
+        let rows = await prisma.blockException.findMany({ where: { blockId: block.id } });
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ type: 'OVERRIDE', newStartTime: '14:30' });
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          skipped: false,
+          startTime: '14:30',
+        });
+
+        await putException(user, block.id, '2026-10-07', { type: 'skip' });
+        rows = await prisma.blockException.findMany({ where: { blockId: block.id } });
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({ type: 'SKIP', newStartTime: null });
+      });
+
+      it('um novo override substitui os campos do anterior em vez de acumular', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', {
+          type: 'override',
+          newStartTime: '14:30',
+          newDurationMin: 90,
+        });
+        await putException(user, block.id, '2026-10-07', { type: 'override', newDurationMin: 30 });
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          startTime: '09:00',
+          durationMin: 30,
+        });
+      });
+    });
+
+    describe('restaurar', () => {
+      it('desfaz pular e desfaz alterar, voltando ao original', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', { type: 'skip' });
+        await putException(user, block.id, '2026-10-14', {
+          type: 'override',
+          newStartTime: '14:30',
+        });
+
+        expect((await removeException(user, block.id, '2026-10-07')).status).toBe(204);
+        expect((await removeException(user, block.id, '2026-10-14')).status).toBe(204);
+
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          skipped: false,
+          modified: false,
+          startTime: '09:00',
+        });
+        expect(await occurrenceOn(user, '2026-10-12', '2026-10-14')).toMatchObject({
+          skipped: false,
+          modified: false,
+          startTime: '09:00',
+        });
+        expect(await prisma.blockException.count({ where: { blockId: block.id } })).toBe(0);
+      });
+
+      it('só restaura aquela data; as outras exceções ficam', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', { type: 'skip' });
+        await putException(user, block.id, '2026-10-14', { type: 'skip' });
+
+        await removeException(user, block.id, '2026-10-07');
+
+        expect(await occurrenceOn(user, '2026-10-12', '2026-10-14')).toMatchObject({
+          skipped: true,
+        });
+      });
+
+      it('é idempotente: restaurar de novo, ou sem exceção, também responde 204', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-07', { type: 'skip' });
+        expect((await removeException(user, block.id, '2026-10-07')).status).toBe(204);
+        expect((await removeException(user, block.id, '2026-10-07')).status).toBe(204);
+        expect((await removeException(user, block.id, '2026-10-21')).status).toBe(204);
+      });
+    });
+
+    describe('validações', () => {
+      it('a data precisa ser uma ocorrência real da série (404)', async () => {
+        const { user, activity } = await setup();
+        const bounded = await createBlock(user, weekly(activity.id, { validFrom: '2026-09-09' }));
+        await deleteBlock(user, bounded.body.id, '2026-10-14'); // última ocorrência: 2026-10-07
+
+        const notAnOccurrence: [string, string][] = [
+          ['dia da semana errado (quinta)', '2026-10-01'],
+          ['antes de validFrom', '2026-09-02'],
+          ['depois do fim da série', '2026-10-14'],
+        ];
+        for (const [label, date] of notAnOccurrence) {
+          const res = await putException(user, bounded.body.id, date, { type: 'skip' });
+          expect([label, res.status]).toEqual([label, 404]);
+        }
+        expect(
+          (await putException(user, bounded.body.id, '2026-09-09', { type: 'skip' })).status,
+        ).toBe(200); // 1ª
+        expect(
+          (await putException(user, bounded.body.id, '2026-10-07', { type: 'skip' })).status,
+        ).toBe(200); // última
+      });
+
+      it('bloco avulso só aceita a própria data', async () => {
+        const { user, activity } = await setup();
+        const created = await createBlock(user, once(activity.id));
+        expect(
+          (await putException(user, created.body.id, '2026-10-14', { type: 'skip' })).status,
+        ).toBe(404);
+        expect(
+          (await putException(user, created.body.id, '2026-10-07', { type: 'skip' })).status,
+        ).toBe(200);
+      });
+
+      it('rejeita data inválida e corpo inválido com 400', async () => {
+        const { user, block } = await setupSeries();
+        const invalid: [string, string, object][] = [
+          ['data mal formada', 'amanha', { type: 'skip' }],
+          ['data impossível', '2026-02-30', { type: 'skip' }],
+          ['skip com campos extras', '2026-10-07', { type: 'skip', newDate: '2026-10-08' }],
+          ['override vazio', '2026-10-07', { type: 'override' }],
+          ['tipo desconhecido', '2026-10-07', { type: 'delete' }],
+          ['horário inválido', '2026-10-07', { type: 'override', newStartTime: '99:00' }],
+          ['duração fora do passo', '2026-10-07', { type: 'override', newDurationMin: 7 }],
+          ['campo extra', '2026-10-07', { type: 'override', newStartTime: '10:00', userId: 'x' }],
+          ['sem corpo', '2026-10-07', {}],
+        ];
+        for (const [label, date, body] of invalid) {
+          const res = await putException(user, block.id, date, body);
+          expect([label, res.status]).toEqual([label, 400]);
+        }
+        expect(await prisma.blockException.count({ where: { blockId: block.id } })).toBe(0);
+      });
+
+      it('rejeita id que não é UUID com 400', async () => {
+        const { user } = await setupSeries();
+        expect((await putException(user, 'abc', '2026-10-07', { type: 'skip' })).status).toBe(400);
+        expect((await removeException(user, 'abc', '2026-10-07')).status).toBe(400);
+      });
+    });
+
+    describe('isolamento entre usuários (RS06, RN39)', () => {
+      it('B não pula nem altera ocorrência de bloco de A (404) e nada é gravado', async () => {
+        const a = await setupSeries();
+        const b = await registerUser(app);
+
+        const skip = await putException(b, a.block.id, '2026-10-07', { type: 'skip' });
+        const override = await putException(b, a.block.id, '2026-10-07', {
+          type: 'override',
+          newStartTime: '10:00',
+        });
+
+        expect([skip.status, override.status]).toEqual([404, 404]);
+        expect(await prisma.blockException.count({ where: { blockId: a.block.id } })).toBe(0);
+      });
+
+      it('B não restaura a exceção de A (404) e ela continua valendo', async () => {
+        const a = await setupSeries();
+        const b = await registerUser(app);
+        await putException(a.user, a.block.id, '2026-10-07', { type: 'skip' });
+
+        expect((await removeException(b, a.block.id, '2026-10-07')).status).toBe(404);
+
+        expect(await occurrenceOn(a.user, '2026-10-05', '2026-10-07')).toMatchObject({
+          skipped: true,
+        });
+      });
+
+      it('o 404 de bloco alheio é igual ao de um bloco que não existe', async () => {
+        const a = await setupSeries();
+        const b = await registerUser(app);
+        const missing = '0192f1a0-7b3c-7000-8000-000000000999';
+
+        const foreign = await putException(b, a.block.id, '2026-10-07', { type: 'skip' });
+        const absent = await putException(b, missing, '2026-10-07', { type: 'skip' });
+
+        expect(foreign.status).toBe(absent.status);
+        expect(foreign.body).toEqual(absent.body);
+      });
+    });
+
+    describe('integração com a edição da série', () => {
+      it('pular uma ocorrência passada e depois editar "esta e as próximas" mantém o que foi pulado', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-09-16', { type: 'skip' });
+
+        await patchBlock(user, block.id, { from: '2026-10-07', startTime: '18:00' });
+
+        expect(await occurrenceOn(user, '2026-09-14', '2026-09-16')).toMatchObject({
+          skipped: true,
+          startTime: '09:00',
+        });
+        expect(await occurrenceOn(user, '2026-10-05', '2026-10-07')).toMatchObject({
+          skipped: false,
+          startTime: '18:00',
+        });
+      });
+
+      it('exceção feita antes da divisão acompanha a série nova (pulada continua pulada)', async () => {
+        const { user, block } = await setupSeries();
+        await putException(user, block.id, '2026-10-21', { type: 'skip' });
+
+        await patchBlock(user, block.id, { from: '2026-10-07', startTime: '18:00' });
+
+        expect(await occurrenceOn(user, '2026-10-19', '2026-10-21')).toMatchObject({
+          skipped: true,
+        });
+      });
+
+      it('exceção na série encerrada, depois da exclusão, responde 404', async () => {
+        const { user, block } = await setupSeries();
+        await deleteBlock(user, block.id, '2026-10-07');
+        expect((await putException(user, block.id, '2026-10-14', { type: 'skip' })).status).toBe(
+          404,
+        );
+      });
+    });
+
+    describe('concorrência', () => {
+      it('duas chamadas iguais ao mesmo tempo dão 200 e uma única exceção', async () => {
+        const { user, block } = await setupSeries();
+
+        const results = await Promise.all([
+          putException(user, block.id, '2026-10-07', { type: 'skip' }),
+          putException(user, block.id, '2026-10-07', { type: 'skip' }),
+          putException(user, block.id, '2026-10-07', { type: 'skip' }),
+        ]);
+
+        expect(results.map((res) => res.status)).toEqual([200, 200, 200]);
+        expect(await prisma.blockException.count({ where: { blockId: block.id } })).toBe(1);
+      });
+
+      it('pular durante a divisão da série fica consistente: uma só ocorrência por data, nada perdido', async () => {
+        const { user, block } = await setupSeries();
+        const original = await allOccurrences(user);
+
+        const [skip, edit] = await Promise.all([
+          putException(user, block.id, '2026-10-14', { type: 'skip' }),
+          patchBlock(user, block.id, { from: '2026-10-07', startTime: '18:00' }),
+        ]);
+
+        expect([200, 404]).toContain(skip.status);
+        expect(edit.status).toBe(200);
+        const after = await allOccurrences(user);
+        expect(after.map((o) => o.occurrenceDate)).toEqual(original.map((o) => o.occurrenceDate));
+        // se o skip foi aceito antes da divisão, ele acompanhou a série nova
+        const target = after.find((o) => o.occurrenceDate === '2026-10-14');
+        expect(target?.skipped).toBe(skip.status === 200);
+      });
+    });
+  });
 });

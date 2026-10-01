@@ -9,17 +9,27 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ZodResponse, ZodValidationPipe } from 'nestjs-zod';
-import { createBlockSchema, type CreateBlockInput } from '@lifexp/shared';
+import {
+  civilDateSchema,
+  createBlockSchema,
+  putExceptionSchema,
+  type CivilDate,
+  type CreateBlockInput,
+  type PutExceptionInput,
+} from '@lifexp/shared';
 import type { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CurrentUser } from '../auth/current-user.decorator.js';
 import {
   BlockDto,
+  BlockExceptionDto,
   CreateBlockDto,
   DeleteBlockQueryDto,
+  PutExceptionDto,
   UpdateBlockDto,
   WeekQueryDto,
   WeekResponseDto,
@@ -79,5 +89,34 @@ export class BlocksController {
     @Query() query: DeleteBlockQueryDto,
   ) {
     return this.blocksService.remove(user.id, id, query.from);
+  }
+
+  @Put(':id/exceptions/:date')
+  @ApiOperation({
+    summary: 'Pula ou altera só uma ocorrência',
+    description:
+      '`date` é a data ORIGINAL da ocorrência na série. `skip` pula; `override` muda dia (na mesma ' +
+      'semana), horário ou duração. Repetir a chamada é seguro.',
+  })
+  @ApiBody({ type: PutExceptionDto })
+  @ZodResponse({ type: BlockExceptionDto })
+  putException(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('date', new ZodValidationPipe(civilDateSchema)) date: CivilDate,
+    @Body(new ZodValidationPipe(putExceptionSchema)) body: PutExceptionInput,
+  ) {
+    return this.blocksService.putException(user.id, id, date, body);
+  }
+
+  @Delete(':id/exceptions/:date')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Restaura a ocorrência original (desfaz pular ou alterar)' })
+  removeException(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('date', new ZodValidationPipe(civilDateSchema)) date: CivilDate,
+  ) {
+    return this.blocksService.removeException(user.id, id, date);
   }
 }

@@ -6,21 +6,34 @@ import {
 } from '@nestjs/common';
 import {
   addDays,
+  endsSameDay,
+  weekStartOf,
   type Block,
+  type BlockException,
+  type CivilDate,
   type CreateBlockInput,
+  type PutExceptionInput,
   type UpdateBlockInput,
   type WeekResponse,
 } from '@lifexp/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { planDelete, planEdit, type NewBlockData } from './domain/series-split.js';
-import { computeWeekOccurrences } from './domain/week-occurrences.js';
-import { fromCivil, toBlockResponse, toBlockTemplate, toExceptionRule } from './blocks.mapper.js';
+import { computeWeekOccurrences, occursOn } from './domain/week-occurrences.js';
+import {
+  fromCivil,
+  toBlockResponse,
+  toBlockTemplate,
+  toExceptionResponse,
+  toExceptionRule,
+} from './blocks.mapper.js';
 
 const ACTIVITY_ARCHIVED = 'A atividade está arquivada. Restaure a atividade e a área primeiro';
 const FROM_AFTER_END = 'A série já terminou antes dessa data';
 const CROSSES_MIDNIGHT = 'O bloco não pode atravessar a meia-noite';
 const NOT_APPLICABLE = 'Esse campo não se aplica ao tipo do bloco';
+const NOT_AN_OCCURRENCE = 'Essa data não é uma ocorrência deste bloco';
+const SAME_WEEK_ONLY = 'Só é possível mover a ocorrência dentro da mesma semana';
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -189,6 +202,65 @@ export class BlocksService {
           where: { blockId: id, occurrenceDate: { in: plan.dropExceptions.map(fromCivil) } },
         });
       }
+    });
+  }
+
+  /**
+   * Pula ou altera SÓ aquela ocorrência (RF17, RF49). Idempotente: repetir o PUT com os mesmos
+   * dados dá o mesmo resultado, e trocar de "pular" para "alterar" substitui a exceção anterior.
+   */
+  async putException(
+    userId: string,
+    blockId: string,
+    occurrenceDate: CivilDate,
+    input: PutExceptionInput,
+  ): Promise<BlockException> {
+    return this.prisma.$transaction(async (tx) => {
+      // Mesmo bloqueio das edições da série: se a série está sendo dividida, esperamos e
+      // validamos contra o estado final.
+      const block = await this.lockAndLoad(tx, userId, blockId);
+      const template = toBlockTemplate(block, block.activity.areaId);
+      if (!occursOn(template, occurrenceDate)) throw new NotFoundException(NOT_AN_OCCURRENCE);
+
+      if (input.type === 'override') {
+        if (
+          input.newDate !== undefined &&
+          weekStartOf(input.newDate) !== weekStartOf(occurrenceDate)
+        ) {
+          throw new BadRequestException(SAME_WEEK_ONLY);
+        }
+        // Valida o resultado final, considerando o que não foi alterado (herdado do bloco).
+        const startTime = input.newStartTime ?? block.startTime;
+        const durationMin = input.newDurationMin ?? block.durationMin;
+        if (!endsSameDay(startTime, durationMin)) throw new BadRequestException(CROSSES_MIDNIGHT);
+      }
+
+      const data =
+        input.type === 'skip'
+          ? { type: 'SKIP' as const, newDate: null, newStartTime: null, newDurationMin: null }
+          : {
+              type: 'OVERRIDE' as const,
+              newDate: input.newDate === undefined ? null : fromCivil(input.newDate),
+              newStartTime: input.newStartTime ?? null,
+              newDurationMin: input.newDurationMin ?? null,
+            };
+
+      const rule = await tx.blockException.upsert({
+        where: { blockId_occurrenceDate: { blockId, occurrenceDate: fromCivil(occurrenceDate) } },
+        create: { blockId, occurrenceDate: fromCivil(occurrenceDate), ...data },
+        update: data,
+      });
+      return toExceptionResponse(rule);
+    });
+  }
+
+  /** Restaura a ocorrência original. Idempotente: sem exceção, não há o que restaurar e dá 204. */
+  async removeException(userId: string, blockId: string, occurrenceDate: CivilDate): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockAndLoad(tx, userId, blockId);
+      await tx.blockException.deleteMany({
+        where: { blockId, occurrenceDate: fromCivil(occurrenceDate) },
+      });
     });
   }
 
