@@ -187,6 +187,23 @@ describe('Concluir e desfazer (e2e)', () => {
       ).toBe(60);
     });
 
+    it('o horário do lançamento é o do relógio da aplicação (o mesmo da conclusão e do estorno)', async () => {
+      const { user, activity } = await setup();
+      const block = await createBlock(user, activity.id);
+      await complete(user, block.id);
+      clock.set('2026-10-07T16:30:00.000Z');
+      await undo(user, block.id);
+
+      const ledger = await ledgerOf(user.userId);
+      expect(ledger.map((entry) => entry.createdAt.toISOString())).toEqual([
+        NOON,
+        '2026-10-07T16:30:00.000Z',
+      ]);
+      const row = await prisma.completion.findFirstOrThrow({ where: { userId: user.userId } });
+      expect(row.completedAt.toISOString()).toBe(NOON);
+      expect(row.undoneAt?.toISOString()).toBe('2026-10-07T16:30:00.000Z');
+    });
+
     it('o XP segue duração x peso da atividade (RN01) e o teto de 300 (RN03)', async () => {
       const { user, activity } = await setup();
       await request(server())

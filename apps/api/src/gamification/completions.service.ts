@@ -5,12 +5,11 @@ import {
   levelProgress,
   type AreaProgress,
   type CivilDate,
-  type Completion,
   type CompletionResult,
   type UndoResult,
 } from '@lifexp/shared';
 import { lockAndLoadBlock } from '../blocks/block-lock.js';
-import { fromCivil, toBlockTemplate, toCivil, toExceptionRule } from '../blocks/blocks.mapper.js';
+import { fromCivil, toBlockTemplate, toExceptionRule } from '../blocks/blocks.mapper.js';
 import { occursOn, resolveOccurrence } from '../blocks/domain/week-occurrences.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
 import type { Completion as CompletionEntity, Prisma } from '../generated/prisma/client.js';
@@ -22,6 +21,7 @@ import {
   type CompleteBlockedReason,
   type CompletionWindow,
 } from './domain/completion-window.js';
+import { toCompletionDto } from './completion.mapper.js';
 import { applyXpDelta } from './domain/xp-ledger.js';
 
 const NOT_AN_OCCURRENCE = 'Essa data não é uma ocorrência deste bloco';
@@ -33,15 +33,6 @@ const COMPLETE_BLOCKED: Record<CompleteBlockedReason, string> = {
 const UNDO_BLOCKED = 'O prazo para desfazer terminou (vai até 23:59 do dia seguinte)';
 
 type Tx = Prisma.TransactionClient;
-
-function toCompletionDto(row: CompletionEntity): Completion {
-  return {
-    blockId: row.blockId,
-    occurrenceDate: toCivil(row.occurrenceDate),
-    completedAt: row.completedAt.toISOString(),
-    xpAmount: row.xpAmount,
-  };
-}
 
 @Injectable()
 export class CompletionsService {
@@ -103,6 +94,9 @@ export class CompletionsService {
           amount: xp,
           type: 'COMPLETION',
           sourceId: completion.id,
+          // O horário do lançamento vem do relógio da aplicação (o mesmo da conclusão), não do
+          // relógio do banco: é ele que define em que dia local o XP "caiu".
+          createdAt: now,
         },
       });
 
@@ -159,6 +153,7 @@ export class CompletionsService {
           type: 'REVERSAL',
           sourceId: completion.id,
           reversedTransactionId: original.id,
+          createdAt: now,
         },
       });
       await tx.completion.update({

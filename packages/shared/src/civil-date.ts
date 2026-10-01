@@ -64,9 +64,13 @@ export function compareCivil(a: CivilDate, b: CivilDate): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** "Hoje" para quem está no fuso informado (a data civil muda à meia-noite local, não à UTC). */
-export function todayIn(timezone: string, now: DateTime = DateTime.now()): CivilDate {
-  const local = now.setZone(timezone);
+/**
+ * "Hoje" para quem está no fuso informado (a data civil muda à meia-noite local, não à UTC).
+ * Aceita um `Date` (instante) ou um `DateTime` do Luxon.
+ */
+export function todayIn(timezone: string, now: DateTime | Date = DateTime.now()): CivilDate {
+  const instant = now instanceof Date ? DateTime.fromJSDate(now) : now;
+  const local = instant.setZone(timezone);
   if (!local.isValid) throw new Error(`Fuso inválido: ${timezone}`);
   return local.toISODate() as CivilDate;
 }

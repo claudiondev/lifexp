@@ -17,6 +17,7 @@ import {
   type WeekResponse,
 } from '@lifexp/shared';
 import type { Prisma } from '../generated/prisma/client.js';
+import { toCompletionDto } from '../gamification/completion.mapper.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { lockAndLoadBlock } from './block-lock.js';
 import { planDelete, planEdit, type NewBlockData } from './domain/series-split.js';
@@ -80,6 +81,8 @@ export class BlocksService {
       include: {
         activity: { select: { areaId: true } },
         exceptions: { where: { occurrenceDate: { gte: start, lte: end } } },
+        // Conclusões ativas (não desfeitas) da semana: vêm junto, sem query extra.
+        completions: { where: { occurrenceDate: { gte: start, lte: end }, undoneAt: null } },
       },
     });
 
@@ -88,8 +91,12 @@ export class BlocksService {
       blocks.map((block) => toBlockTemplate(block, block.activity.areaId)),
       blocks.flatMap((block) => block.exceptions.map(toExceptionRule)),
     );
-    // As conclusões entram na resposta quando o módulo de conclusão chegar (Marco 1d, task 5).
-    return { weekStart, weekEnd, occurrences, completions: [] };
+    return {
+      weekStart,
+      weekEnd,
+      occurrences,
+      completions: blocks.flatMap((block) => block.completions.map(toCompletionDto)),
+    };
   }
 
   async create(userId: string, input: CreateBlockInput): Promise<Block> {

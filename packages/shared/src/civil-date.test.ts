@@ -113,6 +113,20 @@ describe('todayIn (a data civil depende do fuso)', () => {
   it('rejeita fuso inexistente', () => {
     expect(() => todayIn('Marte/Olympus', now)).toThrow();
   });
+
+  it('aceita um Date comum e dá o mesmo resultado que o DateTime', () => {
+    const instant = new Date('2026-10-01T02:30:00.000Z');
+    expect(todayIn('America/Sao_Paulo', instant)).toBe('2026-09-30');
+    expect(todayIn('Asia/Tokyo', instant)).toBe('2026-10-01');
+    expect(todayIn('Pacific/Kiritimati', instant)).toBe('2026-10-01');
+    expect(todayIn('America/Sao_Paulo', instant)).toBe(todayIn('America/Sao_Paulo', now));
+  });
+
+  it('a virada do dia acontece exatamente à meia-noite local', () => {
+    // São Paulo (UTC-3): 02:59:59.999Z ainda é 23:59:59.999 do dia anterior; 03:00Z já é o dia novo
+    expect(todayIn('America/Sao_Paulo', new Date('2026-10-07T02:59:59.999Z'))).toBe('2026-10-06');
+    expect(todayIn('America/Sao_Paulo', new Date('2026-10-07T03:00:00.000Z'))).toBe('2026-10-07');
+  });
 });
 
 describe('horário do dia', () => {
