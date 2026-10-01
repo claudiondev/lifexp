@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { authResponseSchema } from '@lifexp/shared';
+import { DEFAULT_AREAS } from '../src/areas/domain/default-areas.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   createTestApp,
@@ -58,6 +59,40 @@ describe('Auth (e2e)', () => {
       expect(user.passwordHash).toMatch(/^\$argon2id\$/);
       expect(session.refreshTokenHash).not.toBe(token);
       expect(session.refreshTokenHash).toHaveLength(64);
+    });
+
+    it('cria as áreas padrão, cada uma com uma atividade de mesmo nome (RF08)', async () => {
+      const email = uniqueEmail();
+      await register(email);
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+      const areas = await prisma.area.findMany({
+        where: { userId: user.id },
+        include: { activities: true },
+        orderBy: { position: 'asc' },
+      });
+
+      expect(areas.map((area) => area.name)).toEqual(DEFAULT_AREAS.map((area) => area.name));
+      for (const area of areas) {
+        expect(area.archivedAt).toBeNull();
+        expect(area.activities).toHaveLength(1);
+        expect(area.activities[0]).toMatchObject({
+          name: area.name,
+          xpWeight: 1,
+          userId: user.id,
+          areaId: area.id,
+        });
+      }
+    });
+
+    it('não cria áreas quando o cadastro é rejeitado por e-mail repetido', async () => {
+      const email = uniqueEmail();
+      await register(email);
+      const before = await prisma.area.count();
+
+      await register(email);
+
+      expect(await prisma.area.count()).toBe(before);
     });
 
     it('rejeita e-mail repetido, ignorando maiúsculas, com 409', async () => {

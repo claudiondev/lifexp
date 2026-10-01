@@ -7,6 +7,7 @@ import type { AuthResponse, LoginInput, RegisterInput } from '@lifexp/shared';
 import type { Env } from '../config/env.schema.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { seedDefaultAreas } from '../areas/seed-default-areas.js';
 import { toUserResponse } from '../users/user.mapper.js';
 import {
   computeRefreshExpiry,
@@ -38,13 +39,18 @@ export class AuthService {
   async register(input: RegisterInput, userAgent?: string): Promise<AuthResult> {
     const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
     try {
-      const user = await this.prisma.user.create({
-        data: {
-          name: input.name,
-          email: input.email,
-          passwordHash,
-          timezone: input.timezone,
-        },
+      // Usuário e áreas padrão na mesma transação: ou a conta nasce completa, ou não nasce.
+      const user = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            timezone: input.timezone,
+          },
+        });
+        await seedDefaultAreas(tx, created.id);
+        return created;
       });
       return await this.startSession(user, randomUUID(), userAgent);
     } catch (error) {
