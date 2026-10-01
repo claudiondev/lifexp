@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { weekDates, type CivilDate } from '@lifexp/shared';
 import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
@@ -132,7 +133,7 @@ function AgendaCard({
   display: OccurrenceDisplay;
   onSelect: (display: OccurrenceDisplay) => void;
 }) {
-  const { occurrence, activityName, areaName, areaColor, areaIcon } = display;
+  const { occurrence, activityName, areaName, areaColor, areaIcon, completion } = display;
   const colors = AREA_COLOR_CLASSES[areaColor];
   const { Icon } = AREA_ICON_COMPONENTS[areaIcon];
   const range = timeRange(occurrence.startTime, occurrence.durationMin);
@@ -141,7 +142,7 @@ function AgendaCard({
     <button
       type="button"
       onClick={() => onSelect(display)}
-      aria-label={`${activityName}, ${weekdayLong(occurrence.date)}, ${range}${occurrence.skipped ? ', pulado' : ''}`}
+      aria-label={`${activityName}, ${weekdayLong(occurrence.date)}, ${range}${occurrence.skipped ? ', pulado' : ''}${display.completion ? ', concluído' : ''}`}
       className={cn(
         'relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-l-4 p-4 text-left transition-[filter] active:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         colors.soft,
@@ -179,6 +180,11 @@ function AgendaCard({
         </span>
         <span className="block text-xs text-muted-foreground">{areaName}</span>
       </span>
+      {completion && (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-xp/40 bg-xp/10 px-2 py-0.5 font-hud text-xs font-medium text-xp tabular-nums">
+          <Check aria-hidden className="size-3" />+{completion.xpAmount} XP
+        </span>
+      )}
       {occurrence.skipped && (
         <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
           Pulado

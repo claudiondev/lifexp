@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Occurrence } from '@lifexp/shared';
+import type { Completion, Occurrence } from '@lifexp/shared';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { setAccessToken } from '@/lib/apiClient';
 import { WeekPage } from '@/pages/WeekPage';
@@ -50,8 +50,12 @@ interface Call {
   body?: Record<string, unknown>;
 }
 
-function setup(initial: Occurrence[], options: { failWith?: number } = {}) {
+function setup(
+  initial: Occurrence[],
+  options: { failWith?: number; completions?: Completion[] } = {},
+) {
   let occurrences = initial.map((o) => ({ ...o }));
+  let completions = [...(options.completions ?? [])];
   const originals = new Map(initial.map((o) => [`${o.blockId}|${o.occurrenceDate}`, { ...o }]));
   const calls: Call[] = [];
 
@@ -105,6 +109,7 @@ function setup(initial: Occurrence[], options: { failWith?: number } = {}) {
           weekStart,
           weekEnd: '2026-10-11',
           occurrences: weekStart === '2026-10-05' ? occurrences : [],
+          completions: weekStart === '2026-10-05' ? completions : [],
         });
       }
 
@@ -112,6 +117,15 @@ function setup(initial: Occurrence[], options: { failWith?: number } = {}) {
       calls.push({ method, url, body });
       if (options.failWith)
         return json(options.failWith, { message: 'Algo deu errado no servidor' });
+
+      if (url.endsWith('/completion') && method === 'DELETE') {
+        completions = [];
+        return json(200, {
+          xpReverted: 60,
+          total: { xp: 0, level: 1, xpIntoLevel: 0, xpForNextLevel: 100, progress: 0 },
+          area: null,
+        });
+      }
 
       const exception = url.match(/^\/api\/blocks\/([^/]+)\/exceptions\/(\d{4}-\d{2}-\d{2})$/);
       if (exception) {
@@ -247,6 +261,81 @@ describe('ações por ocorrência', () => {
       setup([onceOccurrence()]);
       await userEvent.click(await card(/Reunião, quinta-feira/));
       expect(within(await dialog()).getByText(/Bloco avulso/)).toBeInTheDocument();
+    });
+  });
+
+  describe('ocorrência concluída', () => {
+    const done: Completion = {
+      blockId: WEEKLY_ID,
+      occurrenceDate: '2026-10-07',
+      completedAt: '2026-10-07T13:00:00.000Z',
+      xpAmount: 60,
+    };
+
+    it('aparece como concluída na grade e mostra o XP no painel', async () => {
+      setup([weeklyOccurrence()], { completions: [done] });
+
+      const button = await card(/Reunião, quarta-feira.*concluído/);
+      // o card da grade traz o ✓ e o XP ganho
+      expect(button).toHaveTextContent('+60 XP');
+      expect(button.querySelector('svg.lucide-check')).not.toBeNull();
+
+      await userEvent.click(button);
+      expect(within(await dialog()).getByText('Concluída: +60 XP')).toBeInTheDocument();
+    });
+
+    it('a ocorrência movida de dia continua ligada à conclusão pela data ORIGINAL', async () => {
+      // era quarta (07), foi movida para quinta (08); a conclusão é da data original 07
+      setup([weeklyOccurrence({ date: '2026-10-08', modified: true })], { completions: [done] });
+
+      expect(await card(/Reunião, quinta-feira.*concluído/)).toBeInTheDocument();
+    });
+
+    it('não oferece pular nem alterar só esta, mas oferece desfazer a conclusão', async () => {
+      setup([weeklyOccurrence()], { completions: [done] });
+      await userEvent.click(await card(/Reunião/));
+
+      const panel = within(await dialog());
+      expect(panel.getByRole('button', { name: /Desfazer conclusão/ })).toBeInTheDocument();
+      expect(panel.queryByRole('button', { name: /Pular só esta/ })).not.toBeInTheDocument();
+      expect(panel.queryByRole('button', { name: /Alterar só esta/ })).not.toBeInTheDocument();
+      expect(panel.getByRole('button', { name: /Editar esta e as próximas/ })).toBeInTheDocument();
+    });
+
+    it('desfazer conclusão chama a API, avisa o XP devolvido e tira o ✓ da grade', async () => {
+      const { calls } = setup([weeklyOccurrence()], { completions: [done] });
+      await userEvent.click(await card(/Reunião/));
+
+      await userEvent.click(
+        within(await dialog()).getByRole('button', { name: /Desfazer conclusão/ }),
+      );
+
+      await waitFor(() =>
+        expect(writes(calls)).toEqual([
+          `DELETE /api/blocks/${WEEKLY_ID}/occurrences/2026-10-07/completion`,
+        ]),
+      );
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('Conclusão de “Reunião” desfeita', {
+          description: '60 XP devolvidos.',
+        }),
+      );
+      expect(await card(/Reunião, quarta-feira, 09:00 às 10:00$/)).toBeInTheDocument();
+    });
+
+    it('sem conclusão, o painel não fala em desfazer conclusão', async () => {
+      setup([weeklyOccurrence()]);
+      await userEvent.click(await card(/Reunião/));
+
+      const panel = within(await dialog());
+      expect(panel.queryByRole('button', { name: /Desfazer conclusão/ })).not.toBeInTheDocument();
+      expect(panel.getByRole('button', { name: /Pular só esta/ })).toBeInTheDocument();
+    });
+
+    it('conclusão de outra ocorrência não marca esta', async () => {
+      setup([weeklyOccurrence()], { completions: [{ ...done, occurrenceDate: '2026-10-14' }] });
+
+      expect(await card(/Reunião, quarta-feira, 09:00 às 10:00$/)).toBeInTheDocument();
     });
   });
 

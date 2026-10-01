@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Occurrence } from '@lifexp/shared';
+import type { Completion, Occurrence } from '@lifexp/shared';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { setAccessToken } from '@/lib/apiClient';
 import { WeekPage } from './WeekPage';
@@ -47,6 +47,17 @@ const WEEKS: Record<string, Occurrence[]> = {
       date: '2026-10-12',
       startTime: '07:00',
     }), // segunda da semana seguinte
+  ],
+};
+
+const COMPLETIONS: Record<string, Completion[]> = {
+  '2026-10-05': [
+    {
+      blockId: '0192f1a0-7b3c-7000-8000-0000000000c1',
+      occurrenceDate: '2026-10-07',
+      completedAt: '2026-10-07T13:00:00.000Z',
+      xpAmount: 60,
+    }, // a Reunião de quarta
   ],
 };
 
@@ -102,7 +113,12 @@ function setup(isDesktop = false) {
       }
       if (url.startsWith('/api/blocks/week')) {
         const weekStart = new URL(url, 'http://x').searchParams.get('weekStart') as string;
-        return json(200, { weekStart, weekEnd: weekStart, occurrences: WEEKS[weekStart] ?? [] });
+        return json(200, {
+          weekStart,
+          weekEnd: weekStart,
+          occurrences: WEEKS[weekStart] ?? [],
+          completions: COMPLETIONS[weekStart] ?? [],
+        });
       }
       return json(404);
     }),
@@ -161,6 +177,21 @@ describe('WeekPage no celular (visão dia a dia)', () => {
     expect(within(panel()).queryByRole('button', { name: /Leitura/ })).not.toBeInTheDocument();
   });
 
+  it('marca como concluído, com o XP, só o bloco que foi concluído', async () => {
+    setup(false);
+    await tab(/quarta-feira.*\(hoje\)/);
+
+    const done = within(panel()).getByRole('button', {
+      name: /Reunião, quarta-feira.*, concluído/,
+    });
+    expect(done).toHaveTextContent('+60 XP');
+
+    await userEvent.click(await tab(/sexta-feira/));
+    const pending = within(panel()).getByRole('button', { name: /Leitura, sexta-feira/ });
+    expect(pending).not.toHaveTextContent('XP');
+    expect(pending).not.toHaveAccessibleName(/concluído/);
+  });
+
   it('trocar de dia mostra os blocos do outro dia', async () => {
     setup(false);
     await userEvent.click(await tab(/sexta-feira/));
@@ -178,7 +209,8 @@ describe('WeekPage no celular (visão dia a dia)', () => {
     );
 
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByRole('button', { name: /Pular só esta/ })).toBeInTheDocument();
+    // a Reunião de quarta está concluída neste cenário: o painel oferece desfazer, não pular
+    expect(within(dialog).getByRole('button', { name: /Desfazer conclusão/ })).toBeInTheDocument();
   });
 
   it('em outra semana abre na segunda-feira, e "Hoje" volta ao dia de hoje', async () => {

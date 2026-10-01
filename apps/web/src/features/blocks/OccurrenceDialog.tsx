@@ -1,5 +1,13 @@
 import { weekdayOf, type CivilDate } from '@lifexp/shared';
-import { ArchiveRestore, CalendarClock, Pencil, SkipForward, Trash2, Undo2 } from 'lucide-react';
+import {
+  ArchiveRestore,
+  CalendarClock,
+  CircleCheck,
+  Pencil,
+  SkipForward,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -13,6 +21,7 @@ import { EditSeriesForm } from './EditSeriesForm';
 import type { OccurrenceDisplay } from './OccurrenceCard';
 import { timeRange } from './OccurrenceCard';
 import { OverrideForm } from './OverrideForm';
+import { useCompletionMutations } from '../today/useCompletionMutations';
 import { useBlockMutations } from './useBlockMutations';
 
 type Mode = 'details' | 'override' | 'edit' | 'delete';
@@ -86,6 +95,12 @@ function OccurrencePanel({
           <dt className="text-muted-foreground">Repetição</dt>
           <dd className="text-right font-medium">{recurrenceText(display)}</dd>
         </div>
+        {display.completion && (
+          <p className="mt-1 flex items-center gap-1.5 font-medium text-xp">
+            <CircleCheck aria-hidden className="size-4" />
+            Concluída: +{display.completion.xpAmount} XP
+          </p>
+        )}
         {occurrence.skipped && (
           <p className="mt-1 text-muted-foreground">Esta ocorrência está pulada.</p>
         )}
@@ -182,9 +197,20 @@ function Actions({
 }) {
   const { occurrence, activityName } = display;
   const { setException, restore } = useBlockMutations();
+  const { undo: undoCompletion } = useCompletionMutations();
   const { serverError, run } = useServerError();
   const ref = { blockId: occurrence.blockId, occurrenceDate: occurrence.occurrenceDate };
-  const busy = setException.isPending || restore.isPending;
+  const busy = setException.isPending || restore.isPending || undoCompletion.isPending;
+  const completed = display.completion !== undefined;
+
+  const undoDone = () =>
+    run(async () => {
+      const result = await undoCompletion.mutateAsync(ref);
+      toast.success(`Conclusão de “${activityName}” desfeita`, {
+        description: `${result.xpReverted} XP devolvidos.`,
+      });
+      onClose();
+    });
 
   const undo = () =>
     restore.mutate(ref, {
@@ -211,7 +237,16 @@ function Actions({
 
   return (
     <div className="flex flex-col gap-2">
-      {occurrence.skipped ? (
+      {completed ? (
+        // Concluída: a API bloqueia pular e alterar só esta ocorrência; desfazer a conclusão libera.
+        <ActionButton
+          icon={<Undo2 className="size-4" />}
+          title="Desfazer conclusão"
+          hint="Devolve o XP. Só dá até 23:59 do dia seguinte ao bloco."
+          disabled={busy}
+          onClick={() => void undoDone()}
+        />
+      ) : occurrence.skipped ? (
         <ActionButton
           icon={<ArchiveRestore className="size-4" />}
           title="Restaurar esta ocorrência"

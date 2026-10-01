@@ -71,6 +71,12 @@ export function WeekPage() {
     if (!week.data || !activities.data || !areas.data) return [];
     const activityById = new Map(activities.data.map((activity) => [activity.id, activity]));
     const areaById = new Map(areas.data.map((area) => [area.id, area]));
+    const completionByOccurrence = new Map(
+      week.data.completions.map((completion) => [
+        `${completion.blockId}:${completion.occurrenceDate}`,
+        completion,
+      ]),
+    );
     return week.data.occurrences.map((occurrence) => {
       const area = areaById.get(occurrence.areaId);
       return {
@@ -79,6 +85,9 @@ export function WeekPage() {
         areaName: area?.name ?? 'Área',
         areaColor: area?.color ?? 'slate',
         areaIcon: area?.icon ?? 'star',
+        completion: completionByOccurrence.get(
+          `${occurrence.blockId}:${occurrence.occurrenceDate}`,
+        ),
       };
     });
   }, [week.data, activities.data, areas.data]);

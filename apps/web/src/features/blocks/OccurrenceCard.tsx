@@ -1,4 +1,5 @@
-import { minutesToTime, timeToMinutes, type Occurrence } from '@lifexp/shared';
+import { minutesToTime, timeToMinutes, type Completion, type Occurrence } from '@lifexp/shared';
+import { Check } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 import { AREA_COLOR_CLASSES, AREA_ICON_COMPONENTS } from '../areas/areaAppearance';
@@ -10,6 +11,8 @@ export interface OccurrenceDisplay {
   areaName: string;
   areaColor: AreaColor;
   areaIcon: AreaIcon;
+  /** A conclusão ativa desta ocorrência, se houver. */
+  completion?: Completion;
 }
 
 interface OccurrenceCardProps {
@@ -26,7 +29,7 @@ export function timeRange(startTime: string, durationMin: number): string {
 }
 
 export function OccurrenceCard({ display, label, style, compact, onSelect }: OccurrenceCardProps) {
-  const { occurrence, activityName, areaColor, areaIcon } = display;
+  const { occurrence, activityName, areaColor, areaIcon, completion } = display;
   const colors = AREA_COLOR_CLASSES[areaColor];
   const { Icon } = AREA_ICON_COMPONENTS[areaIcon];
 
@@ -42,6 +45,7 @@ export function OccurrenceCard({ display, label, style, compact, onSelect }: Occ
         colors.soft,
         colors.border,
         occurrence.skipped && 'border-dashed opacity-55',
+        completion && 'border-xp/50',
       )}
     >
       <div
@@ -59,10 +63,16 @@ export function OccurrenceCard({ display, label, style, compact, onSelect }: Occ
       >
         <Icon aria-hidden className={cn('size-3 shrink-0', colors.text)} />
         <span className="truncate">{activityName}</span>
+        {completion && <Check aria-hidden className="ml-auto size-3.5 shrink-0 text-xp" />}
       </p>
       {!compact && !occurrence.skipped && (
         <p className="mt-0.5 font-hud text-[0.7rem] text-muted-foreground tabular-nums">
           {timeRange(occurrence.startTime, occurrence.durationMin)}
+        </p>
+      )}
+      {!compact && completion && (
+        <p className="mt-0.5 font-hud text-[0.7rem] font-medium text-xp tabular-nums">
+          +{completion.xpAmount} XP
         </p>
       )}
       {!compact && occurrence.skipped && (

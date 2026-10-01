@@ -101,7 +101,7 @@ export function WeekGrid({ weekStart, today, nowMinutes, items, onSelect }: Week
                           label={`${activityName}, ${weekdayLong(date)}, ${timeRange(
                             occurrence.startTime,
                             occurrence.durationMin,
-                          )}${occurrence.skipped ? ', pulado' : ''}`}
+                          )}${occurrence.skipped ? ', pulado' : ''}${item.completion ? ', concluído' : ''}`}
                           compact={(occurrence.durationMin / 60) * HOUR_PX < 40}
                           onSelect={onSelect}
                           style={{
