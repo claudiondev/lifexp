@@ -1,6 +1,6 @@
 # LifeXP — contexto para o Claude
 
-Planejador semanal gamificado e multiusuário. Requisitos completos: `docs/requisitos-v2.pdf`
+Planejador semanal gamificado e multiusuário. Requisitos completos: `docs/requisitos-v2.pdf` (pasta `docs/` é local e está no `.gitignore`; não é versionada)
 (RF = requisitos funcionais, RN = regras de negócio, RS = segurança, RNF = não funcionais).
 Projeto de aprendizado de TypeScript (vindo de Java/Spring Boot) e portfólio: explique brevemente
 decisões não óbvias, comparando com Spring quando ajudar. Responda em português.
@@ -41,6 +41,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - ESM em tudo: imports relativos no `api` e no `shared` levam extensão `.js`.
 - Commits pequenos, semânticos e em português (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `ci:`),
   **sem marca d'água/atribuição** de IA. Um commit por task.
+- Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marco atual: **0 (Fundação)** concluído.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
   `apps/web/src/features/<feature>`.
@@ -48,6 +49,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 ## Comandos
 
 ```bash
+cp .env.example .env && cp apps/api/.env.example apps/api/.env   # segredos: nunca versionar
 pnpm install            # também roda prisma generate (postinstall da api)
 docker compose up -d    # PostgreSQL
 pnpm dev                # shared (watch) + api :3000 + web :5173

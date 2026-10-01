@@ -10,3 +10,6 @@ coverage/
 .vscode/
 *.log
 apps/api/src/generated/
+
+# Documento de requisitos / plano (uso local)
+docs/

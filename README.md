@@ -1,8 +1,7 @@
 # LifeXP
 
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
-vida, cumpre os blocos, ganha XP e evolui. Veja o documento completo em
-[`docs/requisitos-v2.pdf`](docs/requisitos-v2.pdf).
+vida, cumpre os blocos, ganha XP e evolui.
 
 > Status: **Marco 0 (Fundação)**. Existe apenas a infraestrutura; as funcionalidades entram nos
 > próximos marcos.
@@ -30,7 +29,8 @@ vida, cumpre os blocos, ganha XP e evolui. Veja o documento completo em
 # 1. dependências (gera também o Prisma Client)
 pnpm install
 
-# 2. variáveis de ambiente
+# 2. variáveis de ambiente (troque a senha; use a mesma nos dois arquivos)
+cp .env.example .env
 cp apps/api/.env.example apps/api/.env
 
 # 3. banco de dados
@@ -63,7 +63,6 @@ produção (mesma origem, cookie `SameSite=Strict`).
 apps/api         NestJS (controller → service → repository só se a consulta for complexa)
 apps/web         React + Vite
 packages/shared  Schemas Zod, tipos e regras puras usados por api e web
-docs             Documento de requisitos
 ```
 
 ## Decisões de arquitetura
