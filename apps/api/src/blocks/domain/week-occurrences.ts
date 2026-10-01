@@ -37,6 +37,34 @@ export function occursOn(block: BlockTemplate, date: CivilDate): boolean {
   return true;
 }
 
+export interface ResolvedOccurrence {
+  /** Dia efetivo (muda se a ocorrência foi movida). */
+  date: CivilDate;
+  startTime: string;
+  durationMin: number;
+  skipped: boolean;
+  modified: boolean;
+}
+
+/**
+ * Valores EFETIVOS de uma ocorrência: o do template, com a exceção aplicada por cima (pular marca
+ * como pulada; alterar troca dia, horário e/ou duração). É a mesma regra da grade e da conclusão.
+ */
+export function resolveOccurrence(
+  block: Pick<BlockTemplate, 'startTime' | 'durationMin'>,
+  rule: ExceptionRule | undefined,
+  occurrenceDate: CivilDate,
+): ResolvedOccurrence {
+  const overridden = rule?.type === 'override';
+  return {
+    date: overridden ? (rule.newDate ?? occurrenceDate) : occurrenceDate,
+    startTime: overridden ? (rule.newStartTime ?? block.startTime) : block.startTime,
+    durationMin: overridden ? (rule.newDurationMin ?? block.durationMin) : block.durationMin,
+    skipped: rule?.type === 'skip',
+    modified: overridden,
+  };
+}
+
 function compareOccurrences(a: Occurrence, b: Occurrence): number {
   return (
     a.date.localeCompare(b.date) ||
@@ -71,20 +99,19 @@ export function computeWeekOccurrences(
     for (const block of blocks) {
       if (!occursOn(block, date)) continue;
 
-      const rule = exceptionByKey.get(`${block.id}|${date}`);
-      const overridden = rule?.type === 'override';
+      const resolved = resolveOccurrence(block, exceptionByKey.get(`${block.id}|${date}`), date);
 
       occurrences.push({
         blockId: block.id,
         occurrenceDate: date,
-        date: overridden ? (rule.newDate ?? date) : date,
-        startTime: overridden ? (rule.newStartTime ?? block.startTime) : block.startTime,
-        durationMin: overridden ? (rule.newDurationMin ?? block.durationMin) : block.durationMin,
+        date: resolved.date,
+        startTime: resolved.startTime,
+        durationMin: resolved.durationMin,
         activityId: block.activityId,
         areaId: block.areaId,
         recurrence: block.recurrence,
-        skipped: rule?.type === 'skip',
-        modified: overridden,
+        skipped: resolved.skipped,
+        modified: resolved.modified,
       });
     }
   }

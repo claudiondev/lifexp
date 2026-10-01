@@ -18,6 +18,7 @@ import {
 } from '@lifexp/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { lockAndLoadBlock } from './block-lock.js';
 import { planDelete, planEdit, type NewBlockData } from './domain/series-split.js';
 import { computeWeekOccurrences, occursOn } from './domain/week-occurrences.js';
 import {
@@ -34,8 +35,6 @@ const CROSSES_MIDNIGHT = 'O bloco não pode atravessar a meia-noite';
 const NOT_APPLICABLE = 'Esse campo não se aplica ao tipo do bloco';
 const NOT_AN_OCCURRENCE = 'Essa data não é uma ocorrência deste bloco';
 const SAME_WEEK_ONLY = 'Só é possível mover a ocorrência dentro da mesma semana';
-
-type TransactionClient = Prisma.TransactionClient;
 
 /** Campos de data do plano (texto civil) viram Date UTC para o Prisma. */
 function toBlockData(fields: Partial<NewBlockData>): Prisma.BlockUncheckedUpdateInput {
@@ -133,7 +132,7 @@ export class BlocksService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const current = await this.lockAndLoad(tx, userId, id);
+      const current = await lockAndLoadBlock(tx, userId, id);
       const plan = planEdit(
         toBlockTemplate(current, current.activity.areaId),
         from,
@@ -184,7 +183,7 @@ export class BlocksService {
    */
   async remove(userId: string, id: string, from: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const current = await this.lockAndLoad(tx, userId, id);
+      const current = await lockAndLoadBlock(tx, userId, id);
       const plan = planDelete(
         toBlockTemplate(current, current.activity.areaId),
         from,
@@ -219,7 +218,7 @@ export class BlocksService {
     return this.prisma.$transaction(async (tx) => {
       // Mesmo bloqueio das edições da série: se a série está sendo dividida, esperamos e
       // validamos contra o estado final.
-      const block = await this.lockAndLoad(tx, userId, blockId);
+      const block = await lockAndLoadBlock(tx, userId, blockId);
       const template = toBlockTemplate(block, block.activity.areaId);
       if (!occursOn(template, occurrenceDate)) throw new NotFoundException(NOT_AN_OCCURRENCE);
 
@@ -258,28 +257,10 @@ export class BlocksService {
   /** Restaura a ocorrência original. Idempotente: sem exceção, não há o que restaurar e dá 204. */
   async removeException(userId: string, blockId: string, occurrenceDate: CivilDate): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await this.lockAndLoad(tx, userId, blockId);
+      await lockAndLoadBlock(tx, userId, blockId);
       await tx.blockException.deleteMany({
         where: { blockId, occurrenceDate: fromCivil(occurrenceDate) },
       });
-    });
-  }
-
-  /**
-   * Carrega o bloco da pessoa já travando a linha (SELECT ... FOR UPDATE): duas edições simultâneas
-   * da mesma série esperam uma pela outra em vez de se atropelarem. Bloco de outra pessoa
-   * responde 404, igual a um que não existe (RS06).
-   */
-  private async lockAndLoad(tx: TransactionClient, userId: string, id: string) {
-    const owned = await tx.block.findFirst({ where: { id, userId }, select: { id: true } });
-    if (!owned) throw new NotFoundException('Bloco não encontrado');
-
-    await tx.$queryRaw`SELECT "id" FROM "Block" WHERE "id" = ${id} FOR UPDATE`;
-
-    // Relê depois do bloqueio: outra edição pode ter terminado enquanto esperávamos.
-    return tx.block.findUniqueOrThrow({
-      where: { id },
-      include: { activity: { select: { areaId: true } }, exceptions: true },
     });
   }
 

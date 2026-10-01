@@ -1,6 +1,7 @@
 import type { Occurrence } from '@lifexp/shared';
 import {
   computeWeekOccurrences,
+  resolveOccurrence,
   type BlockTemplate,
   type ExceptionRule,
 } from './week-occurrences.js';
@@ -336,5 +337,73 @@ describe('computeWeekOccurrences: calendário', () => {
     const before = JSON.stringify({ block, exceptions });
     computeWeekOccurrences(WEEK, [block], exceptions);
     expect(JSON.stringify({ block, exceptions })).toBe(before);
+  });
+});
+
+describe('resolveOccurrence: os valores efetivos de uma ocorrência', () => {
+  const block = { startTime: '09:00', durationMin: 60 };
+  const date = '2026-10-07';
+  const rule = (overrides: Partial<ExceptionRule>): ExceptionRule => ({
+    blockId: 'b',
+    occurrenceDate: date,
+    type: 'override',
+    newDate: null,
+    newStartTime: null,
+    newDurationMin: null,
+    ...overrides,
+  });
+
+  it('sem exceção, vale o template', () => {
+    expect(resolveOccurrence(block, undefined, date)).toEqual({
+      date,
+      startTime: '09:00',
+      durationMin: 60,
+      skipped: false,
+      modified: false,
+    });
+  });
+
+  it('pular marca como pulada e não altera os valores', () => {
+    expect(resolveOccurrence(block, rule({ type: 'skip' }), date)).toEqual({
+      date,
+      startTime: '09:00',
+      durationMin: 60,
+      skipped: true,
+      modified: false,
+    });
+  });
+
+  it('alterar troca só o que foi informado e marca como alterada', () => {
+    expect(resolveOccurrence(block, rule({ newStartTime: '14:30' }), date)).toMatchObject({
+      date,
+      startTime: '14:30',
+      durationMin: 60,
+      modified: true,
+      skipped: false,
+    });
+    expect(resolveOccurrence(block, rule({ newDurationMin: 30 }), date)).toMatchObject({
+      startTime: '09:00',
+      durationMin: 30,
+    });
+    expect(resolveOccurrence(block, rule({ newDate: '2026-10-09' }), date)).toMatchObject({
+      date: '2026-10-09',
+      startTime: '09:00',
+    });
+  });
+
+  it('combina dia, horário e duração', () => {
+    expect(
+      resolveOccurrence(
+        block,
+        rule({ newDate: '2026-10-09', newStartTime: '18:00', newDurationMin: 45 }),
+        date,
+      ),
+    ).toEqual({
+      date: '2026-10-09',
+      startTime: '18:00',
+      durationMin: 45,
+      skipped: false,
+      modified: true,
+    });
   });
 });
