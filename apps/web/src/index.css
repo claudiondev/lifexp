@@ -1,1 +1,123 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/figtree';
+@import '@fontsource/chakra-petch/500.css';
+@import '@fontsource/chakra-petch/700.css';
+
+/*
+ * Tokens do LifeXP — HUD de RPG.
+ * Escuro é o padrão ("Void Ink"); com prefers-color-scheme: light vira "pergaminho" (RNF10).
+ * Nomes semânticos (background, primary...) são os que os componentes shadcn esperam;
+ * xp / mana são tokens do jogo: xp = conquista (ouro), mana = progresso e descanso (musgo).
+ */
+:root {
+  --background: #0e0b1a;
+  --foreground: #f3e9d2;
+  --card: #1a1530;
+  --card-foreground: #f3e9d2;
+  --popover: #1a1530;
+  --popover-foreground: #f3e9d2;
+  --primary: #6d4aff;
+  --primary-foreground: #ffffff;
+  --secondary: #261f45;
+  --secondary-foreground: #f3e9d2;
+  --muted: #221b3d;
+  --muted-foreground: #a79fc4;
+  --accent: #2c2452;
+  --accent-foreground: #f3e9d2;
+  --destructive: #ff7b7b;
+  --border: #2e2650;
+  --input: #2e2650;
+  --ring: #9d84ff;
+  --xp: #ffb547;
+  --mana: #3ddbb0;
+  --radius: 0.75rem;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #f6eedc;
+    --foreground: #1b1530;
+    --card: #fffbf0;
+    --card-foreground: #1b1530;
+    --popover: #fffbf0;
+    --popover-foreground: #1b1530;
+    --primary: #5b3be0;
+    --primary-foreground: #ffffff;
+    --secondary: #ece1c8;
+    --secondary-foreground: #1b1530;
+    --muted: #efe5cc;
+    --muted-foreground: #5c5578;
+    --accent: #e6d9ba;
+    --accent-foreground: #1b1530;
+    --destructive: #c42b2b;
+    --border: #e0d2b2;
+    --input: #cfbf9b;
+    --ring: #5b3be0;
+    --xp: #b86e00;
+    --mana: #0f8f6e;
+    color-scheme: light;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-xp: var(--xp);
+  --color-mana: var(--mana);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Figtree Variable', ui-sans-serif, sans-serif;
+  --font-hud: 'Chakra Petch', ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
