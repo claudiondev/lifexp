@@ -11,6 +11,7 @@ const json = (status: number, body: unknown = {}) =>
 const progress = {
   total: { xp: 250, level: 3, xpIntoLevel: 50, xpForNextLevel: 183, progress: 0.27 },
   areas: [],
+  streak: { current: 4, best: 9, lastFulfilledDate: '2026-10-07' },
 };
 
 function wrapper({ children }: { children: ReactNode }) {

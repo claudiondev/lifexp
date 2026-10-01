@@ -68,7 +68,12 @@ function setup({ items, completeResponse }: Options) {
       if (url === '/api/today') {
         return json(200, { date: '2026-10-07', items, xpToday: 90, total: level(100, 2) });
       }
-      if (url === '/api/progress') return json(200, { total: level(totalXp, 2), areas: [] });
+      if (url === '/api/progress')
+        return json(200, {
+          total: level(totalXp, 2),
+          areas: [],
+          streak: { current: 0, best: 0, lastFulfilledDate: null },
+        });
       if (url.startsWith('/api/activities')) {
         return json(200, [
           { id: ACT_RUN, areaId: AREA, name: 'Corrida', xpWeight: 1.5, archivedAt: null },

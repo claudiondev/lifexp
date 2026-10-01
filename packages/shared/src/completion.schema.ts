@@ -16,10 +16,21 @@ export const levelProgressSchema = z.object({
 
 export const areaProgressSchema = levelProgressSchema.extend({ areaId: z.uuid() });
 
-/** XP e nível geral e por área (RF20). */
+/** Sequência de dias planejados cumpridos (RF21). Dias sem bloco planejado são neutros. */
+export const streakSchema = z.object({
+  /** Dias planejados seguidos em que ao menos um bloco foi cumprido. */
+  current: nonNegativeInt,
+  /** O maior `current` que a pessoa já teve. */
+  best: nonNegativeInt,
+  /** Último dia planejado em que cumpriu algo; nulo se ainda não cumpriu nenhum. */
+  lastFulfilledDate: civilDateSchema.nullable(),
+});
+
+/** XP e nível geral e por área (RF20) e streak (RF21). */
 export const progressSchema = z.object({
   total: levelProgressSchema,
   areas: z.array(areaProgressSchema),
+  streak: streakSchema,
 });
 
 /** Uma ocorrência concluída, identificada por (blockId, occurrenceDate), conforme RN32. */
@@ -51,6 +62,7 @@ export const undoResultSchema = z.object({
 
 export type LevelProgressDto = z.infer<typeof levelProgressSchema>;
 export type AreaProgress = z.infer<typeof areaProgressSchema>;
+export type Streak = z.infer<typeof streakSchema>;
 export type Progress = z.infer<typeof progressSchema>;
 export type Completion = z.infer<typeof completionSchema>;
 export type CompletionResult = z.infer<typeof completionResultSchema>;

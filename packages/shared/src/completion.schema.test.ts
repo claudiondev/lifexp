@@ -6,6 +6,7 @@ import {
   completionSchema,
   levelProgressSchema,
   progressSchema,
+  streakSchema,
   undoResultSchema,
 } from './completion.schema.js';
 import { occurrenceStatusSchema, todayItemSchema, todayResponseSchema } from './today.schema.js';
@@ -51,10 +52,32 @@ describe('levelProgressSchema / progressSchema', () => {
     const area = { ...levelProgress(30), areaId: id(3) };
     expect(areaProgressSchema.safeParse(area).success).toBe(true);
     expect(areaProgressSchema.safeParse({ ...area, areaId: 'x' }).success).toBe(false);
+    const streak = { current: 2, best: 5, lastFulfilledDate: '2026-10-07' };
+    expect(
+      progressSchema.safeParse({ total: levelProgress(30), areas: [area], streak }).success,
+    ).toBe(true);
     expect(progressSchema.safeParse({ total: levelProgress(30), areas: [area] }).success).toBe(
+      false,
+    );
+    expect(progressSchema.safeParse({ total: levelProgress(30), streak }).success).toBe(false);
+  });
+});
+
+describe('streakSchema', () => {
+  it('aceita streak zerado (sem dia cumprido) e com dia cumprido', () => {
+    expect(streakSchema.safeParse({ current: 0, best: 0, lastFulfilledDate: null }).success).toBe(
       true,
     );
-    expect(progressSchema.safeParse({ total: levelProgress(30) }).success).toBe(false);
+    expect(
+      streakSchema.safeParse({ current: 3, best: 3, lastFulfilledDate: '2026-10-07' }).success,
+    ).toBe(true);
+  });
+
+  it('rejeita negativos, fracionados e data inválida', () => {
+    const ok = { current: 1, best: 1, lastFulfilledDate: '2026-10-07' };
+    expect(streakSchema.safeParse({ ...ok, current: -1 }).success).toBe(false);
+    expect(streakSchema.safeParse({ ...ok, best: 1.5 }).success).toBe(false);
+    expect(streakSchema.safeParse({ ...ok, lastFulfilledDate: '2026-02-30' }).success).toBe(false);
   });
 });
 
