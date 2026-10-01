@@ -20,12 +20,18 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { toCompletionDto } from '../gamification/completion.mapper.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { lockAndLoadBlock } from './block-lock.js';
-import { planDelete, planEdit, type NewBlockData } from './domain/series-split.js';
+import {
+  planDelete,
+  planEdit,
+  type CompletionRef,
+  type NewBlockData,
+} from './domain/series-split.js';
 import { computeWeekOccurrences, occursOn } from './domain/week-occurrences.js';
 import {
   fromCivil,
   toBlockResponse,
   toBlockTemplate,
+  toCivil,
   toExceptionResponse,
   toExceptionRule,
 } from './blocks.mapper.js';
@@ -36,6 +42,14 @@ const CROSSES_MIDNIGHT = 'O bloco não pode atravessar a meia-noite';
 const NOT_APPLICABLE = 'Esse campo não se aplica ao tipo do bloco';
 const NOT_AN_OCCURRENCE = 'Essa data não é uma ocorrência deste bloco';
 const SAME_WEEK_ONLY = 'Só é possível mover a ocorrência dentro da mesma semana';
+const COMPLETED_LOCK =
+  'Esta ocorrência já foi concluída. Desfaça a conclusão antes de pular ou alterar';
+const COMPLETIONS_ON_WEEKDAY_CHANGE =
+  'Há ocorrências concluídas a partir dessa data. Desfaça as conclusões antes de mudar o dia da semana';
+const COMPLETION_ON_DATE_CHANGE =
+  'Este bloco já foi concluído. Desfaça a conclusão antes de mudar a data';
+const ACTIVE_COMPLETIONS_ON_DELETE =
+  'Há ocorrências concluídas a partir dessa data. Desfaça as conclusões antes de excluir';
 
 /** Campos de data do plano (texto civil) viram Date UTC para o Prisma. */
 function toBlockData(fields: Partial<NewBlockData>): Prisma.BlockUncheckedUpdateInput {
@@ -127,6 +141,29 @@ export class BlocksService {
   }
 
   /**
+   * Conclusões do bloco que importam para uma edição/exclusão a partir de `from`: numa série semanal
+   * só as de `from` em diante; num bloco avulso, todas (ele só tem uma ocorrência).
+   */
+  private async loadCompletionRefs(
+    tx: Prisma.TransactionClient,
+    blockId: string,
+    recurrence: 'weekly' | 'once',
+    from: string,
+  ): Promise<CompletionRef[]> {
+    const rows = await tx.completion.findMany({
+      where: {
+        blockId,
+        ...(recurrence === 'weekly' && { occurrenceDate: { gte: fromCivil(from) } }),
+      },
+      select: { occurrenceDate: true, undoneAt: true },
+    });
+    return rows.map((row) => ({
+      occurrenceDate: toCivil(row.occurrenceDate),
+      active: row.undoneAt === null,
+    }));
+  }
+
+  /**
    * Edita "a partir de `from`" (esta e as próximas). Com passado, a série atual é encerrada no dia
    * anterior e uma nova começa em `from`; sem passado, o bloco é atualizado no lugar. As
    * ocorrências anteriores a `from` nunca mudam. Devolve o bloco que vale a partir de `from`.
@@ -140,15 +177,23 @@ export class BlocksService {
 
     return this.prisma.$transaction(async (tx) => {
       const current = await lockAndLoadBlock(tx, userId, id);
+      const template = toBlockTemplate(current, current.activity.areaId);
       const plan = planEdit(
-        toBlockTemplate(current, current.activity.areaId),
+        template,
         from,
         changes,
         current.exceptions.map(toExceptionRule),
+        await this.loadCompletionRefs(tx, id, template.recurrence, from),
       );
 
       if (plan.kind === 'invalid') {
         if (plan.reason === 'FROM_AFTER_END') throw new ConflictException(FROM_AFTER_END);
+        if (plan.reason === 'COMPLETIONS_ON_CHANGED_WEEKDAY') {
+          throw new ConflictException(COMPLETIONS_ON_WEEKDAY_CHANGE);
+        }
+        if (plan.reason === 'COMPLETION_ON_CHANGED_DATE') {
+          throw new ConflictException(COMPLETION_ON_DATE_CHANGE);
+        }
         if (plan.reason === 'CROSSES_MIDNIGHT') throw new BadRequestException(CROSSES_MIDNIGHT);
         throw new BadRequestException(NOT_APPLICABLE);
       }
@@ -180,6 +225,13 @@ export class BlocksService {
           data: { blockId: created.id },
         });
       }
+      if (plan.moveCompletions.length > 0) {
+        // As conclusões acompanham a série nova: a ocorrência é a mesma, só mudou o id do bloco.
+        await tx.completion.updateMany({
+          where: { blockId: id, occurrenceDate: { in: plan.moveCompletions.map(fromCivil) } },
+          data: { blockId: created.id },
+        });
+      }
       return toBlockResponse(created);
     });
   }
@@ -191,14 +243,20 @@ export class BlocksService {
   async remove(userId: string, id: string, from: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const current = await lockAndLoadBlock(tx, userId, id);
+      const template = toBlockTemplate(current, current.activity.areaId);
       const plan = planDelete(
-        toBlockTemplate(current, current.activity.areaId),
+        template,
         from,
         current.exceptions.map(toExceptionRule),
+        await this.loadCompletionRefs(tx, id, template.recurrence, from),
       );
 
       if (plan.kind === 'noop') return;
+      if (plan.kind === 'invalid') throw new ConflictException(ACTIVE_COMPLETIONS_ON_DELETE);
       if (plan.kind === 'delete-row') {
+        // Só sobraram conclusões desfeitas (o plano recusa as ativas). O banco não deixa apagar um
+        // bloco que ainda tem conclusões, então elas saem antes; o livro-caixa não é tocado.
+        await tx.completion.deleteMany({ where: { blockId: id } });
         await tx.block.delete({ where: { id } });
         return;
       }
@@ -228,6 +286,7 @@ export class BlocksService {
       const block = await lockAndLoadBlock(tx, userId, blockId);
       const template = toBlockTemplate(block, block.activity.areaId);
       if (!occursOn(template, occurrenceDate)) throw new NotFoundException(NOT_AN_OCCURRENCE);
+      await this.assertNotCompleted(tx, blockId, occurrenceDate);
 
       if (input.type === 'override') {
         if (
@@ -265,10 +324,28 @@ export class BlocksService {
   async removeException(userId: string, blockId: string, occurrenceDate: CivilDate): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       await lockAndLoadBlock(tx, userId, blockId);
+      const existing = await tx.blockException.findUnique({
+        where: { blockId_occurrenceDate: { blockId, occurrenceDate: fromCivil(occurrenceDate) } },
+      });
+      // Restaurar uma ocorrência alterada e já concluída mudaria o que foi concluído.
+      if (existing) await this.assertNotCompleted(tx, blockId, occurrenceDate);
       await tx.blockException.deleteMany({
         where: { blockId, occurrenceDate: fromCivil(occurrenceDate) },
       });
     });
+  }
+
+  /** Uma ocorrência já concluída fica travada: para mudar, desfaça a conclusão antes. */
+  private async assertNotCompleted(
+    tx: Prisma.TransactionClient,
+    blockId: string,
+    occurrenceDate: CivilDate,
+  ): Promise<void> {
+    const active = await tx.completion.findFirst({
+      where: { blockId, occurrenceDate: fromCivil(occurrenceDate), undoneAt: null },
+      select: { id: true },
+    });
+    if (active) throw new ConflictException(COMPLETED_LOCK);
   }
 
   /**

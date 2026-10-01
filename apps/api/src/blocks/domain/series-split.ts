@@ -11,8 +11,18 @@ export interface BlockChanges {
   durationMin?: number;
 }
 
+/** Uma conclusão vinculada ao bloco (ativa = não foi desfeita). */
+export interface CompletionRef {
+  occurrenceDate: CivilDate;
+  active: boolean;
+}
+
 export type PlanInvalidReason =
   | 'NO_CHANGES'
+  /** Mudar o dia da semana faria desaparecer ocorrências já concluídas (o XP ficaria órfão). */
+  | 'COMPLETIONS_ON_CHANGED_WEEKDAY'
+  /** Mudar a data de um bloco avulso já concluído: desfaça a conclusão antes. */
+  | 'COMPLETION_ON_CHANGED_DATE'
   /** A data de corte é depois do fim da série: não há nada a partir dela para alterar. */
   | 'FROM_AFTER_END'
   /** Campo que não faz sentido para o tipo do bloco (ex.: weekday em bloco avulso). */
@@ -49,9 +59,13 @@ export type EditPlan =
       /** Exceções a partir da data de corte que passam a pertencer ao bloco novo. */
       moveExceptions: CivilDate[];
       dropExceptions: CivilDate[];
+      /** Conclusões (ativas ou desfeitas) a partir da data de corte que acompanham a série nova. */
+      moveCompletions: CivilDate[];
     };
 
 export type DeletePlan =
+  /** Há conclusões ativas que deixariam de ter ocorrência: desfaça-as antes. */
+  | { kind: 'invalid'; reason: 'ACTIVE_COMPLETIONS' }
   /** A série já terminou antes da data: não há nada a excluir (idempotente, não é erro). */
   | { kind: 'noop' }
   /** Bloco avulso: a linha é removida. */
@@ -91,6 +105,7 @@ export function planEdit(
   from: CivilDate,
   changes: BlockChanges,
   exceptions: readonly ExceptionRule[],
+  completions: readonly CompletionRef[] = [],
 ): EditPlan {
   if (!hasChanges(changes)) return { kind: 'invalid', reason: 'NO_CHANGES' };
 
@@ -106,6 +121,9 @@ export function planEdit(
   if (block.recurrence === 'once') {
     if (changes.weekday !== undefined) return { kind: 'invalid', reason: 'FIELD_NOT_APPLICABLE' };
     const dateChanged = changes.date !== undefined && changes.date !== block.date;
+    if (dateChanged && completions.some((completion) => completion.active)) {
+      return { kind: 'invalid', reason: 'COMPLETION_ON_CHANGED_DATE' };
+    }
     return {
       kind: 'in-place',
       update: { ...merged, ...(changes.date !== undefined && { date: changes.date }) },
@@ -122,6 +140,11 @@ export function planEdit(
   const weekday = changes.weekday ?? (block.weekday as number);
   const weekdayChanged = weekday !== block.weekday;
   const affected = startsOnOrAfter(exceptions, from);
+  const completionsFrom = completions.filter((completion) => completion.occurrenceDate >= from);
+  // Mudar o dia da semana tira as ocorrências do lugar: não pode deixar conclusão ativa para trás.
+  if (weekdayChanged && completionsFrom.some((completion) => completion.active)) {
+    return { kind: 'invalid', reason: 'COMPLETIONS_ON_CHANGED_WEEKDAY' };
+  }
 
   if (!hasOccurrenceBefore(block, from)) {
     const validFrom = block.validFrom !== null && from > block.validFrom ? from : block.validFrom;
@@ -147,6 +170,10 @@ export function planEdit(
     },
     moveExceptions: weekdayChanged ? [] : affected,
     dropExceptions: weekdayChanged ? affected : [],
+    // As conclusões acompanham a série nova (o dia não mudou, então as ocorrências continuam lá).
+    moveCompletions: weekdayChanged
+      ? []
+      : completionsFrom.map((completion) => completion.occurrenceDate),
   };
 }
 
@@ -158,11 +185,20 @@ export function planDelete(
   block: BlockTemplate,
   from: CivilDate,
   exceptions: readonly ExceptionRule[],
+  completions: readonly CompletionRef[] = [],
 ): DeletePlan {
-  if (block.recurrence === 'once') return { kind: 'delete-row' };
+  if (block.recurrence === 'once') {
+    return completions.some((completion) => completion.active)
+      ? { kind: 'invalid', reason: 'ACTIVE_COMPLETIONS' }
+      : { kind: 'delete-row' };
+  }
 
   const validFrom = block.validFrom as CivilDate;
   if (block.validUntil !== null && from > block.validUntil) return { kind: 'noop' };
+  // Encerrar a série faria sumir ocorrências já concluídas: o XP ficaria sem como desfazer.
+  if (completions.some((completion) => completion.active && completion.occurrenceDate >= from)) {
+    return { kind: 'invalid', reason: 'ACTIVE_COMPLETIONS' };
+  }
 
   // Nunca antes de "validFrom - 1": é o menor valor permitido (série encerrada sem ocorrências).
   const dayBefore = addDays(from, -1);

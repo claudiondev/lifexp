@@ -1,5 +1,5 @@
 import { addDays, type CivilDate, type Occurrence } from '@lifexp/shared';
-import { planDelete, planEdit, type BlockChanges } from './series-split.js';
+import { planDelete, planEdit, type BlockChanges, type CompletionRef } from './series-split.js';
 import {
   computeWeekOccurrences,
   type BlockTemplate,
@@ -51,9 +51,14 @@ const override = (
   ...changes,
 });
 
+interface CompletionStub extends CompletionRef {
+  blockId: string;
+}
+
 interface World {
   blocks: BlockTemplate[];
   exceptions: ExceptionRule[];
+  completions?: CompletionStub[];
 }
 
 /** Aplica o plano como o service fará, para verificar o resultado observável (as ocorrências). */
@@ -66,7 +71,8 @@ function applyEdit(
 ): World {
   const block = world.blocks.find((b) => b.id === blockId) as BlockTemplate;
   const own = world.exceptions.filter((e) => e.blockId === blockId);
-  const plan = planEdit(block, from, changes, own);
+  const ownCompletions = (world.completions ?? []).filter((c) => c.blockId === blockId);
+  const plan = planEdit(block, from, changes, own, ownCompletions);
   if (plan.kind === 'invalid') throw new Error(`plano inválido: ${plan.reason}`);
 
   const dropped = (rule: ExceptionRule) =>
@@ -78,6 +84,7 @@ function applyEdit(
     return {
       blocks: world.blocks.map((b) => (b.id === blockId ? { ...b, ...plan.update } : b)),
       exceptions: world.exceptions.filter((rule) => !dropped(rule)),
+      completions: world.completions,
     };
   }
   if (plan.kind !== 'split') throw new Error('esperado split');
@@ -97,6 +104,11 @@ function applyEdit(
           ? { ...rule, blockId: newId }
           : rule,
       ),
+    completions: world.completions?.map((c) =>
+      c.blockId === blockId && plan.moveCompletions.includes(c.occurrenceDate)
+        ? { ...c, blockId: newId }
+        : c,
+    ),
   };
 }
 
@@ -106,12 +118,15 @@ function applyDelete(world: World, blockId: string, from: CivilDate): World {
     block,
     from,
     world.exceptions.filter((e) => e.blockId === blockId),
+    (world.completions ?? []).filter((c) => c.blockId === blockId),
   );
+  if (plan.kind === 'invalid') throw new Error(`plano inválido: ${plan.reason}`);
   if (plan.kind === 'noop') return world;
   if (plan.kind === 'delete-row') {
     return {
       blocks: world.blocks.filter((b) => b.id !== blockId),
       exceptions: world.exceptions.filter((e) => e.blockId !== blockId),
+      completions: world.completions?.filter((c) => c.blockId !== blockId),
     };
   }
   return {
@@ -119,6 +134,7 @@ function applyDelete(world: World, blockId: string, from: CivilDate): World {
     exceptions: world.exceptions.filter(
       (e) => !(e.blockId === blockId && plan.dropExceptions.includes(e.occurrenceDate)),
     ),
+    completions: world.completions,
   };
 }
 
@@ -476,5 +492,222 @@ describe('planDelete', () => {
       '2026-10-07',
     );
     expect(after).toEqual({ blocks: [], exceptions: [] });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Conclusões (Marco 1d): as conclusões acompanham a série, e nenhuma pode ficar órfã.
+// ---------------------------------------------------------------------------------------------
+
+const done = (blockId: string, occurrenceDate: CivilDate, active = true): CompletionStub => ({
+  blockId,
+  occurrenceDate,
+  active,
+});
+
+/** Conclusões ativas cuja ocorrência (bloco + data) deixou de existir: seria XP sem como desfazer. */
+function orphanedCompletions(world: World): CompletionStub[] {
+  const existing = new Set(allOccurrences(world).map((o) => `${o.blockId}|${o.occurrenceDate}`));
+  return (world.completions ?? []).filter(
+    (c) => c.active && !existing.has(`${c.blockId}|${c.occurrenceDate}`),
+  );
+}
+
+describe('planEdit com conclusões', () => {
+  const FROM = '2026-10-07';
+  const base = series();
+
+  it('dividir a série leva as conclusões de `from` em diante para a série nova, e deixa as anteriores', () => {
+    const completions = [
+      { occurrenceDate: '2026-09-30', active: true }, // passado
+      { occurrenceDate: '2026-10-07', active: true },
+      { occurrenceDate: '2026-10-14', active: false }, // desfeita: também acompanha
+    ];
+    const plan = planEdit(base, FROM, { startTime: '18:00' }, [], completions);
+    expect(plan).toMatchObject({ kind: 'split', moveCompletions: ['2026-10-07', '2026-10-14'] });
+  });
+
+  it('com o dia da semana mudando e uma conclusão ATIVA de `from` em diante, recusa', () => {
+    const completions = [{ occurrenceDate: '2026-10-14', active: true }];
+    expect(planEdit(base, FROM, { weekday: 1 }, [], completions)).toEqual({
+      kind: 'invalid',
+      reason: 'COMPLETIONS_ON_CHANGED_WEEKDAY',
+    });
+  });
+
+  it('a recusa vale também para a edição no lugar (desde a primeira ocorrência)', () => {
+    const completions = [{ occurrenceDate: '2026-09-02', active: true }];
+    expect(planEdit(base, '2026-09-02', { weekday: 1 }, [], completions)).toEqual({
+      kind: 'invalid',
+      reason: 'COMPLETIONS_ON_CHANGED_WEEKDAY',
+    });
+  });
+
+  it('conclusão ativa ANTES de `from` não impede mudar o dia: o passado fica como está', () => {
+    const completions = [{ occurrenceDate: '2026-09-30', active: true }];
+    expect(planEdit(base, FROM, { weekday: 1 }, [], completions)).toMatchObject({
+      kind: 'split',
+      moveCompletions: [],
+    });
+  });
+
+  it('só conclusões DESFEITAS não impedem mudar o dia, e não são movidas', () => {
+    const completions = [{ occurrenceDate: '2026-10-14', active: false }];
+    expect(planEdit(base, FROM, { weekday: 1 }, [], completions)).toMatchObject({
+      kind: 'split',
+      moveCompletions: [],
+    });
+  });
+
+  it('mudar horário, duração ou atividade com conclusões ativas é permitido (o XP já está congelado)', () => {
+    const completions = [{ occurrenceDate: '2026-10-14', active: true }];
+    for (const changes of [
+      { startTime: '18:00' },
+      { durationMin: 90 },
+      { activityId: OTHER_ACTIVITY },
+    ]) {
+      expect(planEdit(base, FROM, changes, [], completions).kind).toBe('split');
+    }
+  });
+
+  it('bloco avulso: mudar a data com conclusão ativa é recusado; outras mudanças, não', () => {
+    const completions = [{ occurrenceDate: '2026-10-07', active: true }];
+    expect(planEdit(single(), '2026-10-07', { date: '2026-10-09' }, [], completions)).toEqual({
+      kind: 'invalid',
+      reason: 'COMPLETION_ON_CHANGED_DATE',
+    });
+    expect(planEdit(single(), '2026-10-07', { startTime: '18:00' }, [], completions).kind).toBe(
+      'in-place',
+    );
+  });
+
+  it('bloco avulso com a conclusão desfeita pode mudar de data', () => {
+    const completions = [{ occurrenceDate: '2026-10-07', active: false }];
+    expect(planEdit(single(), '2026-10-07', { date: '2026-10-09' }, [], completions).kind).toBe(
+      'in-place',
+    );
+  });
+
+  it('sem informar conclusões, o comportamento anterior continua igual', () => {
+    expect(planEdit(base, FROM, { startTime: '18:00' }, [])).toMatchObject({
+      kind: 'split',
+      moveCompletions: [],
+    });
+  });
+
+  describe('simulação: nenhuma conclusão ativa fica órfã', () => {
+    const world: World = {
+      blocks: [series()],
+      exceptions: [],
+      completions: [
+        done('block-old', '2026-09-16'),
+        done('block-old', '2026-10-07'),
+        done('block-old', '2026-10-21'),
+      ],
+    };
+
+    it('depois de dividir a série, todas as conclusões continuam apontando para ocorrências que existem', () => {
+      const edited = applyEdit(world, 'block-old', '2026-10-07', { startTime: '18:00' });
+
+      expect(orphanedCompletions(edited)).toEqual([]);
+      const bySeries = (blockId: string) =>
+        (edited.completions ?? [])
+          .filter((c) => c.blockId === blockId)
+          .map((c) => c.occurrenceDate);
+      expect(bySeries('block-old')).toEqual(['2026-09-16']); // o passado ficou
+      expect(bySeries('block-new-2026-10-07')).toEqual(['2026-10-07', '2026-10-21']); // o resto acompanhou
+    });
+
+    it('a ocorrência concluída segue a mesma (mesma data) na série nova, só com o horário novo', () => {
+      const edited = applyEdit(world, 'block-old', '2026-10-07', { startTime: '18:00' });
+      const occurrence = allOccurrences(edited).find((o) => o.occurrenceDate === '2026-10-07');
+      expect(occurrence).toMatchObject({ blockId: 'block-new-2026-10-07', startTime: '18:00' });
+    });
+
+    it('edições encadeadas também não deixam órfãs', () => {
+      let current = applyEdit(world, 'block-old', '2026-10-07', { startTime: '18:00' }, 'b2');
+      current = applyEdit(current, 'b2', '2026-10-21', { durationMin: 90 }, 'b3');
+      expect(orphanedCompletions(current)).toEqual([]);
+      expect((current.completions ?? []).map((c) => [c.blockId, c.occurrenceDate])).toEqual([
+        ['block-old', '2026-09-16'],
+        ['b2', '2026-10-07'],
+        ['b3', '2026-10-21'],
+      ]);
+    });
+
+    it('sem a mudança de plano as conclusões ficariam órfãs: o simulador detecta isso', () => {
+      // contraprova: se as conclusões NÃO fossem movidas, as de `from` em diante virariam órfãs
+      const naive: World = {
+        ...applyEdit({ ...world, completions: undefined }, 'block-old', '2026-10-07', {
+          startTime: '18:00',
+        }),
+        completions: world.completions,
+      };
+      expect(orphanedCompletions(naive).map((c) => c.occurrenceDate)).toEqual([
+        '2026-10-07',
+        '2026-10-21',
+      ]);
+    });
+  });
+});
+
+describe('planDelete com conclusões', () => {
+  it('recusa encerrar a série se há conclusão ativa de `from` em diante', () => {
+    expect(
+      planDelete(series(), '2026-10-07', [], [{ occurrenceDate: '2026-10-14', active: true }]),
+    ).toEqual({
+      kind: 'invalid',
+      reason: 'ACTIVE_COMPLETIONS',
+    });
+    expect(
+      planDelete(series(), '2026-10-07', [], [{ occurrenceDate: '2026-10-07', active: true }]).kind,
+    ).toBe('invalid');
+  });
+
+  it('conclusões ativas ANTES de `from` não impedem: o passado fica', () => {
+    const plan = planDelete(
+      series(),
+      '2026-10-07',
+      [],
+      [{ occurrenceDate: '2026-09-30', active: true }],
+    );
+    expect(plan).toMatchObject({ kind: 'end-series', validUntil: '2026-10-06' });
+  });
+
+  it('conclusões desfeitas não impedem', () => {
+    const plan = planDelete(
+      series(),
+      '2026-10-07',
+      [],
+      [{ occurrenceDate: '2026-10-14', active: false }],
+    );
+    expect(plan.kind).toBe('end-series');
+  });
+
+  it('bloco avulso concluído não pode ser excluído; desfeito, pode', () => {
+    expect(
+      planDelete(single(), '2026-10-07', [], [{ occurrenceDate: '2026-10-07', active: true }]),
+    ).toEqual({
+      kind: 'invalid',
+      reason: 'ACTIVE_COMPLETIONS',
+    });
+    expect(
+      planDelete(single(), '2026-10-07', [], [{ occurrenceDate: '2026-10-07', active: false }]),
+    ).toEqual({
+      kind: 'delete-row',
+    });
+  });
+
+  it('a série que já terminou segue sendo idempotente, mesmo com conclusões ativas antigas', () => {
+    const ended = series({ validUntil: '2026-10-06' });
+    expect(
+      planDelete(ended, '2026-10-14', [], [{ occurrenceDate: '2026-10-06', active: true }]),
+    ).toEqual({
+      kind: 'noop',
+    });
+  });
+
+  it('sem informar conclusões, o comportamento anterior continua igual', () => {
+    expect(planDelete(series(), '2026-10-07', []).kind).toBe('end-series');
   });
 });

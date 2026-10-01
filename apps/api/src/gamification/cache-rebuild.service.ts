@@ -48,8 +48,8 @@ export class CacheRebuildService {
    */
   async rebuild(userId: string): Promise<RebuildReport> {
     return this.prisma.$transaction(async (tx) => {
-      // Mesma trava das conclusões: ninguém grava XP enquanto reconstruímos.
-      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      // Mesma trava das conclusões (veja CompletionsService.lockUser): ninguém grava XP enquanto reconstruímos.
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
 
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       const ledger = await tx.xpTransaction.findMany({

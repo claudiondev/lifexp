@@ -126,7 +126,7 @@ export class CompletionsService {
     const now = this.clock.now();
     return this.prisma.$transaction(async (tx) => {
       const timezone = await this.lockUser(tx, userId);
-      const { block, resolved } = await this.loadOccurrence(tx, userId, blockId, occurrenceDate);
+      const { resolved } = await this.loadOccurrence(tx, userId, blockId, occurrenceDate);
 
       const completion = await tx.completion.findUnique({
         where: { blockId_occurrenceDate: { blockId, occurrenceDate: fromCivil(occurrenceDate) } },
@@ -161,19 +161,28 @@ export class CompletionsService {
         data: { undoneAt: now },
       });
 
+      // A área vem da foto da conclusão (e do lançamento original), NÃO da atividade de hoje: se a
+      // série foi editada para outra atividade/área depois de concluir, o XP volta de onde saiu.
       const { total, area } = await this.applyToCaches(
         tx,
         userId,
-        block.activity.areaId,
+        completion.areaId,
         -original.amount,
       );
       return { xpReverted: original.amount, total, area };
     });
   }
 
-  /** Trava a linha da pessoa (serializa operações de XP dela) e devolve o fuso horário. */
+  /**
+   * Trava a linha da pessoa (serializa as operações de XP dela) e devolve o fuso horário.
+   *
+   * É FOR NO KEY UPDATE de propósito: ele serializa as conclusões entre si, mas NÃO conflita com o
+   * FOR KEY SHARE que o banco toma na pessoa ao criar um bloco (chave estrangeira). Com FOR UPDATE,
+   * uma conclusão (trava pessoa e depois bloco) e uma edição (trava bloco e depois a chave da
+   * pessoa) ficavam esperando uma pela outra: deadlock e erro 500.
+   */
   private async lockUser(tx: Tx, userId: string): Promise<string> {
-    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
     const user = await tx.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true },
