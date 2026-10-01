@@ -1,8 +1,10 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAccessToken } from './lib/apiClient';
+import { createQueryClient } from './lib/queryClient';
 import { AuthProvider } from './features/auth/AuthProvider';
 import { AppRoutes } from './router';
 
@@ -34,11 +36,13 @@ function stubApi(handlers: Record<string, () => Response>) {
 
 function renderAt(path: string) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={createQueryClient()}>
+      <MemoryRouter initialEntries={[path]}>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -101,5 +105,30 @@ describe('rotas e telas de auth', () => {
 
     expect(await screen.findByText('A senha deve ter ao menos 8 caracteres')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/auth/register')).toBe(false);
+  });
+
+  it('navega entre Painel, Áreas e Perfil pelo menu', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+      '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
+    });
+    renderAt('/');
+    await screen.findByRole('heading', { name: /Olá, Ana/ });
+
+    // Há dois menus (topo e barra do celular); ambos devem levar à mesma tela.
+    expect(screen.getAllByRole('link', { name: 'Áreas' })).toHaveLength(2);
+    await userEvent.click(screen.getAllByRole('link', { name: 'Áreas' })[0]!);
+    expect(await screen.findByRole('heading', { name: 'Áreas da vida' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getAllByRole('link', { name: 'Perfil' })[1]!);
+    expect(await screen.findByRole('heading', { name: 'Seu perfil' })).toBeInTheDocument();
+  });
+
+  it('manda visitante que abre /areas direto para o login e volta depois', async () => {
+    stubApi({ '/api/auth/refresh': () => json(401) });
+    renderAt('/areas');
+    expect(
+      await screen.findByRole('heading', { name: 'Continue sua jornada' }),
+    ).toBeInTheDocument();
   });
 });

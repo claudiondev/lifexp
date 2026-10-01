@@ -4,7 +4,9 @@ import { LoginPage } from './features/auth/LoginPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { AppShell } from './components/layout/AppShell';
+import { AreasPage } from './pages/AreasPage';
 import { HomePage } from './pages/HomePage';
+import { ProfilePage } from './pages/ProfilePage';
 
 export function AppRoutes() {
   return (
@@ -16,6 +18,8 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/areas" element={<AreasPage />} />
+          <Route path="/perfil" element={<ProfilePage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

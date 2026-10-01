@@ -6,6 +6,7 @@ import { StreakFlame } from '@/components/game/StreakFlame';
 import { Wordmark } from '@/components/game/Wordmark';
 import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
+import { DesktopNav, MobileNav } from './MainNav';
 import { useAuth } from '@/features/auth/useAuth';
 import { useCharacter } from '@/features/character/useCharacter';
 
@@ -20,6 +21,9 @@ export function AppShell() {
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/75 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-5xl items-center gap-4 px-5">
           <Wordmark className="text-xl" />
+          <div className="ml-2">
+            <DesktopNav />
+          </div>
           <div className="ml-auto flex items-center gap-4">
             <div className="flex items-center gap-3">
               <LevelSigil level={character.level} size={34} />
@@ -42,9 +46,10 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <div className="relative">
+      <div className="relative pb-20 sm:pb-0">
         <Outlet />
       </div>
+      <MobileNav />
     </div>
   );
 }
