@@ -76,6 +76,23 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: grade (desktop) x abas/agenda (celular) decididas por `useIsDesktop` (JS), não por CSS, para não duplicar
   blocos no DOM. Cartão da grade é `<button>`. Painel de ações em `OccurrenceDialog`.
 
+## Hoje, XP e níveis (decisões do 1d)
+
+- XP = `round(durationMin × xpWeight × multiplicador)`, teto 300; curva `xpToReachLevel(n)=round(100·(n−1)^1.5)`
+  em `packages/shared/src/xp.ts` (isolada para recalibrar). Regras puras em `gamification/domain/`
+  (`completion-window`, `xp-ledger`).
+- Ledger `XpTransaction` imutável (trigger bloqueia UPDATE): COMPLETION positivo ≤300, REVERSAL negativo
+  apontando ao original (um por lançamento). Caches `User.cachedTotalXp` e `AreaProgress` saem do ledger na mesma
+  transação (invariante testada: soma do ledger == caches); `CacheRebuildService.check/rebuild`.
+- `Completion` única por (blockId, occurrenceDate), reaproveitada ao refazer, com foto (área, duração, XP). O
+  estorno usa a área da foto, não a da atividade atual. `createdAt` do ledger vem do `Clock`, não do banco.
+- Janela: início do bloco até 23:59:59.999 do dia local seguinte. Concluir/desfazer idempotentes.
+- Travas: pessoa `FOR NO KEY UPDATE` e depois bloco `FOR UPDATE` (FOR UPDATE na pessoa deu deadlock com edição).
+- `Clock` injetável (`CLOCK`); testes usam `FakeClock`. Ocorrência concluída bloqueia pular/alterar (409);
+  `planEdit`/`planDelete` conhecem conclusões (movem com a série; 409 quando ficariam órfãs).
+- Front: `useProgress` (chave `progress`), `useToday` (refaz a cada 60 s), `useCompletionMutations` invalida
+  today + progress + blocks. Subida de nível comemora (só recompensa). Streak fica para o 1e.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -128,7 +145,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)**. Roadmap do Marco 1: 1d Completion/XP/níveis + Hoje → 1e streak → 1f PWA.
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)**. Roadmap do Marco 1: 1e streak → 1f PWA.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em

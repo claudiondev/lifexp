@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 1c (Blocos e tela Semana)** concluído, sobre perfil/áreas (1b), autenticação (1a) e a
-> fundação (0). Próximos: tela Hoje, conclusão de blocos e XP (1d).
+> Status: **Marco 1d (Hoje, conclusão, XP e níveis)** concluído, sobre blocos/Semana (1c), perfil/áreas (1b),
+> autenticação (1a) e a fundação (0). Próximos: streak (1e) e PWA (1f).
 
 ## Stack
 
@@ -120,6 +120,36 @@ da consulta**; nada de ocorrências futuras gravadas.
 
 Telas: **Semana** (grade no desktop; abas dos dias no celular) com navegação entre semanas, criação de
 blocos e um painel de ações ao clicar num bloco.
+
+## Hoje, conclusão, XP e níveis (Marco 1d)
+
+Concluir um bloco rende **XP**: `round(duração em min × peso da atividade × multiplicador)`, no máximo 300 por
+conclusão. O nível geral e o de cada área vêm de uma curva única (`packages/shared/src/xp.ts`):
+`XP para chegar ao nível n = round(100 · (n−1)^1.5)` (nível 1 = 0 XP). A curva está isolada para ser recalibrada.
+
+- **Janela de conclusão:** do início do bloco até 23:59 do dia seguinte (no fuso da pessoa). Antes de começar
+  não dá para concluir; depois da janela também não, e desfazer segue a mesma janela. Pular não pune.
+- **Idempotência:** concluir ou desfazer duas vezes não duplica XP.
+- **Livro-caixa (ledger) imutável:** `XpTransaction` só recebe lançamentos novos (conclusão positiva, estorno
+  negativo ligado ao original; um estorno por lançamento). Um _trigger_ do banco bloqueia UPDATE. O XP total
+  (`User.cachedTotalXp`) e o de cada área (`AreaProgress`) são **caches** derivados do ledger, atualizados na
+  mesma transação; `CacheRebuildService` confere (`check`) e reconstrói (`rebuild`) a partir do ledger.
+- **Concorrência:** a linha da pessoa é travada com `FOR NO KEY UPDATE` e depois a do bloco com `FOR UPDATE`.
+  Com `FOR UPDATE` na pessoa havia _deadlock_ com a edição de blocos (a FK pede `FOR KEY SHARE` na pessoa).
+- **Relógio injetável (`Clock`):** a API lê a hora por um token (`CLOCK`), então os testes usam um `FakeClock`.
+- **Ocorrência concluída** não pode ser pulada nem alterada (409); desfazer libera. Editar a série move as
+  conclusões junto; mudar o dia da semana com conclusões ativas, ou excluir bloco avulso concluído, dá 409.
+
+| Método | Rota                                           | O que faz                                  |
+| ------ | ---------------------------------------------- | ------------------------------------------ |
+| GET    | `/api/progress`                                | XP e nível geral e por área                |
+| GET    | `/api/today`                                   | Blocos de hoje (+ ontem ainda abertos), XP |
+| POST   | `/api/blocks/:id/occurrences/:date/completion` | Conclui a ocorrência (idempotente)         |
+| DELETE | `/api/blocks/:id/occurrences/:date/completion` | Desfaz a conclusão (estorno, idempotente)  |
+
+Telas: **Hoje** (`/hoje`: próximo bloco em destaque, Concluir com "+XP", Desfazer, Pular, XP do dia,
+"De ontem (ainda dá tempo)", comemoração ao subir de nível); HUD, ficha e áreas com XP/nível reais; a
+**Semana** mostra ✓ e XP nas concluídas e o painel oferece "Desfazer conclusão".
 
 ## Glossário (para quem vem de Java/Spring)
 
