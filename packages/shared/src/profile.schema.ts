@@ -3,7 +3,7 @@ import { avatarKeySchema } from './appearance.js';
 import { timezoneSchema } from './user.schema.js';
 
 export const updateProfileSchema = z
-  .object({
+  .strictObject({
     name: z.string().trim().min(1, 'Informe o nome').max(80),
     timezone: timezoneSchema,
     avatarKey: avatarKeySchema,

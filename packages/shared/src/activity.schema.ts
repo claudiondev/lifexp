@@ -20,7 +20,7 @@ export const activitySchema = z.object({
   archivedAt: z.iso.datetime().nullable(),
 });
 
-export const createActivitySchema = z.object({
+export const createActivitySchema = z.strictObject({
   areaId: z.uuid(),
   name: activityNameSchema,
   xpWeight: xpWeightSchema.default(XP_WEIGHT_DEFAULT),
@@ -28,7 +28,7 @@ export const createActivitySchema = z.object({
 
 // A atividade não troca de área: mover mudaria o histórico de XP por área.
 export const updateActivitySchema = z
-  .object({ name: activityNameSchema, xpWeight: xpWeightSchema })
+  .strictObject({ name: activityNameSchema, xpWeight: xpWeightSchema })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para alterar');
 

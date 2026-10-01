@@ -13,14 +13,15 @@ export const areaSchema = z.object({
   archivedAt: z.iso.datetime().nullable(),
 });
 
-export const createAreaSchema = z.object({
+// strictObject: campos desconhecidos viram erro 400 em vez de serem ignorados em silêncio (RS07).
+export const createAreaSchema = z.strictObject({
   name: areaNameSchema,
   color: areaColorSchema,
   icon: areaIconSchema,
 });
 
 export const updateAreaSchema = z
-  .object({
+  .strictObject({
     name: areaNameSchema,
     color: areaColorSchema,
     icon: areaIconSchema,

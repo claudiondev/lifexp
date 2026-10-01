@@ -61,6 +61,17 @@ describe('createActivitySchema (RN02)', () => {
   });
 });
 
+describe('campos extras (RS07)', () => {
+  it('são rejeitados em vez de ignorados', () => {
+    expect(
+      createAreaSchema.safeParse({ name: 'X', color: 'gold', icon: 'star', userId: 'outro' })
+        .success,
+    ).toBe(false);
+    expect(updateActivitySchema.safeParse({ name: 'X', areaId }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ name: 'X', passwordHash: 'x' }).success).toBe(false);
+  });
+});
+
 describe('filtros de listagem', () => {
   it('convertem includeArchived de texto para booleano, padrão false', () => {
     expect(listAreasQuerySchema.parse({}).includeArchived).toBe(false);
