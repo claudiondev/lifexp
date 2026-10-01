@@ -10,9 +10,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
     "@lifexp/shared": "workspace:^",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-hook-form": "^7.89.0",
+    "react-router": "^8.4.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
