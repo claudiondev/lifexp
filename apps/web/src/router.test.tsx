@@ -48,7 +48,9 @@ describe('rotas e telas de auth', () => {
   it('redireciona visitante da home para o login', async () => {
     stubApi({ '/api/auth/refresh': () => json(401) });
     renderAt('/');
-    expect(await screen.findByText('Entre na sua conta')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Continue sua jornada' }),
+    ).toBeInTheDocument();
   });
 
   it('restaura a sessão pelo refresh e mostra a home', async () => {

@@ -3,6 +3,7 @@ import { registerSchema } from '@lifexp/shared';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router';
 import type { z } from 'zod';
+import { Button } from '@/components/ui/button';
 import { AuthLayout } from './AuthLayout';
 import { TextField } from './TextField';
 import { useAuth } from './useAuth';
@@ -21,6 +22,7 @@ export function RegisterPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormInput, unknown, FormOutput>({ resolver: zodResolver(formSchema) });
 
@@ -33,20 +35,23 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Crie sua conta"
+      title="Crie seu personagem"
+      subtitle="Leva menos de um minuto. As áreas da sua vida você define depois."
+      characterName={watch('name')}
       footer={
         <>
           Já tem conta?{' '}
-          <Link to="/login" className="font-medium text-indigo-600 hover:underline">
+          <Link to="/login" className="font-semibold text-xp hover:underline">
             Entrar
           </Link>
         </>
       }
     >
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <TextField
           label="Nome"
           autoComplete="name"
+          placeholder="Como devemos te chamar?"
           error={errors.name?.message}
           {...register('name')}
         />
@@ -54,6 +59,7 @@ export function RegisterPage() {
           label="E-mail"
           type="email"
           autoComplete="email"
+          placeholder="voce@exemplo.com"
           error={errors.email?.message}
           {...register('email')}
         />
@@ -61,21 +67,21 @@ export function RegisterPage() {
           label="Senha"
           type="password"
           autoComplete="new-password"
+          hint="Mínimo de 8 caracteres."
           error={errors.password?.message}
           {...register('password')}
         />
         {serverError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
             {serverError}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={isSubmitting} className="mt-1">
           {isSubmitting ? 'Criando...' : 'Criar conta'}
-        </button>
+        </Button>
       </form>
     </AuthLayout>
   );

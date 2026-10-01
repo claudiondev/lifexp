@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginInput } from '@lifexp/shared';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { Button } from '@/components/ui/button';
 import { AuthLayout } from './AuthLayout';
 import { TextField } from './TextField';
 import { useAuth } from './useAuth';
@@ -29,21 +30,23 @@ export function LoginPage() {
 
   return (
     <AuthLayout
-      title="Entre na sua conta"
+      title="Continue sua jornada"
+      subtitle="Entre para abrir o plano da sua semana."
       footer={
         <>
           Ainda não tem conta?{' '}
-          <Link to="/register" className="font-medium text-indigo-600 hover:underline">
-            Cadastre-se
+          <Link to="/register" className="font-semibold text-xp hover:underline">
+            Crie seu personagem
           </Link>
         </>
       }
     >
-      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
         <TextField
           label="E-mail"
           type="email"
           autoComplete="email"
+          placeholder="voce@exemplo.com"
           error={errors.email?.message}
           {...register('email')}
         />
@@ -55,17 +58,16 @@ export function LoginPage() {
           {...register('password')}
         />
         {serverError && (
-          <p role="alert" className="text-sm text-red-600">
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          >
             {serverError}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={isSubmitting} className="mt-1">
           {isSubmitting ? 'Entrando...' : 'Entrar'}
-        </button>
+        </Button>
       </form>
     </AuthLayout>
   );
