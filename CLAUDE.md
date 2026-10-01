@@ -93,6 +93,18 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: `useProgress` (chave `progress`), `useToday` (refaz a cada 60 s), `useCompletionMutations` invalida
   today + progress + blocks. Subida de nível comemora (só recompensa). Streak fica para o 1e.
 
+## Streak (decisões do 1e)
+
+- Regra pura em `gamification/domain/streak.ts` (`buildStreakDays` agrupa ocorrências por dia EFETIVO,
+  ignorando pulados; `computeStreak` percorre os dias planejados). Dia sem bloco = neutro; um dia planejado
+  sem conclusão só quebra quando fecha (`date <= hoje-2`); hoje e ontem em aberto são neutros.
+- SEM cache/tabela: `StreakService.getStreak` recalcula do histórico (semanas desde o primeiro bloco) a cada
+  `GET /progress`. Decisão: o streak muda com o tempo e com edições (pular bloco), então cache seria sempre
+  suspeito. Se virar gargalo, cachear por (usuário, dia) é o caminho.
+- `best` também é derivado do histórico: desfazer conclusão antiga pode reduzi-lo (é coerente com a história).
+- Front: `useCharacter` traz `streakDays`/`streakBest`; `useBlockMutations` invalida `progress` (pular/editar
+  bloco muda dias planejados). Texto nunca culpa: dia livre = "seu streak não muda". Coringa é fase 4.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -145,7 +157,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)**. Roadmap do Marco 1: 1e streak → 1f PWA.
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)**. Roadmap do Marco 1: 1f PWA.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em

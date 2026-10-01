@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 1d (Hoje, conclusão, XP e níveis)** concluído, sobre blocos/Semana (1c), perfil/áreas (1b),
-> autenticação (1a) e a fundação (0). Próximos: streak (1e) e PWA (1f).
+> Status: **Marco 1e (streak)** concluído, sobre Hoje/XP (1d), blocos/Semana (1c), perfil/áreas (1b),
+> autenticação (1a) e a fundação (0). Próximo: PWA (1f).
 
 ## Stack
 
@@ -150,6 +150,23 @@ conclusão. O nível geral e o de cada área vêm de uma curva única (`packages
 Telas: **Hoje** (`/hoje`: próximo bloco em destaque, Concluir com "+XP", Desfazer, Pular, XP do dia,
 "De ontem (ainda dá tempo)", comemoração ao subir de nível); HUD, ficha e áreas com XP/nível reais; a
 **Semana** mostra ✓ e XP nas concluídas e o painel oferece "Desfazer conclusão".
+
+## Streak (Marco 1e)
+
+O streak mede **aderência ao que você planejou**, não produtividade diária. Só dias com ao menos um bloco
+planejado contam; dia sem bloco é **neutro** (não avança e não quebra).
+
+- Em dia planejado, cumprir **um** bloco já avança. Blocos pulados não contam como planejados (um dia só com
+  pulados também é neutro). Blocos de qualquer área contam, inclusive Descanso.
+- Um dia planejado sem nenhuma conclusão **só quebra a sequência quando a janela dele fecha** (23:59 do dia
+  seguinte). Hoje e ontem, ainda em aberto, nunca quebram nada. O recorde (`best`) é o maior streak da história.
+- Uma ocorrência movida de dia conta no dia para onde foi; a conclusão é ligada pela data original.
+- **Sem tabela de cache:** o streak é recalculado do histórico a cada leitura (`StreakService`, regra pura em
+  `gamification/domain/streak.ts`). Ele muda com o tempo e com edições, não só ao concluir; um cache ficaria
+  desatualizado por construção. Vem junto em `GET /api/progress` (`streak: {current, best, lastFulfilledDate}`).
+- O coringa semanal (RF26) é da fase 4 e ainda não existe.
+
+Telas: HUD, ficha ("Recorde") e a tela Hoje mostram o streak; em dia livre a Hoje avisa que o streak não muda.
 
 ## Glossário (para quem vem de Java/Spring)
 
