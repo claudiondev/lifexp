@@ -31,3 +31,20 @@ export function refreshCookieHeader(res: request.Response): string {
   if (!line) throw new Error('Resposta sem cookie de refresh');
   return line.split(';')[0] as string;
 }
+
+export interface TestUser {
+  accessToken: string;
+  userId: string;
+  email: string;
+}
+
+/** Cadastra uma pessoa nova (com as áreas padrão) e devolve o necessário para chamar a API. */
+export async function registerUser(app: INestApplication): Promise<TestUser> {
+  const email = uniqueEmail();
+  const res = await request(app.getHttpServer())
+    .post('/api/auth/register')
+    .send({ name: 'Ana', email, password: VALID_PASSWORD });
+  return { accessToken: res.body.accessToken, userId: res.body.user.id, email };
+}
+
+export const bearer = (user: TestUser) => ({ Authorization: `Bearer ${user.accessToken}` });
