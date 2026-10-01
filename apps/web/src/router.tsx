@@ -3,6 +3,7 @@ import { GuestRoute } from './features/auth/GuestRoute';
 import { LoginPage } from './features/auth/LoginPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { RegisterPage } from './features/auth/RegisterPage';
+import { AppShell } from './components/layout/AppShell';
 import { HomePage } from './pages/HomePage';
 
 export function AppRoutes() {
@@ -13,7 +14,9 @@ export function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
       </Route>
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<HomePage />} />
+        <Route element={<AppShell />}>
+          <Route path="/" element={<HomePage />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

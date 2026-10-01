@@ -59,7 +59,7 @@ describe('rotas e telas de auth', () => {
       '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
     });
     renderAt('/');
-    expect(await screen.findByText('Olá, Ana')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Olá, Ana/ })).toBeInTheDocument();
   });
 
   it('faz login e vai para a home', async () => {
@@ -74,7 +74,7 @@ describe('rotas e telas de auth', () => {
     await userEvent.type(screen.getByLabelText('Senha'), 'senha-123');
     await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
-    expect(await screen.findByText('Olá, Ana')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Olá, Ana/ })).toBeInTheDocument();
   });
 
   it('mostra a mensagem do servidor quando as credenciais são inválidas', async () => {

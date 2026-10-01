@@ -32,11 +32,13 @@ export function AuthLayout({ title, subtitle, children, footer, characterName }:
           <Wordmark />
           <div className="hidden max-w-lg lg:block">
             <p className="font-display text-5xl leading-[1.05] font-extrabold">
-              <span className="block">Constância</span>
-              <span className="block text-xp">sem culpa.</span>
+              <span className="block">Cumpra.</span>
+              <span className="block">Descanse.</span>
+              <span className="block text-xp">Evolua.</span>
             </p>
             <p className="mt-4 text-lg text-muted-foreground">
-              Planeje a semana em blocos, ganhe XP pelo que cumpriu e descanse sem perder o ritmo.
+              Monte a semana em blocos, ganhe XP pelo que cumpriu e veja cada área da sua vida subir
+              de nível.
             </p>
           </div>
           <CharacterCard
