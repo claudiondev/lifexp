@@ -6,6 +6,9 @@ export default defineConfig({
     root: './',
     include: ['test/**/*.e2e-spec.ts'],
     // O e2e do health não toca o banco (conexão preguiçosa), mas o env precisa ser válido.
-    env: { DATABASE_URL: 'postgresql://test:test@localhost:5433/lifexp?schema=public' },
+    env: {
+      DATABASE_URL: 'postgresql://test:test@localhost:5433/lifexp?schema=public',
+      JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-123',
+    },
   },
 });
