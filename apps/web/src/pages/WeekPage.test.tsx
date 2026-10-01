@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Occurrence } from '@lifexp/shared';
+import { weekStartOf, type Occurrence } from '@lifexp/shared';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { setAccessToken } from '@/lib/apiClient';
 import { WeekPage } from './WeekPage';
@@ -49,7 +49,7 @@ function setup(options: ApiOptions = {}, initialUrl = '/semana') {
   const weekCalls: string[] = [];
   vi.stubGlobal(
     'fetch',
-    vi.fn<typeof fetch>(async (input) => {
+    vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
       if (url === '/api/auth/refresh') {
         return json(200, { user: user(options.timezone), accessToken: 't' });
@@ -77,6 +77,33 @@ function setup(options: ApiOptions = {}, initialUrl = '/semana') {
             archivedAt: null,
           },
         ]);
+      }
+      if (url === '/api/blocks' && init?.method === 'POST') {
+        // Imita a API: cria o bloco e a ocorrência passa a existir na semana dele.
+        const body = JSON.parse(String(init.body));
+        const date: string = body.recurrence === 'weekly' ? body.validFrom : body.date;
+        const key = weekStartOf(date);
+        const created = occurrence({
+          blockId: '0192f1a0-7b3c-7000-8000-0000000000c9',
+          occurrenceDate: date,
+          date,
+          startTime: body.startTime,
+          durationMin: body.durationMin,
+          activityId: body.activityId,
+          recurrence: body.recurrence,
+        });
+        options.weeks = { ...options.weeks, [key]: [...(options.weeks?.[key] ?? []), created] };
+        return json(201, {
+          id: created.blockId,
+          activityId: body.activityId,
+          recurrence: body.recurrence,
+          weekday: body.weekday ?? null,
+          date: body.date ?? null,
+          startTime: body.startTime,
+          durationMin: body.durationMin,
+          validFrom: body.validFrom ?? null,
+          validUntil: null,
+        });
       }
       if (url.startsWith('/api/blocks/week')) {
         const weekStart = new URL(url, 'http://x').searchParams.get('weekStart') as string;
@@ -342,6 +369,24 @@ describe('WeekPage', () => {
       'Não foi possível carregar a semana',
     );
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument();
+  });
+
+  it('cria um bloco pelo botão "Novo bloco" e ele aparece na grade, no dia certo', async () => {
+    setup();
+    await screen.findByText('Nenhum bloco nesta semana.');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Novo bloco' }));
+    await screen.findByRole('option', { name: 'Reunião' });
+    await userEvent.selectOptions(screen.getByLabelText('Atividade'), 'Reunião');
+    await userEvent.click(screen.getByRole('button', { name: 'Criar bloco' }));
+
+    // hoje é quarta (2026-10-07), o padrão do formulário
+    const card = await screen.findByRole('article', {
+      name: 'Reunião, quarta-feira, 09:00 às 10:00',
+    });
+    expect(within(column(/quarta-feira/)).getByRole('article')).toBe(card);
+    expect(screen.queryByText('Nenhum bloco nesta semana.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('o título da página identifica o planejador', async () => {

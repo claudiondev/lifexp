@@ -54,6 +54,11 @@ export function weekDates(weekStart: CivilDate): CivilDate[] {
   return Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
 }
 
+/** Primeira data em ou depois de `date` que cai no dia da semana `weekday` (1 = segunda). */
+export function firstOccurrenceOnOrAfter(date: CivilDate, weekday: number): CivilDate {
+  return addDays(date, (weekday - weekdayOf(date) + 7) % 7);
+}
+
 /** Datas civis comparam corretamente como texto, porque o formato é ordenável. */
 export function compareCivil(a: CivilDate, b: CivilDate): number {
   return a < b ? -1 : a > b ? 1 : 0;

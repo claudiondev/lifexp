@@ -1,10 +1,5 @@
 import { addDays, type CivilDate, type Occurrence } from '@lifexp/shared';
-import {
-  firstOccurrenceOnOrAfter,
-  planDelete,
-  planEdit,
-  type BlockChanges,
-} from './series-split.js';
+import { planDelete, planEdit, type BlockChanges } from './series-split.js';
 import {
   computeWeekOccurrences,
   type BlockTemplate,
@@ -140,16 +135,6 @@ const before = (occurrences: Occurrence[], from: CivilDate) =>
   occurrences.filter((o) => o.occurrenceDate < from).map(view);
 const fromOn = (occurrences: Occurrence[], from: CivilDate) =>
   occurrences.filter((o) => o.occurrenceDate >= from);
-
-describe('firstOccurrenceOnOrAfter', () => {
-  it('acha a primeira data no dia da semana pedido, em ou depois da data', () => {
-    expect(firstOccurrenceOnOrAfter('2026-10-07', 3)).toBe('2026-10-07'); // já é quarta
-    expect(firstOccurrenceOnOrAfter('2026-10-08', 3)).toBe('2026-10-14');
-    expect(firstOccurrenceOnOrAfter('2026-10-07', 1)).toBe('2026-10-12'); // próxima segunda
-    expect(firstOccurrenceOnOrAfter('2026-10-07', 7)).toBe('2026-10-11');
-    expect(firstOccurrenceOnOrAfter('2026-12-30', 5)).toBe('2027-01-01'); // vira o ano
-  });
-});
 
 describe('planEdit: esta e as próximas (série com passado)', () => {
   const world: World = { blocks: [series()], exceptions: [] };

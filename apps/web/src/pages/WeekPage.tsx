@@ -7,14 +7,15 @@ import {
   weekStartOf,
   type CivilDate,
 } from '@lifexp/shared';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { formatWeekRange } from '@/lib/civilFormat';
 import { useActivities } from '@/features/activities/useActivities';
 import { useAreas } from '@/features/areas/useAreas';
 import { useAuth } from '@/features/auth/useAuth';
+import { BlockFormDialog } from '@/features/blocks/BlockFormDialog';
 import type { OccurrenceDisplay } from '@/features/blocks/OccurrenceCard';
 import { useNow } from '@/features/blocks/useNow';
 import { useWeek, weekQueryOptions } from '@/features/blocks/useWeek';
@@ -34,6 +35,7 @@ export function WeekPage() {
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const now = useNow();
+  const [creating, setCreating] = useState(false);
 
   const timezone = state.status === 'authenticated' ? state.user.timezone : 'UTC';
   const today = todayIn(timezone, now);
@@ -83,7 +85,11 @@ export function WeekPage() {
         title="Sua semana"
         description={formatWeekRange(weekStart)}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => setCreating(true)}>
+              <Plus aria-hidden className="size-4" />
+              Novo bloco
+            </Button>
             <Button
               variant="secondary"
               size="icon"
@@ -152,6 +158,13 @@ export function WeekPage() {
           </>
         )}
       </section>
+
+      <BlockFormDialog
+        open={creating}
+        onOpenChange={setCreating}
+        weekStart={weekStart}
+        today={today}
+      />
     </main>
   );
 }

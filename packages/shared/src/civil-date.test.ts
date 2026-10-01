@@ -4,6 +4,7 @@ import {
   addDays,
   compareCivil,
   endsSameDay,
+  firstOccurrenceOnOrAfter,
   isValidCivilDate,
   isValidTimeOfDay,
   isWeekStart,
@@ -165,5 +166,27 @@ describe('localDateTimeToUtc (hora de relógio -> instante)', () => {
 
   it('rejeita fuso inválido', () => {
     expect(() => localDateTimeToUtc('2026-10-01', '09:00', 'Marte/Olympus')).toThrow();
+  });
+});
+
+describe('firstOccurrenceOnOrAfter', () => {
+  it('acha a primeira data no dia da semana pedido, em ou depois da data', () => {
+    expect(firstOccurrenceOnOrAfter('2026-10-07', 3)).toBe('2026-10-07'); // já é quarta
+    expect(firstOccurrenceOnOrAfter('2026-10-08', 3)).toBe('2026-10-14');
+    expect(firstOccurrenceOnOrAfter('2026-10-07', 1)).toBe('2026-10-12'); // próxima segunda
+    expect(firstOccurrenceOnOrAfter('2026-10-07', 7)).toBe('2026-10-11');
+  });
+
+  it('atravessa a virada de mês e de ano', () => {
+    expect(firstOccurrenceOnOrAfter('2026-12-30', 5)).toBe('2027-01-01');
+    expect(firstOccurrenceOnOrAfter('2026-10-30', 2)).toBe('2026-11-03');
+  });
+
+  it('nunca devolve uma data anterior à pedida, para qualquer dia da semana', () => {
+    for (let weekday = 1; weekday <= 7; weekday++) {
+      const result = firstOccurrenceOnOrAfter('2026-10-07', weekday);
+      expect(result >= '2026-10-07').toBe(true);
+      expect(result <= '2026-10-13').toBe(true);
+    }
   });
 });

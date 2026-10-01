@@ -1,4 +1,4 @@
-import { addDays, endsSameDay, weekdayOf, type CivilDate } from '@lifexp/shared';
+import { addDays, endsSameDay, firstOccurrenceOnOrAfter, type CivilDate } from '@lifexp/shared';
 import type { BlockTemplate, ExceptionRule } from './week-occurrences.js';
 
 /** Campos que a pessoa pode alterar ao editar "a partir de uma data". */
@@ -61,11 +61,6 @@ export type DeletePlan =
    * preservar o histórico de conclusões do Marco 1d.
    */
   | { kind: 'end-series'; validUntil: CivilDate; dropExceptions: CivilDate[] };
-
-/** Primeira data em ou depois de `date` que cai no dia da semana `weekday` (1 = segunda). */
-export function firstOccurrenceOnOrAfter(date: CivilDate, weekday: number): CivilDate {
-  return addDays(date, (weekday - weekdayOf(date) + 7) % 7);
-}
 
 /** Existe alguma ocorrência real da série antes da data de corte? */
 function hasOccurrenceBefore(block: BlockTemplate, from: CivilDate): boolean {
