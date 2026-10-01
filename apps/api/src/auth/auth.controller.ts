@@ -7,18 +7,22 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ZodResponse } from 'nestjs-zod';
 import type { Env } from '../config/env.schema.js';
 import { AuthResponseDto, LoginDto, RegisterDto } from './auth.dto.js';
 import { AuthService, type AuthResult } from './auth.service.js';
+import { Public } from './public.decorator.js';
 import { REFRESH_COOKIE_NAME, refreshCookieOptions } from './refresh-cookie.js';
 
 @ApiTags('auth')
+@Public()
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -27,6 +31,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @UseGuards(ThrottlerGuard)
   @ApiOperation({ summary: 'Cadastra uma conta e já abre a sessão' })
   @ZodResponse({ status: HttpStatus.CREATED, type: AuthResponseDto })
   async register(
@@ -38,6 +43,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @UseGuards(ThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Autentica e abre a sessão' })
   @ZodResponse({ type: AuthResponseDto })

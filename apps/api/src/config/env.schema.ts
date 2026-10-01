@@ -7,6 +7,12 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(32, 'use ao menos 32 caracteres'),
   ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(7),
+  AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
+  // Atrás de proxy (Vercel/Railway) o IP real vem em X-Forwarded-For; sem isso o rate limit vê só o proxy.
+  TRUST_PROXY: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   // Variáveis de ambiente são sempre string; "false" não pode virar true por coerção.
   COOKIE_SECURE: z
     .enum(['true', 'false'])
