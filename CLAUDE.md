@@ -41,6 +41,22 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - `ConfigModule.forRoot()` lê o env no import do `AppModule`: para testes com env diferente, defina o env
   antes e importe o módulo dinamicamente.
 
+## Design system (front)
+
+- Direção: **HUD de RPG moderno**, interface gamificada. Escuro por padrão ("Void Ink" `#0E0B1A`), claro
+  "pergaminho" via `prefers-color-scheme` (RNF10). Tokens em `apps/web/src/index.css`: `primary` violeta
+  (ação), `xp` ouro (conquista), `mana` musgo (progresso/descanso). Use sempre os tokens, nunca hex solto.
+- Fontes auto-hospedadas (`@fontsource`): Bricolage Grotesque (títulos, `font-display`), Figtree (texto),
+  Chakra Petch (números e rótulos de HUD, `font-hud`).
+- Assinatura: `XpBar` (runas inclinadas que acendem em sequência) e `LevelSigil` (selo hexagonal).
+  Componentes de jogo em `src/components/game`, primitivos shadcn-style em `src/components/ui`
+  (`cn` em `src/lib/utils.ts`, alias `@/`).
+- Tagline: "Cumpra. Descanse. Evolua." Princípios do produto valem na UI: recompensar sem punir, descanso
+  conta como progresso, sem ranking. Não inventar dados: `useCharacter` é placeholder até o Marco 1d.
+- 21st.dev (registry shadcn) exige login, então o CLI não funciona sem o usuário; se ele colar o código de
+  um componente, revisar, adaptar aos tokens e registrar autor/licença. Motion: `motion/react`, sempre
+  respeitando `prefers-reduced-motion`.
+
 ## Decisões de domínio já fechadas
 
 - `Block` é template com `validFrom`/`validUntil`. "Só esta ocorrência" = `BlockException`.
