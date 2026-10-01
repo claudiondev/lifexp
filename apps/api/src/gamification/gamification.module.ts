@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BlocksModule } from '../blocks/blocks.module.js';
+import { CacheRebuildService } from './cache-rebuild.service.js';
 import { CompletionsController } from './completions.controller.js';
 import { CompletionsService } from './completions.service.js';
 import { ProgressController } from './progress.controller.js';
@@ -9,6 +10,7 @@ import { TodayService } from './today.service.js';
 @Module({
   imports: [BlocksModule],
   controllers: [CompletionsController, ProgressController],
-  providers: [CompletionsService, ProgressService, TodayService],
+  providers: [CompletionsService, ProgressService, TodayService, CacheRebuildService],
+  exports: [CacheRebuildService],
 })
 export class GamificationModule {}
