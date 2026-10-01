@@ -1,4 +1,4 @@
-// Entidades entram por marco; este arquivo cresce junto (1a: User e Session; 1b: Area e Activity).
+// Entidades entram por marco; este arquivo cresce junto (1a: User e Session; 1b: Area e Activity; 1c: Block e BlockException).
 // Prisma 7: a URL do banco NÃO fica aqui, e sim em prisma.config.ts.
 
 generator client {
@@ -26,6 +26,7 @@ model User {
   sessions   Session[]
   areas      Area[]
   activities Activity[]
+  blocks     Block[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -78,9 +79,65 @@ model Activity {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  area Area @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area   Area    @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  blocks Block[]
 
   @@index([userId])
   @@index([areaId])
+}
+
+enum BlockRecurrence {
+  WEEKLY
+  ONCE
+}
+
+enum ExceptionType {
+  SKIP
+  OVERRIDE
+}
+
+// Template de bloco (RN31): a recorrência é uma regra, não uma lista de datas futuras.
+// Datas civis são DATE (sem fuso, RN36) e o horário é hora de relógio "HH:mm" (RN37): o instante
+// real só é calculado na consulta, no fuso da pessoa, então trocar de fuso preserva o horário local.
+// As coerências de cada campo também são garantidas por CHECK no banco (veja a migration).
+model Block {
+  id          String          @id @default(uuid(7))
+  userId      String
+  activityId  String
+  recurrence  BlockRecurrence
+  weekday     Int? // 1 = segunda ... 7 = domingo (só WEEKLY)
+  date        DateTime?       @db.Date // só ONCE
+  startTime   String // "HH:mm"
+  durationMin Int
+  validFrom   DateTime?       @db.Date // só WEEKLY: primeira data em que a regra vale
+  validUntil  DateTime?       @db.Date // só WEEKLY: última data em que a regra vale (nulo = sem fim)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activity   Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  exceptions BlockException[]
+
+  @@index([userId, recurrence, validFrom])
+  @@index([userId, date])
+  @@index([activityId])
+}
+
+// Exceção por data: pular (SKIP) ou alterar só aquela ocorrência (OVERRIDE; mover = newDate).
+// Única por (blockId, occurrenceDate), conforme RN32.
+model BlockException {
+  id             String        @id @default(uuid(7))
+  blockId        String
+  occurrenceDate DateTime      @db.Date
+  type           ExceptionType
+  newDate        DateTime?     @db.Date
+  newStartTime   String?
+  newDurationMin Int?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  block Block @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([blockId, occurrenceDate])
 }
