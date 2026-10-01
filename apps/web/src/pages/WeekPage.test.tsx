@@ -218,17 +218,17 @@ describe('WeekPage', () => {
         ],
       },
     });
-    await screen.findByRole('article', { name: /Reunião/ });
+    await screen.findByRole('button', { name: /Reunião/ });
 
     const quarta = column(/quarta-feira/);
     expect(
-      within(quarta).getByRole('article', { name: 'Reunião, quarta-feira, 09:00 às 10:00' }),
+      within(quarta).getByRole('button', { name: 'Reunião, quarta-feira, 09:00 às 10:00' }),
     ).toBeInTheDocument();
     expect(within(quarta).queryByText('Leitura')).not.toBeInTheDocument();
 
     const sexta = column(/sexta-feira/);
     expect(
-      within(sexta).getByRole('article', { name: 'Leitura, sexta-feira, 14:30 às 16:00' }),
+      within(sexta).getByRole('button', { name: 'Leitura, sexta-feira, 14:30 às 16:00' }),
     ).toBeInTheDocument();
   });
 
@@ -240,17 +240,17 @@ describe('WeekPage', () => {
         ],
       },
     });
-    await screen.findByRole('article', { name: /Reunião/ });
+    await screen.findByRole('button', { name: /Reunião/ });
 
-    expect(within(column(/domingo/)).getByRole('article', { name: /Reunião/ })).toBeInTheDocument();
-    expect(within(column(/quarta-feira/)).queryByRole('article')).not.toBeInTheDocument();
+    expect(within(column(/domingo/)).getByRole('button', { name: /Reunião/ })).toBeInTheDocument();
+    expect(within(column(/quarta-feira/)).queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByText('Alterado')).toBeInTheDocument();
   });
 
   it('ocorrência pulada fica visível e marcada como pulada', async () => {
     setup({ weeks: { '2026-10-05': [occurrence({ skipped: true })] } });
 
-    const card = await screen.findByRole('article', { name: /pulado/ });
+    const card = await screen.findByRole('button', { name: /pulado/ });
     expect(within(card).getByText('Pulado')).toBeInTheDocument();
     expect(screen.queryByText('Alterado')).not.toBeInTheDocument();
   });
@@ -269,9 +269,9 @@ describe('WeekPage', () => {
         ],
       },
     });
-    await screen.findAllByRole('article');
+    await screen.findAllByRole('button', { name: /Reunião|Leitura/ });
 
-    const cards = within(column(/quarta-feira/)).getAllByRole('article');
+    const cards = within(column(/quarta-feira/)).getAllByRole('button');
     expect(cards).toHaveLength(2);
     const lefts = cards.map((card) => card.style.left);
     expect(new Set(lefts).size).toBe(2);
@@ -280,7 +280,7 @@ describe('WeekPage', () => {
 
   it('amplia as horas da grade quando há bloco de madrugada', async () => {
     setup({ weeks: { '2026-10-05': [occurrence({ startTime: '04:30', durationMin: 60 })] } });
-    await screen.findByRole('article');
+    await screen.findByRole('button', { name: /Reunião/ });
     expect(screen.getByText('05:00')).toBeInTheDocument();
     expect(screen.getByText('21:00')).toBeInTheDocument();
   });
@@ -381,10 +381,10 @@ describe('WeekPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Criar bloco' }));
 
     // hoje é quarta (2026-10-07), o padrão do formulário
-    const card = await screen.findByRole('article', {
+    const card = await screen.findByRole('button', {
       name: 'Reunião, quarta-feira, 09:00 às 10:00',
     });
-    expect(within(column(/quarta-feira/)).getByRole('article')).toBe(card);
+    expect(within(column(/quarta-feira/)).getByRole('button')).toBe(card);
     expect(screen.queryByText('Nenhum bloco nesta semana.')).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

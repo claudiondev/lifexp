@@ -7,6 +7,7 @@ import type { AreaColor, AreaIcon } from '@lifexp/shared';
 export interface OccurrenceDisplay {
   occurrence: Occurrence;
   activityName: string;
+  areaName: string;
   areaColor: AreaColor;
   areaIcon: AreaIcon;
 }
@@ -16,6 +17,7 @@ interface OccurrenceCardProps {
   label: string;
   style: CSSProperties;
   compact: boolean;
+  onSelect: (display: OccurrenceDisplay) => void;
 }
 
 /** "09:00 às 10:00" */
@@ -23,18 +25,20 @@ export function timeRange(startTime: string, durationMin: number): string {
   return `${startTime} às ${minutesToTime(timeToMinutes(startTime) + durationMin)}`;
 }
 
-export function OccurrenceCard({ display, label, style, compact }: OccurrenceCardProps) {
+export function OccurrenceCard({ display, label, style, compact, onSelect }: OccurrenceCardProps) {
   const { occurrence, activityName, areaColor, areaIcon } = display;
   const colors = AREA_COLOR_CLASSES[areaColor];
   const { Icon } = AREA_ICON_COMPONENTS[areaIcon];
 
   return (
-    <article
+    <button
+      type="button"
       aria-label={label}
       title={label}
       style={style}
+      onClick={() => onSelect(display)}
       className={cn(
-        'absolute overflow-hidden rounded-lg border border-l-4 px-2 py-1 text-left text-xs leading-tight',
+        'absolute cursor-pointer overflow-hidden rounded-lg border border-l-4 px-2 py-1 text-left text-xs leading-tight transition-[filter] hover:brightness-125 focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
         colors.soft,
         colors.border,
         occurrence.skipped && 'border-dashed opacity-55',
@@ -56,7 +60,7 @@ export function OccurrenceCard({ display, label, style, compact }: OccurrenceCar
         <Icon aria-hidden className={cn('size-3 shrink-0', colors.text)} />
         <span className="truncate">{activityName}</span>
       </p>
-      {!compact && (
+      {!compact && !occurrence.skipped && (
         <p className="mt-0.5 font-hud text-[0.7rem] text-muted-foreground tabular-nums">
           {timeRange(occurrence.startTime, occurrence.durationMin)}
         </p>
@@ -67,6 +71,6 @@ export function OccurrenceCard({ display, label, style, compact }: OccurrenceCar
       {!compact && occurrence.modified && !occurrence.skipped && (
         <p className="mt-0.5 text-[0.7rem] font-medium text-xp">Alterado</p>
       )}
-    </article>
+    </button>
   );
 }

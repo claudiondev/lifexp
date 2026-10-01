@@ -14,11 +14,12 @@ interface WeekGridProps {
   /** Minutos desde 00:00 no fuso da pessoa, para a linha de "agora" (só aparece em hoje). */
   nowMinutes: number;
   items: OccurrenceDisplay[];
+  onSelect: (display: OccurrenceDisplay) => void;
 }
 
 const pad = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
-export function WeekGrid({ weekStart, today, nowMinutes, items }: WeekGridProps) {
+export function WeekGrid({ weekStart, today, nowMinutes, items, onSelect }: WeekGridProps) {
   const dates = weekDates(weekStart);
   const range = visibleHourRange(items.map(({ occurrence }) => occurrence));
   const hours = Array.from({ length: range.end - range.start }, (_, index) => range.start + index);
@@ -102,6 +103,7 @@ export function WeekGrid({ weekStart, today, nowMinutes, items }: WeekGridProps)
                             occurrence.durationMin,
                           )}${occurrence.skipped ? ', pulado' : ''}`}
                           compact={(occurrence.durationMin / 60) * HOUR_PX < 40}
+                          onSelect={onSelect}
                           style={{
                             top: ((start - rangeStartMin) / 60) * HOUR_PX,
                             height: Math.max((occurrence.durationMin / 60) * HOUR_PX, MIN_CARD_PX),

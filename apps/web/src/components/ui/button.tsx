@@ -12,6 +12,8 @@ const buttonVariants = cva(
           'bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.28),0_10px_28px_-10px_var(--primary)] hover:brightness-110',
         secondary: 'border border-border bg-secondary text-secondary-foreground hover:bg-accent',
         ghost: 'text-muted-foreground hover:bg-accent hover:text-foreground',
+        destructive:
+          'border border-destructive/50 bg-destructive/10 text-destructive hover:bg-destructive/20',
       },
       size: {
         default: 'h-11 px-5 text-sm',

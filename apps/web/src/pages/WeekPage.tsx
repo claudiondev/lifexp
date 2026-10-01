@@ -16,6 +16,7 @@ import { useActivities } from '@/features/activities/useActivities';
 import { useAreas } from '@/features/areas/useAreas';
 import { useAuth } from '@/features/auth/useAuth';
 import { BlockFormDialog } from '@/features/blocks/BlockFormDialog';
+import { OccurrenceDialog } from '@/features/blocks/OccurrenceDialog';
 import type { OccurrenceDisplay } from '@/features/blocks/OccurrenceCard';
 import { useNow } from '@/features/blocks/useNow';
 import { useWeek, weekQueryOptions } from '@/features/blocks/useWeek';
@@ -36,6 +37,7 @@ export function WeekPage() {
   const [params, setParams] = useSearchParams();
   const now = useNow();
   const [creating, setCreating] = useState(false);
+  const [selected, setSelected] = useState<OccurrenceDisplay | null>(null);
 
   const timezone = state.status === 'authenticated' ? state.user.timezone : 'UTC';
   const today = todayIn(timezone, now);
@@ -62,6 +64,7 @@ export function WeekPage() {
       return {
         occurrence,
         activityName: activityById.get(occurrence.activityId)?.name ?? 'Atividade',
+        areaName: area?.name ?? 'Área',
         areaColor: area?.color ?? 'slate',
         areaIcon: area?.icon ?? 'star',
       };
@@ -154,11 +157,18 @@ export function WeekPage() {
                 Nenhum bloco nesta semana.
               </p>
             )}
-            <WeekGrid weekStart={weekStart} today={today} nowMinutes={nowMinutes} items={items} />
+            <WeekGrid
+              weekStart={weekStart}
+              today={today}
+              nowMinutes={nowMinutes}
+              items={items}
+              onSelect={setSelected}
+            />
           </>
         )}
       </section>
 
+      <OccurrenceDialog display={selected} onClose={() => setSelected(null)} />
       <BlockFormDialog
         open={creating}
         onOpenChange={setCreating}
