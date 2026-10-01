@@ -85,14 +85,15 @@ describe('Auth (e2e)', () => {
       }
     });
 
-    it('não cria áreas quando o cadastro é rejeitado por e-mail repetido', async () => {
+    it('cadastro repetido não duplica as áreas da conta existente', async () => {
       const email = uniqueEmail();
       await register(email);
-      const before = await prisma.area.count();
 
       await register(email);
 
-      expect(await prisma.area.count()).toBe(before);
+      // Conta só as áreas desta pessoa: as suítes e2e rodam em paralelo no mesmo banco.
+      const areas = await prisma.area.count({ where: { user: { email } } });
+      expect(areas).toBe(DEFAULT_AREAS.length);
     });
 
     it('rejeita e-mail repetido, ignorando maiúsculas, com 409', async () => {
