@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { useActivities, groupByArea } from '@/features/activities/useActivities';
 import { AreaCard } from '@/features/areas/AreaCard';
 import { AreaFormDialog } from '@/features/areas/AreaFormDialog';
+import { useProgress } from '@/features/character/useProgress';
 import { useAreaMutations, useAreas } from '@/features/areas/useAreas';
 import { PageHeader } from './PageHeader';
 
@@ -19,6 +20,8 @@ export function AreasPage() {
   const areas = useAreas(showArchived);
   const activities = useActivities(showArchived);
   const activitiesByArea = groupByArea(activities.data ?? []);
+  const progress = useProgress();
+  const progressByArea = new Map(progress.data?.areas.map((item) => [item.areaId, item]));
   const { archive, unarchive } = useAreaMutations();
   const pending = archive.isPending || unarchive.isPending;
 
@@ -109,6 +112,7 @@ export function AreasPage() {
                 key={area.id}
                 area={area}
                 activities={activitiesByArea.get(area.id) ?? []}
+                progress={progressByArea.get(area.id)}
                 pending={pending}
                 onEdit={(target) => setDialog({ open: true, area: target })}
                 onArchive={archiveWithUndo}

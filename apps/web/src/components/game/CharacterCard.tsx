@@ -10,6 +10,8 @@ interface CharacterCardProps {
   xp: number;
   /** Progresso de 0 a 1 dentro do nível atual. */
   levelProgress: number;
+  xpIntoLevel?: number;
+  xpForNextLevel?: number;
   streakDays: number;
   emblem?: AvatarKey;
   className?: string;
@@ -21,6 +23,8 @@ export function CharacterCard({
   level,
   xp,
   levelProgress,
+  xpIntoLevel,
+  xpForNextLevel,
   streakDays,
   emblem,
   className,
@@ -50,6 +54,12 @@ export function CharacterCard({
       <div className="mt-3 flex items-center justify-between text-muted-foreground">
         <span className="font-hud text-sm tabular-nums">
           <span className="text-xp">{xp}</span> XP
+          {xpIntoLevel !== undefined && xpForNextLevel !== undefined && (
+            <span className="text-muted-foreground">
+              {' '}
+              · {xpIntoLevel} / {xpForNextLevel} para o nível {level + 1}
+            </span>
+          )}
         </span>
         <StreakFlame days={streakDays} />
       </div>

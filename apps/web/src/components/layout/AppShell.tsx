@@ -25,7 +25,11 @@ export function AppShell() {
             <DesktopNav />
           </div>
           <div className="ml-auto flex items-center gap-4">
-            <div className="flex items-center gap-3">
+            <div
+              className="flex items-center gap-3 transition-opacity"
+              aria-busy={!character.ready}
+              style={{ opacity: character.ready ? 1 : 0.5 }}
+            >
               <LevelSigil level={character.level} size={34} />
               <div className="hidden w-36 flex-col gap-1 sm:flex">
                 <XpBar

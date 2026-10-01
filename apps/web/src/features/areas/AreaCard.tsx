@@ -1,5 +1,5 @@
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
-import type { Activity, Area } from '@lifexp/shared';
+import type { Activity, Area, AreaProgress } from '@lifexp/shared';
 import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ import { AREA_COLOR_CLASSES } from './areaAppearance';
 interface AreaCardProps {
   area: Area;
   activities: Activity[];
+  /** Nível e XP da área; ausente enquanto carrega (mostra o ponto de partida). */
+  progress?: AreaProgress;
   pending?: boolean;
   onEdit: (area: Area) => void;
   onArchive: (area: Area) => void;
@@ -19,6 +21,7 @@ interface AreaCardProps {
 export function AreaCard({
   area,
   activities,
+  progress,
   pending,
   onEdit,
   onArchive,
@@ -83,17 +86,16 @@ export function AreaCard({
         </div>
       </div>
 
-      {/* Nível da área ainda não existe na API (Marco 1d); toda área nova começa no nível 1. */}
       <div>
         <XpBar
-          progress={0}
+          progress={progress?.progress ?? 0}
           segments={10}
           label={`Experiência em ${area.name}`}
           segmentClassName="h-2"
-          valueText="0 XP"
+          valueText={`${progress?.xp ?? 0} XP`}
         />
         <p className="mt-2 font-hud text-xs text-muted-foreground tabular-nums">
-          Nv 1 · <span className={colors.text}>0</span> XP
+          Nv {progress?.level ?? 1} · <span className={colors.text}>{progress?.xp ?? 0}</span> XP
         </p>
       </div>
 
