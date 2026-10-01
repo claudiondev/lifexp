@@ -6,6 +6,8 @@ generator client {
   output              = "../src/generated/prisma"
   moduleFormat        = "esm"
   importFileExtension = "js"
+  // Permite relationLoadStrategy: "join" (relações resolvidas num único SELECT).
+  previewFeatures     = ["relationJoins"]
 }
 
 datasource db {

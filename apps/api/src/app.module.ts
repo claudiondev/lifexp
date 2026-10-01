@@ -5,6 +5,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { validateEnv } from './config/env.schema.js';
 import { AreasModule } from './areas/areas.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BlocksModule } from './blocks/blocks.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -16,6 +17,7 @@ import { UsersModule } from './users/users.module.js';
     AuthModule,
     UsersModule,
     AreasModule,
+    BlocksModule,
     HealthModule,
   ],
   providers: [

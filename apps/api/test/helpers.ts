@@ -48,3 +48,13 @@ export async function registerUser(app: INestApplication): Promise<TestUser> {
 }
 
 export const bearer = (user: TestUser) => ({ Authorization: `Bearer ${user.accessToken}` });
+
+/** Atividades da pessoa (as padrão criadas no cadastro), na ordem das áreas. */
+export async function listActivities(
+  app: INestApplication,
+  user: TestUser,
+  query = '',
+): Promise<{ id: string; areaId: string; name: string; archivedAt: string | null }[]> {
+  const res = await request(app.getHttpServer()).get(`/api/activities${query}`).set(bearer(user));
+  return res.body;
+}
