@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CivilDate, PutExceptionInput, UpdateBlockInput } from '@lifexp/shared';
 import { createBlock, deleteBlock, putException, removeException, updateBlock } from './blocksApi';
+import { progressKey } from '../character/useProgress';
 import { todayKey } from '../today/useToday';
 import { blocksKey } from './useWeek';
 
@@ -17,6 +18,8 @@ export function useBlockMutations() {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: blocksKey }),
       queryClient.invalidateQueries({ queryKey: todayKey }),
+      // pular ou editar bloco muda quais dias são planejados, e com isso o streak
+      queryClient.invalidateQueries({ queryKey: progressKey }),
     ]);
 
   return {

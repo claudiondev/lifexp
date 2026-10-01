@@ -8,8 +8,10 @@ export interface Character {
   /** XP ganho dentro do nível atual e quanto o nível pede ao todo (para "40 / 183"). */
   xpIntoLevel: number;
   xpForNextLevel: number;
-  /** Fica em 0 até o Marco 1e (streak). */
+  /** Dias planejados seguidos com ao menos um bloco cumprido (dia sem bloco é neutro). */
   streakDays: number;
+  /** O maior streak que a pessoa já teve. */
+  streakBest: number;
   /** Falso enquanto o progresso real não chegou da API (os números abaixo são o ponto de partida). */
   ready: boolean;
 }
@@ -22,6 +24,7 @@ const STARTING_POINT: Character = {
   xpIntoLevel: 0,
   xpForNextLevel: 100,
   streakDays: 0,
+  streakBest: 0,
   ready: false,
 };
 
@@ -35,7 +38,8 @@ export function useCharacter(): Character {
     levelProgress: total.progress,
     xpIntoLevel: total.xpIntoLevel,
     xpForNextLevel: total.xpForNextLevel,
-    streakDays: 0,
+    streakDays: data.streak.current,
+    streakBest: data.streak.best,
     ready: true,
   };
 }

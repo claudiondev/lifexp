@@ -30,7 +30,14 @@ describe('useCharacter', () => {
     );
     const { result } = renderHook(() => useCharacter(), { wrapper });
 
-    expect(result.current).toMatchObject({ level: 1, xp: 0, levelProgress: 0, ready: false });
+    expect(result.current).toMatchObject({
+      level: 1,
+      xp: 0,
+      levelProgress: 0,
+      streakDays: 0,
+      streakBest: 0,
+      ready: false,
+    });
   });
 
   it('traduz o progresso da API para a ficha do personagem', async () => {
@@ -47,6 +54,8 @@ describe('useCharacter', () => {
       levelProgress: 0.27,
       xpIntoLevel: 50,
       xpForNextLevel: 183,
+      streakDays: 4,
+      streakBest: 9,
     });
   });
 

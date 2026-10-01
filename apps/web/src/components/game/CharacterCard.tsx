@@ -13,6 +13,8 @@ interface CharacterCardProps {
   xpIntoLevel?: number;
   xpForNextLevel?: number;
   streakDays: number;
+  /** Maior streak já atingido; aparece como "recorde" ao lado da sequência atual. */
+  streakBest?: number;
   emblem?: AvatarKey;
   className?: string;
 }
@@ -26,6 +28,7 @@ export function CharacterCard({
   xpIntoLevel,
   xpForNextLevel,
   streakDays,
+  streakBest,
   emblem,
   className,
 }: CharacterCardProps) {
@@ -61,7 +64,12 @@ export function CharacterCard({
             </span>
           )}
         </span>
-        <StreakFlame days={streakDays} />
+        <span className="inline-flex items-center gap-3">
+          {streakBest !== undefined && streakBest > 0 && (
+            <span className="font-hud text-xs tabular-nums">Recorde: {streakBest}</span>
+          )}
+          <StreakFlame days={streakDays} />
+        </span>
       </div>
     </section>
   );

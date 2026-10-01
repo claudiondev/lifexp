@@ -53,9 +53,14 @@ interface Options {
   items: TodayItem[];
   /** Resposta do POST de conclusão; padrão: ganhou 90 XP sem subir de nível. */
   completeResponse?: () => Response;
+  streak?: { current: number; best: number; lastFulfilledDate: string | null };
 }
 
-function setup({ items, completeResponse }: Options) {
+function setup({
+  items,
+  completeResponse,
+  streak = { current: 3, best: 7, lastFulfilledDate: '2026-10-06' },
+}: Options) {
   const calls: { method: string; url: string; body?: unknown }[] = [];
   let totalXp = 100;
   vi.stubGlobal(
@@ -72,7 +77,7 @@ function setup({ items, completeResponse }: Options) {
         return json(200, {
           total: level(totalXp, 2),
           areas: [],
-          streak: { current: 0, best: 0, lastFulfilledDate: null },
+          streak,
         });
       if (url.startsWith('/api/activities')) {
         return json(200, [
@@ -163,6 +168,27 @@ describe('TodayPage', () => {
     expect(screen.getByText('+90')).toBeInTheDocument();
     expect(screen.getByText('0 de 1 concluídos')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Nível 2' })).toBeInTheDocument();
+  });
+
+  it('mostra o streak e o recorde no resumo do dia', async () => {
+    setup({ items: [makeItem(BLOCK_1)] });
+
+    expect(await screen.findByText('Streak: 3 dias · recorde 7')).toBeInTheDocument();
+  });
+
+  it('no singular e sem recorde ainda, não mostra "recorde"', async () => {
+    setup({
+      items: [makeItem(BLOCK_1)],
+      streak: { current: 1, best: 0, lastFulfilledDate: null },
+    });
+
+    expect(await screen.findByText('Streak: 1 dia')).toBeInTheDocument();
+  });
+
+  it('em dia livre avisa que o streak não muda', async () => {
+    setup({ items: [] });
+
+    expect(await screen.findByText(/dia livre, seu streak não muda/)).toBeInTheDocument();
   });
 
   it('destaca só o próximo bloco', async () => {
@@ -340,6 +366,10 @@ describe('TodayPage', () => {
       expect(toast.success).toHaveBeenCalledWith('“Corrida” pulado nesta data', {
         description: 'Sem XP e sem penalidade. A série continua.',
       }),
+    );
+    // pular muda os dias planejados, então o progresso (streak) também é buscado de novo
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === 'GET' && c.url === '/api/progress').length).toBe(2),
     );
     // a lista de hoje é buscada de novo para refletir o pulado
     await waitFor(() =>

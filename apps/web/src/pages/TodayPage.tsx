@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { LevelSigil } from '@/components/game/LevelSigil';
 import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
+import { useCharacter } from '@/features/character/useCharacter';
 import { useActivities } from '@/features/activities/useActivities';
 import { useAreas } from '@/features/areas/useAreas';
 import { useBlockMutations } from '@/features/blocks/useBlockMutations';
@@ -19,6 +20,7 @@ const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1
 
 export function TodayPage() {
   const today = useToday();
+  const character = useCharacter();
   const activities = useActivities(true);
   const areas = useAreas(true);
   const { complete, undo } = useCompletionMutations();
@@ -141,6 +143,12 @@ export function TodayPage() {
             <p className="mt-2 font-hud text-xs text-muted-foreground tabular-nums">
               {total.xpIntoLevel} / {total.xpForNextLevel} para o nível {total.level + 1}
             </p>
+            {character.ready && (
+              <p className="mt-1 font-hud text-xs text-muted-foreground tabular-nums">
+                Streak: {character.streakDays} {character.streakDays === 1 ? 'dia' : 'dias'}
+                {character.streakBest > 0 && ` · recorde ${character.streakBest}`}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <p className="font-hud text-2xl font-bold text-xp tabular-nums">
@@ -204,7 +212,8 @@ export function TodayPage() {
               </div>
               {views.today.length === 0 ? (
                 <p className="mt-3 rounded-2xl border border-dashed border-border bg-card/40 p-6 text-muted-foreground">
-                  Nenhum bloco planejado para hoje. Crie um na Semana para ganhar XP.
+                  Nenhum bloco planejado para hoje: dia livre, seu streak não muda. Crie um bloco na
+                  Semana se quiser ganhar XP.
                 </p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-3">{renderCards(views.today)}</ul>
