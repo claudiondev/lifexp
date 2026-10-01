@@ -1,14 +1,18 @@
 import { defineConfig } from 'vitest/config';
+import { resolveTestDatabase } from './test/test-db.js';
 
 export default defineConfig({
   test: {
     globals: true,
     root: './',
     include: ['test/**/*.e2e-spec.ts'],
-    // O e2e do health não toca o banco (conexão preguiçosa), mas o env precisa ser válido.
+    globalSetup: ['./test/global-setup.ts'],
     env: {
-      DATABASE_URL: 'postgresql://test:test@localhost:5433/lifexp?schema=public',
+      NODE_ENV: 'test',
+      DATABASE_URL: resolveTestDatabase().testUrl,
       JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-123',
+      AUTH_RATE_LIMIT_PER_MINUTE: '1000',
+      COOKIE_SECURE: 'false',
     },
   },
 });
