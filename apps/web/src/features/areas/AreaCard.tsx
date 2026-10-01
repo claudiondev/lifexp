@@ -1,20 +1,29 @@
 import { Archive, ArchiveRestore, Pencil } from 'lucide-react';
-import type { Area } from '@lifexp/shared';
+import type { Activity, Area } from '@lifexp/shared';
 import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ActivityList } from '../activities/ActivityList';
 import { AreaBadge } from './AreaBadge';
 import { AREA_COLOR_CLASSES } from './areaAppearance';
 
 interface AreaCardProps {
   area: Area;
+  activities: Activity[];
   pending?: boolean;
   onEdit: (area: Area) => void;
   onArchive: (area: Area) => void;
   onRestore: (area: Area) => void;
 }
 
-export function AreaCard({ area, pending, onEdit, onArchive, onRestore }: AreaCardProps) {
+export function AreaCard({
+  area,
+  activities,
+  pending,
+  onEdit,
+  onArchive,
+  onRestore,
+}: AreaCardProps) {
   const archived = area.archivedAt !== null;
   const colors = AREA_COLOR_CLASSES[area.color];
 
@@ -87,6 +96,8 @@ export function AreaCard({ area, pending, onEdit, onArchive, onRestore }: AreaCa
           Nv 1 · <span className={colors.text}>0</span> XP
         </p>
       </div>
+
+      <ActivityList area={area} activities={activities} />
     </article>
   );
 }

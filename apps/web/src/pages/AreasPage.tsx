@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { Area } from '@lifexp/shared';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useActivities, groupByArea } from '@/features/activities/useActivities';
 import { AreaCard } from '@/features/areas/AreaCard';
 import { AreaFormDialog } from '@/features/areas/AreaFormDialog';
 import { useAreaMutations, useAreas } from '@/features/areas/useAreas';
@@ -16,6 +17,8 @@ export function AreasPage() {
     area: null,
   });
   const areas = useAreas(showArchived);
+  const activities = useActivities(showArchived);
+  const activitiesByArea = groupByArea(activities.data ?? []);
   const { archive, unarchive } = useAreaMutations();
   const pending = archive.isPending || unarchive.isPending;
 
@@ -105,6 +108,7 @@ export function AreasPage() {
               <AreaCard
                 key={area.id}
                 area={area}
+                activities={activitiesByArea.get(area.id) ?? []}
                 pending={pending}
                 onEdit={(target) => setDialog({ open: true, area: target })}
                 onArchive={archiveWithUndo}
