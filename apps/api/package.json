@@ -6,8 +6,8 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "test": "vitest run && vitest run --config vitest.config.e2e.ts",
-    "test:unit": "vitest run",
+    "test": "vitest run --coverage && vitest run --config vitest.config.e2e.ts",
+    "test:unit": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.config.e2e.ts",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate"
