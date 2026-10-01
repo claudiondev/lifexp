@@ -1,4 +1,4 @@
-import { LayoutDashboard, Shapes, UserRound, type LucideIcon } from 'lucide-react';
+import { CalendarDays, LayoutDashboard, Shapes, UserRound, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
+  { to: '/semana', label: 'Semana', icon: CalendarDays },
   { to: '/areas', label: 'Áreas', icon: Shapes },
   { to: '/perfil', label: 'Perfil', icon: UserRound },
 ];
@@ -46,7 +47,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Principal (celular)"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border bg-background/90 backdrop-blur-md sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background/90 backdrop-blur-md sm:hidden"
     >
       {ITEMS.map(({ to, label, icon: Icon, end }) => (
         <NavLink

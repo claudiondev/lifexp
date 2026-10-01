@@ -7,6 +7,7 @@ import { AppShell } from './components/layout/AppShell';
 import { AreasPage } from './pages/AreasPage';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { WeekPage } from './pages/WeekPage';
 
 export function AppRoutes() {
   return (
@@ -18,6 +19,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/semana" element={<WeekPage />} />
           <Route path="/areas" element={<AreasPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
         </Route>
