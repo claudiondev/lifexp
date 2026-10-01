@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 1e (streak)** concluído, sobre Hoje/XP (1d), blocos/Semana (1c), perfil/áreas (1b),
-> autenticação (1a) e a fundação (0). Próximo: PWA (1f).
+> Status: **Marco 1f (PWA instalável)** concluído, fechando o **Marco 1**, sobre streak (1e), Hoje/XP (1d),
+> blocos/Semana (1c), perfil/áreas (1b), autenticação (1a) e a fundação (0). Próximo: Marco 2.
 
 ## Stack
 
@@ -167,6 +167,26 @@ planejado contam; dia sem bloco é **neutro** (não avança e não quebra).
 - O coringa semanal (RF26) é da fase 4 e ainda não existe.
 
 Telas: HUD, ficha ("Recorde") e a tela Hoje mostram o streak; em dia livre a Hoje avisa que o streak não muda.
+
+## PWA instalável (Marco 1f)
+
+O LifeXP é instalável como app (RNF03), sem push (push é da fase 4).
+
+- **Manifesto** (`apps/web/pwa.config.ts`): abre em `/hoje`, `display: standalone`, tema escuro do HUD, ícones
+  192, 512 e _maskable_. Os ícones saem de `apps/web/scripts/icon.svg` com `pnpm --filter @lifexp/web icons`
+  (os PNGs ficam versionados em `public/icons`, então o build não depende do `sharp`).
+- **Service worker** (Workbox, `generateSW`): só o "casco" do app é pré-cacheado (JS, CSS, HTML, fontes, ícones).
+  **`/api/*` nunca é cacheado** (`NetworkOnly`) e o fallback de navegação ignora `/api`: XP, streak e blocos mudam
+  o tempo todo e o token vive só em memória, então resposta velha seria pior que erro de rede. Não há modo
+  offline de dados.
+- **Atualização** em modo `prompt`: quando sai versão nova aparece "Nova versão disponível" com
+  Atualizar/Depois; nada recarrega sozinho no meio de uma ação.
+- **Instalar:** botão "Instalar app" no Perfil, só quando o navegador oferece (`beforeinstallprompt`). No
+  Safari/iOS a instalação é manual (Compartilhar > Adicionar à Tela de Início); o `apple-touch-icon` já está lá.
+- **Garantia no build:** `pnpm build` termina com `scripts/check-pwa.mjs`, que falha se o manifesto, os ícones
+  ou a regra "API fora do cache" estiverem errados (o CI pega por aqui).
+- **Em produção (Vercel):** o rewrite `/api` → Railway precisa continuar na mesma origem, e `sw.js` deve ser
+  servido sem cache longo (o Vite já o emite com hash só nos assets, não no `sw.js`).
 
 ## Glossário (para quem vem de Java/Spring)
 

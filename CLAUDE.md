@@ -105,6 +105,17 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: `useCharacter` traz `streakDays`/`streakBest`; `useBlockMutations` invalida `progress` (pular/editar
   bloco muda dias planejados). Texto nunca culpa: dia livre = "seu streak não muda". Coringa é fase 4.
 
+## PWA (decisões do 1f)
+
+- `vite-plugin-pwa` (generateSW, `registerType: 'prompt'`); configuração em `apps/web/pwa.config.ts` (manifesto +
+  Workbox), testada por `pwa.config.test.ts`. `scripts/check-pwa.mjs` roda no fim do `pnpm build` e valida o
+  que foi realmente gerado.
+- Regra inegociável: **`/api/*` é NetworkOnly** e fica fora do `navigateFallback` (denylist). Nunca cachear
+  resposta da API (token só em memória; dados mudam sempre). Sem offline de dados.
+- Ícones: `scripts/icon.svg` -> `pnpm icons` (sharp, devDependency); PNGs versionados.
+- Front: `UpdatePrompt` (aviso de versão nova, em `App`), `InstallAppCard` (Perfil, via `beforeinstallprompt`).
+  Push do PWA é fase 4. Registro do SW só foi verificado por testes e pelo build; vale testar num Chrome real.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -157,7 +168,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)**. Roadmap do Marco 1: 1f PWA.
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. Próximo: Marco 2 (a planejar).
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
