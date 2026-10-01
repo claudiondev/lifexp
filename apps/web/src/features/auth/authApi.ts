@@ -4,6 +4,7 @@ import {
   type AuthResponse,
   type LoginInput,
   type RegisterInput,
+  type UpdateProfileInput,
   type User,
 } from '@lifexp/shared';
 import { apiFetch, apiJson, refreshSession, setAccessToken } from '../../lib/apiClient';
@@ -42,4 +43,8 @@ export async function logout(): Promise<void> {
 
 export function fetchMe(): Promise<User> {
   return apiJson('/users/me', userSchema);
+}
+
+export function updateProfile(input: UpdateProfileInput): Promise<User> {
+  return apiJson('/users/me', userSchema, { method: 'PATCH', json: input });
 }

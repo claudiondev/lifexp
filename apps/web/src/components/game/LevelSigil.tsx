@@ -1,15 +1,19 @@
 import { useId } from 'react';
+import type { AvatarKey } from '@lifexp/shared';
 import { cn } from '@/lib/utils';
+import { EMBLEMS } from './emblems';
 
 interface LevelSigilProps {
   level: number;
   /** Largura em px; a altura segue a proporção do hexágono. */
   size?: number;
+  /** Emblema escolhido no perfil, mostrado num selo pequeno no canto (só em tamanhos maiores). */
+  emblem?: AvatarKey;
   className?: string;
 }
 
 /** Selo hexagonal de nível: borda em degradê ouro→violeta, número em fonte de HUD. */
-export function LevelSigil({ level, size = 88, className }: LevelSigilProps) {
+export function LevelSigil({ level, size = 88, emblem, className }: LevelSigilProps) {
   const gradientId = useId();
   return (
     <div
@@ -43,6 +47,7 @@ export function LevelSigil({ level, size = 88, className }: LevelSigilProps) {
           strokeWidth="1"
         />
       </svg>
+      {emblem && size >= 56 && <EmblemBadge emblem={emblem} size={size} />}
       <div aria-hidden className="relative flex flex-col items-center leading-none">
         <span
           className="font-hud tracking-[0.25em] text-muted-foreground uppercase"
@@ -55,5 +60,18 @@ export function LevelSigil({ level, size = 88, className }: LevelSigilProps) {
         </span>
       </div>
     </div>
+  );
+}
+
+function EmblemBadge({ emblem, size }: { emblem: AvatarKey; size: number }) {
+  const { Icon } = EMBLEMS[emblem];
+  return (
+    <span
+      aria-hidden
+      className="absolute -right-1 -bottom-1 grid place-items-center rounded-full border border-border bg-card text-xp shadow-[0_0_10px_color-mix(in_oklab,var(--xp)_30%,transparent)]"
+      style={{ width: size * 0.4, height: size * 0.4 }}
+    >
+      <Icon style={{ width: size * 0.22, height: size * 0.22 }} />
+    </span>
   );
 }

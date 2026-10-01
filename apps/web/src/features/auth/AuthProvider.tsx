@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { LoginInput, RegisterInput } from '@lifexp/shared';
+import type { LoginInput, RegisterInput, UpdateProfileInput } from '@lifexp/shared';
 import { setAccessToken, setSessionExpiredHandler } from '../../lib/apiClient';
 import * as authApi from './authApi';
 import { AuthContext, type AuthContextValue, type AuthState } from './AuthContext';
@@ -64,9 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient]);
 
+  const updateProfile = useCallback(async (input: UpdateProfileInput) => {
+    const user = await authApi.updateProfile(input);
+    setState({ status: 'authenticated', user });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ state, login, register, logout }),
-    [state, login, register, logout],
+    () => ({ state, login, register, logout, updateProfile }),
+    [state, login, register, logout, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

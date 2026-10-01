@@ -1,3 +1,4 @@
+import type { AvatarKey } from '@lifexp/shared';
 import { cn } from '@/lib/utils';
 import { LevelSigil } from './LevelSigil';
 import { StreakFlame } from './StreakFlame';
@@ -10,6 +11,7 @@ interface CharacterCardProps {
   /** Progresso de 0 a 1 dentro do nível atual. */
   levelProgress: number;
   streakDays: number;
+  emblem?: AvatarKey;
   className?: string;
 }
 
@@ -20,6 +22,7 @@ export function CharacterCard({
   xp,
   levelProgress,
   streakDays,
+  emblem,
   className,
 }: CharacterCardProps) {
   return (
@@ -35,7 +38,7 @@ export function CharacterCard({
         className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-xp/70 to-transparent"
       />
       <div className="flex items-center gap-4 sm:gap-5">
-        <LevelSigil level={level} size={72} />
+        <LevelSigil level={level} size={72} emblem={emblem} />
         <div className="min-w-0 flex-1">
           <p className="font-hud text-[0.7rem] tracking-[0.2em] text-muted-foreground uppercase">
             Ficha do personagem

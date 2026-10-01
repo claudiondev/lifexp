@@ -19,7 +19,7 @@ export function HomePage() {
       </h1>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,26rem)_1fr]">
-        <CharacterCard name={state.user.name} {...character} />
+        <CharacterCard name={state.user.name} emblem={state.user.avatarKey} {...character} />
 
         <section
           aria-labelledby="today-title"
