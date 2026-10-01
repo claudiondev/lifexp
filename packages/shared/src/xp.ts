@@ -76,3 +76,7 @@ export function levelProgress(totalXp: number): LevelProgress {
   const xpIntoLevel = xp - floor;
   return { xp, level, xpIntoLevel, xpForNextLevel: span, progress: xpIntoLevel / span };
 }
+
+/** XP de metas (RN21). Valores sujeitos a calibração, por isso isolados aqui. */
+export const MILESTONE_XP = 100;
+export const GOAL_XP = 500;
