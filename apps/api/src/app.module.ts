@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { ClockModule } from './clock/clock.module.js';
 import { BlocksModule } from './blocks/blocks.module.js';
 import { GamificationModule } from './gamification/gamification.module.js';
+import { GoalsModule } from './goals/goals.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module.js';
     AreasModule,
     BlocksModule,
     GamificationModule,
+    GoalsModule,
     HealthModule,
   ],
   providers: [
