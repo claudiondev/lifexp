@@ -28,6 +28,19 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - `userId` sempre vem do contexto autenticado, nunca de URL/body (RN39, RS06).
 - Completion + XpTransaction + caches na mesma transação de banco (RN30).
 
+## Autenticação (decisões do 1a)
+
+- Access JWT 15 min no header `Authorization` (memória no front, nunca localStorage). Refresh token opaco
+  (32 bytes), 7 dias, cookie `httpOnly` + `SameSite=Strict` + `Path=/api/auth`; no banco só o SHA-256
+  (`Session`, com `tokenFamily`). Rotação a cada uso; reuso de token revogado revoga a família (RS04).
+- Sem Passport: `JwtAuthGuard` global próprio (deny by default), `@Public()` e `@CurrentUser()`.
+  `userId` sempre do token. Senha com argon2id (8 a 72 caracteres).
+- Login responde sempre 401 "Credenciais inválidas" (RS13). Cadastro com e-mail repetido responde 409.
+- Front: `apiClient` com refresh single-flight + Web Locks entre abas (o refresh é de uso único).
+- e2e da api: banco `<nome>_test` separado, criado e migrado pelo `test/global-setup.ts`.
+- `ConfigModule.forRoot()` lê o env no import do `AppModule`: para testes com env diferente, defina o env
+  antes e importe o módulo dinamicamente.
+
 ## Decisões de domínio já fechadas
 
 - `Block` é template com `validFrom`/`validUntil`. "Só esta ocorrência" = `BlockException`.
@@ -42,7 +55,10 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Commits pequenos, semânticos e em português (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `ci:`),
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
-- Não implementar nada de marcos futuros antes de combinado. Marco atual: **0 (Fundação)** concluído.
+- Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)** e **1a (Autenticação)**. Roadmap do Marco 1: 1b perfil/fuso e áreas
+  → 1c blocos + BlockException + Semana → 1d Completion/XP/níveis + Hoje → 1e streak → 1f PWA.
+  Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
+  push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
   `apps/web/src/features/<feature>`.
 
@@ -54,7 +70,7 @@ pnpm install            # também roda prisma generate (postinstall da api)
 docker compose up -d    # PostgreSQL
 pnpm dev                # shared (watch) + api :3000 + web :5173
 pnpm lint | test | build | format
-pnpm --filter @lifexp/api test:e2e
+pnpm --filter @lifexp/api test:e2e   # precisa do Postgres no ar
 ```
 
 Swagger: `/api/docs`. Health: `GET /api/health`.
