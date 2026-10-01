@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 1a (Autenticação)** concluído sobre a fundação do Marco 0. Próximos: perfil/áreas,
-> blocos, tela Hoje e XP.
+> Status: **Marco 1b (Perfil, áreas e atividades)** concluído, sobre a autenticação (1a) e a fundação
+> (0). Próximos: blocos e tela Semana (1c), tela Hoje e XP (1d).
 
 ## Stack
 
@@ -74,9 +74,29 @@ produção (mesma origem, cookie `SameSite=Strict`).
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
 
+## Perfil, áreas e atividades (Marco 1b)
+
+Toda conta nova nasce com 7 áreas (Trabalho, Estudo, Família, Fé, Saúde, Descanso e Projetos pessoais),
+cada uma com uma atividade de mesmo nome (peso de XP 1,0). Tudo é editável e arquivável.
+
+| Método | Rota                                         | O que faz                                   |
+| ------ | -------------------------------------------- | ------------------------------------------- |
+| PATCH  | `/api/users/me`                              | Edita nome, fuso e emblema                  |
+| GET    | `/api/areas?includeArchived=`                | Lista as áreas                              |
+| POST   | `/api/areas`                                 | Cria área (nome, cor, ícone)                |
+| PATCH  | `/api/areas/:id`                             | Edita a área                                |
+| POST   | `/api/areas/:id/archive` e `/unarchive`      | Arquiva e restaura                          |
+| GET    | `/api/activities?areaId=&includeArchived=`   | Lista atividades                            |
+| POST   | `/api/activities`                            | Cria atividade (área, nome, peso 0,5 a 2,0) |
+| PATCH  | `/api/activities/:id`                        | Edita nome ou peso                          |
+| POST   | `/api/activities/:id/archive` e `/unarchive` | Arquiva e restaura                          |
+
+Dados de outra pessoa respondem **404** (igual a um recurso que não existe). Corpos com campos extras
+são rejeitados com 400. Telas: Painel, Áreas e Perfil.
+
 ## Testes
 
-`pnpm test` roda unitários e e2e. Os e2e da api usam um **banco separado** (`<nome>_test`, criado e
+`pnpm test` roda unitários (com meta de cobertura do domínio) e e2e. Os e2e da api usam um **banco separado** (`<nome>_test`, criado e
 migrado automaticamente a partir do `DATABASE_URL`), então o Postgres do `docker compose` precisa estar
 no ar. O banco de desenvolvimento nunca é tocado.
 

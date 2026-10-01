@@ -41,6 +41,34 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - `ConfigModule.forRoot()` lê o env no import do `AppModule`: para testes com env diferente, defina o env
   antes e importe o módulo dinamicamente.
 
+## Perfil, áreas e atividades (decisões do 1b)
+
+- Áreas padrão no cadastro (RF08): lista em `areas/domain/default-areas.ts`, gravada na MESMA transação do
+  usuário (`seedDefaultAreas`). Cada área nasce com uma atividade de mesmo nome (peso 1,0).
+- Cor e ícone de área, e o emblema do perfil, são CHAVES de listas fixas em `@lifexp/shared`
+  (`AREA_COLORS`, `AREA_ICONS`, `AVATAR_KEYS`); o front resolve a chave em cor/ícone por tema.
+- Arquivar, nunca excluir (RN27). Arquivar área esconde as atividades dela sem alterá-las; atividade de área
+  arquivada não restaura até a área voltar. Nome único entre ativos, sem diferenciar maiúsculas (409),
+  checado no service (o Prisma não tem índice único parcial).
+- Recurso de outra pessoa responde 404, igual a inexistente (RS06). Schemas de criação/edição usam
+  `z.strictObject`: campos extras viram 400 (RS07); atividade não muda de área.
+- `userId` da `Activity` é repetido de propósito (filtro por dono sem join); o service garante que bate com o da área.
+- Front: TanStack Query; o cache é LIMPO ao entrar, sair e quando a sessão expira (dados de uma pessoa nunca
+  aparecem para outra). Atividades vêm numa chamada só e são agrupadas por área no cliente.
+
+## Convenções de teste
+
+- Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
+  suíte por pronta, injete o bug (ex.: tirar o filtro de dono, desligar a verificação do JWT) e confirme que
+  algum teste acusa; depois restaure.
+- Domínio (`domain/`) tem meta imposta de >= 80% (`vitest.config.ts` da api, `--coverage` no `test:unit`).
+- e2e da api compartilham o mesmo banco em paralelo: nunca contar linhas globais, só as da conta do teste.
+  O timeout é de 30 s porque argon2 é caro de propósito.
+- Front: testes com API falsa em memória que imita as regras do servidor (409, arquivar...). Mocke `sonner`
+  com `vi.hoisted`.
+- Ao encadear verificações em script, NÃO use `| tail` no meio: ele mascara o código de saída. Use
+  `set -o pipefail` ou redirecione para arquivo e confira `$?` antes de commitar.
+
 ## Design system (front)
 
 - Direção: **HUD de RPG moderno**, interface gamificada. Escuro por padrão ("Void Ink" `#0E0B1A`), claro
@@ -51,6 +79,9 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Assinatura: `XpBar` (runas inclinadas que acendem em sequência) e `LevelSigil` (selo hexagonal).
   Componentes de jogo em `src/components/game`, primitivos shadcn-style em `src/components/ui`
   (`cn` em `src/lib/utils.ts`, alias `@/`).
+- Cores das áreas: tokens `--area-*` (claro/escuro) em `index.css`; mapeamento chave→classe em
+  `features/areas/areaAppearance.tsx` (Records exaustivos: chave nova em shared quebra o build até ser desenhada).
+  Emblemas do perfil em `components/game/emblems.tsx` (selo no `LevelSigil`).
 - Tagline: "Cumpra. Descanse. Evolua." Princípios do produto valem na UI: recompensar sem punir, descanso
   conta como progresso, sem ranking. Não inventar dados: `useCharacter` é placeholder até o Marco 1d.
 - 21st.dev (registry shadcn) exige login, então o CLI não funciona sem o usuário; se ele colar o código de
@@ -71,8 +102,8 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Commits pequenos, semânticos e em português (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `ci:`),
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
-- Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)** e **1a (Autenticação)**. Roadmap do Marco 1: 1b perfil/fuso e áreas
-  → 1c blocos + BlockException + Semana → 1d Completion/XP/níveis + Hoje → 1e streak → 1f PWA.
+- Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)** e **1b (Perfil, áreas e atividades)**.
+  Roadmap do Marco 1: 1c blocos + BlockException + Semana → 1d Completion/XP/níveis + Hoje → 1e streak → 1f PWA.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
