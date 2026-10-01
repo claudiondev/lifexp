@@ -6,16 +6,23 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  GOAL_XP,
+  MILESTONE_XP,
+  levelForXp,
+  levelProgress,
   todayIn,
   type CivilDate,
   type CreateGoalInput,
   type Goal,
+  type GoalActionResult,
   type GoalStatus,
   type UpdateGoalInput,
 } from '@lifexp/shared';
 import { fromCivil } from '../blocks/blocks.mapper.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
+import { XpLedgerService, type LedgerResult, type Tx } from '../gamification/xp-ledger.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { statusXpEffect, type GoalStatus as GoalStatusDb } from './domain/goal-rules.js';
 import { STATUS_TO_DB, toGoalResponse, type GoalWithMilestones } from './goal.mapper.js';
 
 const NOT_FOUND = 'Meta não encontrada';
@@ -23,6 +30,8 @@ const MILESTONE_NOT_FOUND = 'Marco não encontrado';
 const AREA_ARCHIVED = 'A área está arquivada. Restaure a área primeiro';
 const METRIC_REQUIRED = 'Valor atual e unidade só existem junto com um valor-alvo';
 
+const MILESTONE_CLOSED =
+  'A meta está concluída ou abandonada. Reabra a meta antes de mexer nos marcos concluídos';
 const WITH_MILESTONES = { milestones: true } as const;
 
 @Injectable()
@@ -30,6 +39,7 @@ export class GoalsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly ledger: XpLedgerService,
   ) {}
 
   async list(userId: string, status?: GoalStatus): Promise<Goal[]> {
@@ -101,9 +111,32 @@ export class GoalsService {
     return (await this.present(userId, [goal]))[0]!;
   }
 
+  /**
+   * Exclui a meta e seus marcos. O XP que ela e os marcos renderam volta (estornos no livro-caixa):
+   * senão criar e concluir metas para depois apagá-las seria XP de graça. Idempotente.
+   */
   async remove(userId: string, id: string): Promise<void> {
-    // Idempotente: excluir uma meta que não existe mais (ou que não é sua) não é erro.
-    await this.prisma.goal.deleteMany({ where: { id, userId } });
+    const now = this.clock.now();
+    await this.prisma.$transaction(async (tx) => {
+      await this.ledger.lockUser(tx, userId);
+      const goal = await tx.goal.findFirst({ where: { id, userId }, include: WITH_MILESTONES });
+      if (!goal) return;
+
+      // Mesma ordem de trava da edição de bloco (bloco primeiro, depois a meta): sem deadlock com
+      // um bloco sendo vinculado a esta meta no mesmo instante.
+      await tx.$queryRaw`SELECT "id" FROM "Block" WHERE "goalId" = ${id} FOR UPDATE`;
+
+      const entries = await tx.xpTransaction.findMany({
+        where: {
+          userId,
+          type: { in: ['MILESTONE', 'GOAL'] },
+          sourceId: { in: [goal.id, ...goal.milestones.map((m) => m.id)] },
+          reversal: null,
+        },
+      });
+      for (const entry of entries) await this.ledger.reverse(tx, entry, now);
+      await tx.goal.delete({ where: { id } });
+    });
   }
 
   async addMilestone(userId: string, goalId: string, title: string): Promise<Goal> {
@@ -124,15 +157,115 @@ export class GoalsService {
     milestoneId: string,
     title: string,
   ): Promise<Goal> {
-    await this.findMilestoneOrThrow(userId, goalId, milestoneId);
+    await this.findMilestoneOrThrow(this.prisma, userId, goalId, milestoneId);
     await this.prisma.milestone.update({ where: { id: milestoneId }, data: { title } });
     return this.get(userId, goalId);
   }
 
   async removeMilestone(userId: string, goalId: string, milestoneId: string): Promise<Goal> {
-    await this.findMilestoneOrThrow(userId, goalId, milestoneId);
-    await this.prisma.milestone.delete({ where: { id: milestoneId } });
+    const now = this.clock.now();
+    await this.prisma.$transaction(async (tx) => {
+      await this.ledger.lockUser(tx, userId);
+      const milestone = await this.findMilestoneOrThrow(tx, userId, goalId, milestoneId);
+      if (milestone.done) {
+        // Um marco concluído apagado leva o XP dele junto.
+        const entry = await this.ledger.findActiveEntry(tx, milestone.id, 'MILESTONE');
+        if (entry) await this.ledger.reverse(tx, entry, now);
+      }
+      await tx.milestone.delete({ where: { id: milestoneId } });
+    });
     return this.get(userId, goalId);
+  }
+
+  /** Conclui um marco (+100 XP, RN21). Idempotente: concluir de novo não dá XP de novo. */
+  async completeMilestone(
+    userId: string,
+    goalId: string,
+    milestoneId: string,
+  ): Promise<GoalActionResult> {
+    const now = this.clock.now();
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      await this.ledger.lockUser(tx, userId);
+      const milestone = await this.findMilestoneOrThrow(tx, userId, goalId, milestoneId);
+      if (milestone.done) return null;
+      this.assertMilestonesOpen(milestone.goal.status);
+
+      await tx.milestone.update({ where: { id: milestone.id }, data: { done: true, doneAt: now } });
+      return this.ledger.credit(tx, {
+        userId,
+        areaId: milestone.goal.areaId,
+        amount: MILESTONE_XP,
+        type: 'MILESTONE',
+        sourceId: milestone.id,
+        createdAt: now,
+      });
+    });
+    return this.respond(userId, goalId, outcome, MILESTONE_XP);
+  }
+
+  /** Desfaz a conclusão de um marco: estorna os 100 XP. Idempotente. */
+  async undoMilestone(
+    userId: string,
+    goalId: string,
+    milestoneId: string,
+  ): Promise<GoalActionResult> {
+    const now = this.clock.now();
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      await this.ledger.lockUser(tx, userId);
+      const milestone = await this.findMilestoneOrThrow(tx, userId, goalId, milestoneId);
+      if (!milestone.done) return null;
+      this.assertMilestonesOpen(milestone.goal.status);
+
+      const entry = await this.ledger.findActiveEntry(tx, milestone.id, 'MILESTONE');
+      await tx.milestone.update({
+        where: { id: milestone.id },
+        data: { done: false, doneAt: null },
+      });
+      return entry ? this.ledger.reverse(tx, entry, now) : null;
+    });
+    return this.respond(userId, goalId, outcome, -MILESTONE_XP);
+  }
+
+  /**
+   * Muda o status (RF31). Concluir concede o XP da meta (+500, RN21) e reabrir uma meta concluída
+   * estorna esse XP. A meta nunca conclui sozinha: é sempre uma decisão da pessoa.
+   */
+  async setStatus(userId: string, id: string, to: GoalStatus): Promise<GoalActionResult> {
+    const now = this.clock.now();
+    const target = STATUS_TO_DB[to];
+    let delta = 0;
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      await this.ledger.lockUser(tx, userId);
+      const goal = await tx.goal.findFirst({ where: { id, userId } });
+      if (!goal) throw new NotFoundException(NOT_FOUND);
+
+      const effect = statusXpEffect(goal.status as GoalStatusDb, target as GoalStatusDb);
+      if (goal.status === target) return null;
+
+      await tx.goal.update({
+        where: { id },
+        data: { status: target, completedAt: target === 'COMPLETED' ? now : null },
+      });
+      if (effect === 'award') {
+        delta = GOAL_XP;
+        return this.ledger.credit(tx, {
+          userId,
+          areaId: goal.areaId,
+          amount: GOAL_XP,
+          type: 'GOAL',
+          sourceId: goal.id,
+          createdAt: now,
+        });
+      }
+      if (effect === 'reverse') {
+        const entry = await this.ledger.findActiveEntry(tx, goal.id, 'GOAL');
+        if (!entry) return null;
+        delta = -entry.amount;
+        return this.ledger.reverse(tx, entry, now);
+      }
+      return null;
+    });
+    return this.respond(userId, id, outcome, delta);
   }
 
   /** Toda leitura/escrita filtra pelo dono (RS06): meta alheia responde 404, como uma inexistente. */
@@ -145,12 +278,51 @@ export class GoalsService {
     return goal;
   }
 
-  private async findMilestoneOrThrow(userId: string, goalId: string, milestoneId: string) {
-    const milestone = await this.prisma.milestone.findFirst({
+  private async findMilestoneOrThrow(tx: Tx, userId: string, goalId: string, milestoneId: string) {
+    const milestone = await tx.milestone.findFirst({
       where: { id: milestoneId, goalId, goal: { userId } },
+      include: { goal: true },
     });
     if (!milestone) throw new NotFoundException(MILESTONE_NOT_FOUND);
     return milestone;
+  }
+
+  /** Concluir ou desfazer marco só vale numa meta em andamento (ativa ou pausada). */
+  private assertMilestonesOpen(status: string): void {
+    if (status === 'COMPLETED' || status === 'ABANDONED') {
+      throw new ConflictException(MILESTONE_CLOSED);
+    }
+  }
+
+  /** A meta atualizada e o XP do momento; sem lançamento novo (ação repetida), delta 0. */
+  private async respond(
+    userId: string,
+    goalId: string,
+    outcome: LedgerResult | null,
+    appliedDelta: number,
+  ): Promise<GoalActionResult> {
+    const goal = await this.get(userId, goalId);
+    if (outcome) {
+      return {
+        goal,
+        xpDelta: appliedDelta,
+        levelBefore: outcome.change.levelBefore,
+        levelAfter: outcome.change.levelAfter,
+        total: outcome.total,
+      };
+    }
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { cachedTotalXp: true },
+    });
+    const level = levelForXp(user.cachedTotalXp);
+    return {
+      goal,
+      xpDelta: 0,
+      levelBefore: level,
+      levelAfter: level,
+      total: levelProgress(user.cachedTotalXp),
+    };
   }
 
   private async assertAreaUsable(userId: string, areaId: string): Promise<void> {

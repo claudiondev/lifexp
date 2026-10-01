@@ -3,7 +3,6 @@ import {
   calculateXp,
   levelForXp,
   levelProgress,
-  type AreaProgress,
   type CivilDate,
   type CompletionResult,
   type UndoResult,
@@ -12,8 +11,9 @@ import { lockAndLoadBlock } from '../blocks/block-lock.js';
 import { fromCivil, toBlockTemplate, toExceptionRule } from '../blocks/blocks.mapper.js';
 import { occursOn, resolveOccurrence } from '../blocks/domain/week-occurrences.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
-import type { Completion as CompletionEntity, Prisma } from '../generated/prisma/client.js';
+import type { Completion as CompletionEntity } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { XpLedgerService, type Tx } from './xp-ledger.service.js';
 import {
   checkCanComplete,
   checkCanUndo,
@@ -22,7 +22,6 @@ import {
   type CompletionWindow,
 } from './domain/completion-window.js';
 import { toCompletionDto } from './completion.mapper.js';
-import { applyXpDelta } from './domain/xp-ledger.js';
 
 const NOT_AN_OCCURRENCE = 'Essa data não é uma ocorrência deste bloco';
 const COMPLETE_BLOCKED: Record<CompleteBlockedReason, string> = {
@@ -32,13 +31,12 @@ const COMPLETE_BLOCKED: Record<CompleteBlockedReason, string> = {
 };
 const UNDO_BLOCKED = 'O prazo para desfazer terminou (vai até 23:59 do dia seguinte)';
 
-type Tx = Prisma.TransactionClient;
-
 @Injectable()
 export class CompletionsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly ledger: XpLedgerService,
   ) {}
 
   /**
@@ -53,7 +51,7 @@ export class CompletionsService {
   ): Promise<CompletionResult> {
     const now = this.clock.now(); // lido uma vez: o que validamos é o que gravamos
     return this.prisma.$transaction(async (tx) => {
-      const timezone = await this.lockUser(tx, userId);
+      const timezone = await this.ledger.lockUser(tx, userId);
       const { block, resolved } = await this.loadOccurrence(tx, userId, blockId, occurrenceDate);
       const window = this.windowOf(resolved, timezone);
 
@@ -87,25 +85,14 @@ export class CompletionsService {
             data: { userId, blockId, occurrenceDate: fromCivil(occurrenceDate), ...snapshot },
           });
 
-      await tx.xpTransaction.create({
-        data: {
-          userId,
-          areaId: block.activity.areaId,
-          amount: xp,
-          type: 'COMPLETION',
-          sourceId: completion.id,
-          // O horário do lançamento vem do relógio da aplicação (o mesmo da conclusão), não do
-          // relógio do banco: é ele que define em que dia local o XP "caiu".
-          createdAt: now,
-        },
-      });
-
-      const { total, area, change } = await this.applyToCaches(
-        tx,
+      const { total, area, change } = await this.ledger.credit(tx, {
         userId,
-        block.activity.areaId,
-        xp,
-      );
+        areaId: block.activity.areaId,
+        amount: xp,
+        type: 'COMPLETION',
+        sourceId: completion.id,
+        createdAt: now,
+      });
       return {
         completion: toCompletionDto(completion),
         alreadyCompleted: false,
@@ -113,7 +100,7 @@ export class CompletionsService {
         levelBefore: change.levelBefore,
         levelAfter: change.levelAfter,
         total,
-        area,
+        area: area!,
       };
     });
   }
@@ -125,7 +112,7 @@ export class CompletionsService {
   async undo(userId: string, blockId: string, occurrenceDate: CivilDate): Promise<UndoResult> {
     const now = this.clock.now();
     return this.prisma.$transaction(async (tx) => {
-      const timezone = await this.lockUser(tx, userId);
+      const timezone = await this.ledger.lockUser(tx, userId);
       const { resolved } = await this.loadOccurrence(tx, userId, blockId, occurrenceDate);
 
       const completion = await tx.completion.findUnique({
@@ -145,49 +132,16 @@ export class CompletionsService {
         orderBy: { createdAt: 'desc' },
       });
 
-      await tx.xpTransaction.create({
-        data: {
-          userId,
-          areaId: original.areaId,
-          amount: -original.amount,
-          type: 'REVERSAL',
-          sourceId: completion.id,
-          reversedTransactionId: original.id,
-          createdAt: now,
-        },
-      });
       await tx.completion.update({
         where: { id: completion.id },
         data: { undoneAt: now },
       });
 
-      // A área vem da foto da conclusão (e do lançamento original), NÃO da atividade de hoje: se a
-      // série foi editada para outra atividade/área depois de concluir, o XP volta de onde saiu.
-      const { total, area } = await this.applyToCaches(
-        tx,
-        userId,
-        completion.areaId,
-        -original.amount,
-      );
+      // A área vem do lançamento original (que veio da foto da conclusão), NÃO da atividade de hoje:
+      // se a série foi editada para outra atividade/área depois de concluir, o XP volta de onde saiu.
+      const { total, area } = await this.ledger.reverse(tx, original, now);
       return { xpReverted: original.amount, total, area };
     });
-  }
-
-  /**
-   * Trava a linha da pessoa (serializa as operações de XP dela) e devolve o fuso horário.
-   *
-   * É FOR NO KEY UPDATE de propósito: ele serializa as conclusões entre si, mas NÃO conflita com o
-   * FOR KEY SHARE que o banco toma na pessoa ao criar um bloco (chave estrangeira). Com FOR UPDATE,
-   * uma conclusão (trava pessoa e depois bloco) e uma edição (trava bloco e depois a chave da
-   * pessoa) ficavam esperando uma pela outra: deadlock e erro 500.
-   */
-  private async lockUser(tx: Tx, userId: string): Promise<string> {
-    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
-    const user = await tx.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return user.timezone;
   }
 
   /** O bloco travado e os valores EFETIVOS da ocorrência (com pular/alterar aplicados). */
@@ -207,30 +161,6 @@ export class CompletionsService {
     timezone: string,
   ): CompletionWindow {
     return completionWindow(resolved.date, resolved.startTime, timezone);
-  }
-
-  /**
-   * Atualiza os caches (XP total da pessoa e XP/nível da área) a partir da variação. São derivados
-   * do livro-caixa (RN29); a trava da pessoa garante que duas operações não escrevam um nível velho.
-   */
-  private async applyToCaches(tx: Tx, userId: string, areaId: string, delta: number) {
-    const user = await tx.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { cachedTotalXp: true },
-    });
-    const change = applyXpDelta(user.cachedTotalXp, delta);
-    await tx.user.update({ where: { id: userId }, data: { cachedTotalXp: change.after } });
-
-    const current = await tx.areaProgress.findUnique({ where: { areaId } });
-    const areaChange = applyXpDelta(current?.cachedXp ?? 0, delta);
-    await tx.areaProgress.upsert({
-      where: { areaId },
-      create: { userId, areaId, cachedXp: areaChange.after, cachedLevel: areaChange.levelAfter },
-      update: { cachedXp: areaChange.after, cachedLevel: areaChange.levelAfter },
-    });
-
-    const area: AreaProgress = { areaId, ...levelProgress(areaChange.after) };
-    return { total: levelProgress(change.after), area, change };
   }
 
   private async alreadyCompleted(

@@ -6,6 +6,7 @@ import { CompletionsService } from './completions.service.js';
 import { ProgressController } from './progress.controller.js';
 import { ProgressService } from './progress.service.js';
 import { StreakService } from './streak.service.js';
+import { XpLedgerService } from './xp-ledger.service.js';
 import { TodayService } from './today.service.js';
 
 @Module({
@@ -17,7 +18,8 @@ import { TodayService } from './today.service.js';
     StreakService,
     TodayService,
     CacheRebuildService,
+    XpLedgerService,
   ],
-  exports: [CacheRebuildService],
+  exports: [CacheRebuildService, XpLedgerService],
 })
 export class GamificationModule {}

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { levelProgressSchema } from './completion.schema.js';
 import { civilDateSchema } from './primitives.js';
 
 export const GOAL_STATUSES = ['active', 'completed', 'paused', 'abandoned'] as const;
@@ -75,6 +76,16 @@ export const updateGoalSchema = z
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para alterar');
 
+/** Resultado de uma ação que mexe no XP (concluir/desfazer marco, mudar status): a meta e o XP. */
+export const goalActionResultSchema = z.object({
+  goal: goalSchema,
+  /** XP que entrou (positivo), saiu (negativo) ou 0 quando nada mudou (ação repetida). */
+  xpDelta: z.number().int(),
+  levelBefore: z.number().int().min(1),
+  levelAfter: z.number().int().min(1),
+  total: levelProgressSchema,
+});
+
 export const setGoalStatusSchema = z.strictObject({ status: goalStatusSchema });
 
 export const listGoalsQuerySchema = z.object({ status: goalStatusSchema.optional() });
@@ -87,5 +98,6 @@ export const updateMilestoneSchema = createMilestoneSchema;
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
 export type Milestone = z.infer<typeof milestoneSchema>;
 export type Goal = z.infer<typeof goalSchema>;
+export type GoalActionResult = z.infer<typeof goalActionResultSchema>;
 export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;

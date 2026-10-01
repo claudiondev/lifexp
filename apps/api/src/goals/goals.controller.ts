@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -18,8 +19,10 @@ import { CurrentUser } from '../auth/current-user.decorator.js';
 import {
   CreateGoalDto,
   CreateMilestoneDto,
+  GoalActionResultDto,
   GoalDto,
   ListGoalsQueryDto,
+  SetGoalStatusDto,
   UpdateGoalDto,
   UpdateMilestoneDto,
 } from './goals.dto.js';
@@ -102,5 +105,39 @@ export class GoalsController {
     @Param('milestoneId', ParseUUIDPipe) milestoneId: string,
   ) {
     return this.goals.removeMilestone(user.id, id, milestoneId);
+  }
+
+  @Post(':id/milestones/:milestoneId/completion')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Conclui um marco (+100 XP). Idempotente' })
+  @ZodResponse({ type: GoalActionResultDto })
+  completeMilestone(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('milestoneId', ParseUUIDPipe) milestoneId: string,
+  ) {
+    return this.goals.completeMilestone(user.id, id, milestoneId);
+  }
+
+  @Delete(':id/milestones/:milestoneId/completion')
+  @ApiOperation({ summary: 'Desfaz a conclusão de um marco (estorna o XP). Idempotente' })
+  @ZodResponse({ type: GoalActionResultDto })
+  undoMilestone(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('milestoneId', ParseUUIDPipe) milestoneId: string,
+  ) {
+    return this.goals.undoMilestone(user.id, id, milestoneId);
+  }
+
+  @Put(':id/status')
+  @ApiOperation({ summary: 'Muda o status; concluir dá +500 XP e reabrir estorna' })
+  @ZodResponse({ type: GoalActionResultDto })
+  setStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: SetGoalStatusDto,
+  ) {
+    return this.goals.setStatus(user.id, id, body.status);
   }
 }

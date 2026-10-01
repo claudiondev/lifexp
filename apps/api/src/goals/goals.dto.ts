@@ -2,6 +2,7 @@ import { createZodDto } from 'nestjs-zod';
 import {
   createGoalSchema,
   createMilestoneSchema,
+  goalActionResultSchema,
   goalSchema,
   listGoalsQuerySchema,
   setGoalStatusSchema,
@@ -16,3 +17,4 @@ export class SetGoalStatusDto extends createZodDto(setGoalStatusSchema) {}
 export class ListGoalsQueryDto extends createZodDto(listGoalsQuerySchema) {}
 export class CreateMilestoneDto extends createZodDto(createMilestoneSchema) {}
 export class UpdateMilestoneDto extends createZodDto(updateMilestoneSchema) {}
+export class GoalActionResultDto extends createZodDto(goalActionResultSchema) {}
