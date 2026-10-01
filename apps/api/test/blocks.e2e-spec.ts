@@ -182,7 +182,12 @@ describe('Blocos (e2e)', () => {
 
       expect(res.status).toBe(200);
       expect(weekResponseSchema.safeParse(res.body).success).toBe(true);
-      expect(res.body).toEqual({ weekStart: '2026-10-05', weekEnd: '2026-10-11', occurrences: [] });
+      expect(res.body).toEqual({
+        weekStart: '2026-10-05',
+        weekEnd: '2026-10-11',
+        occurrences: [],
+        completions: [],
+      });
     });
 
     it('bloco semanal criado numa quarta aparece em todas as quartas seguintes e em nenhuma anterior', async () => {

@@ -89,7 +89,8 @@ export class BlocksService {
       blocks.map((block) => toBlockTemplate(block, block.activity.areaId)),
       blocks.flatMap((block) => block.exceptions.map(toExceptionRule)),
     );
-    return { weekStart, weekEnd, occurrences };
+    // As conclusões entram na resposta quando o módulo de conclusão chegar (Marco 1d, task 5).
+    return { weekStart, weekEnd, occurrences, completions: [] };
   }
 
   async create(userId: string, input: CreateBlockInput): Promise<Block> {

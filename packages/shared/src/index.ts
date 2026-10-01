@@ -9,3 +9,6 @@ export * from './area.schema.js';
 export * from './activity.schema.js';
 export * from './civil-date.js';
 export * from './block.schema.js';
+export * from './xp.js';
+export * from './completion.schema.js';
+export * from './today.schema.js';

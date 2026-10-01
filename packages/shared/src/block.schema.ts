@@ -1,27 +1,22 @@
 import { z } from 'zod';
+import { endsSameDay, isWeekStart, type CivilDate } from './civil-date.js';
+import { completionSchema } from './completion.schema.js';
 import {
-  endsSameDay,
-  isValidCivilDate,
-  isValidTimeOfDay,
-  isWeekStart,
-  type CivilDate,
-} from './civil-date.js';
+  civilDateSchema,
+  durationMinSchema,
+  timeOfDaySchema,
+  weekdaySchema,
+} from './primitives.js';
 
-export const BLOCK_DURATION_MIN = 15;
-export const BLOCK_DURATION_MAX = 720;
-export const BLOCK_DURATION_STEP = 5;
-
-export const civilDateSchema = z
-  .string()
-  .refine(isValidCivilDate, 'Data inválida (use AAAA-MM-DD)');
-export const timeOfDaySchema = z.string().refine(isValidTimeOfDay, 'Horário inválido (use HH:mm)');
-export const weekdaySchema = z.number().int().min(1).max(7);
-export const durationMinSchema = z
-  .number()
-  .int()
-  .min(BLOCK_DURATION_MIN, `A duração mínima é ${BLOCK_DURATION_MIN} minutos`)
-  .max(BLOCK_DURATION_MAX, `A duração máxima é ${BLOCK_DURATION_MAX / 60} horas`)
-  .multipleOf(BLOCK_DURATION_STEP, `A duração deve ser múltipla de ${BLOCK_DURATION_STEP} minutos`);
+export {
+  BLOCK_DURATION_MAX,
+  BLOCK_DURATION_MIN,
+  BLOCK_DURATION_STEP,
+  civilDateSchema,
+  durationMinSchema,
+  timeOfDaySchema,
+  weekdaySchema,
+} from './primitives.js';
 
 const SAME_DAY_MESSAGE = 'O bloco não pode atravessar a meia-noite';
 const NO_CHANGE_MESSAGE = 'Informe ao menos um campo para alterar';
@@ -144,6 +139,8 @@ export const weekResponseSchema = z.object({
   weekStart: civilDateSchema,
   weekEnd: civilDateSchema,
   occurrences: z.array(occurrenceSchema),
+  /** Conclusões ativas das ocorrências da semana (ligam-se por blockId + occurrenceDate). */
+  completions: z.array(completionSchema).default([]),
 });
 
 export type Block = z.infer<typeof blockSchema>;
