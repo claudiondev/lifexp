@@ -336,6 +336,17 @@ describe('Recuperação de senha por e-mail (e2e, RF05)', () => {
       expect((await refresh(refreshCookieHeader(otherLogin))).status).toBe(200);
     });
 
+    it('os tokens de acesso já emitidos também caem na hora (não esperam os 15 minutos)', async () => {
+      const user = await registerUser(app);
+      const meWith = () =>
+        request(server()).get('/api/users/me').set('Authorization', `Bearer ${user.accessToken}`);
+      expect((await meWith()).status).toBe(200);
+
+      expect((await reset(await requestToken(user))).status).toBe(204);
+
+      expect((await meWith()).status).toBe(401);
+    });
+
     it('redefinir encerra os outros links ainda abertos da pessoa', async () => {
       const user = await registerUser(app);
       const first = await requestToken(user);

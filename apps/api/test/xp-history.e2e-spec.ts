@@ -281,7 +281,9 @@ describe('Histórico de XP por origem (e2e, RF53)', () => {
       (prisma as unknown as { $on(e: 'query', cb: (q: { query: string }) => void): void }).$on(
         'query',
         (event) => {
-          if (counting && !/^(BEGIN|COMMIT|SET|SHOW|DEALLOCATE)/i.test(event.query)) {
+          // Fora as de controle de transação e a consulta de sessão do guard (uma por requisição).
+          const control = /^(BEGIN|COMMIT|SET|SHOW|DEALLOCATE)/i.test(event.query);
+          if (counting && !control && !event.query.includes('"Session"')) {
             queries.push(event.query);
           }
         },

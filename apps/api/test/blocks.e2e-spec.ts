@@ -293,7 +293,8 @@ describe('Blocos (e2e)', () => {
       (prisma as unknown as { $on(e: 'query', cb: (q: { query: string }) => void): void }).$on(
         'query',
         (event) => {
-          if (counting) queries.push(event.query);
+          // A consulta de sessão do guard (uma por requisição) não é custo da semana.
+          if (counting && !event.query.includes('"Session"')) queries.push(event.query);
         },
       );
       const countFor = async () => {

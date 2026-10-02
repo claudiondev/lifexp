@@ -85,18 +85,24 @@ export class AuthService {
       throw new UnauthorizedException('Sessão inválida');
     }
 
+    // Revogar o token antigo e criar o novo acontecem na MESMA transação: o guard confere a sessão a
+    // cada requisição, e sem isso haveria um instante em que a família não teria nenhum token ativo
+    // (uma requisição nesse intervalo levaria 401 sem motivo).
     // updateMany condicionado a revokedAt = null funciona como um "compare-and-set":
     // se dois refreshes simultâneos chegarem com o mesmo token, só um consegue revogar.
-    const rotated = await this.prisma.session.updateMany({
-      where: { id: session.id, revokedAt: null },
-      data: { revokedAt: now },
+    const rotated = await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.session.updateMany({
+        where: { id: session.id, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      if (claimed.count === 0) return null;
+      return this.startSession(session.user, session.tokenFamily, userAgent, tx);
     });
-    if (rotated.count === 0) {
+    if (!rotated) {
       await this.revokeFamily(session.tokenFamily, now);
       throw new UnauthorizedException('Sessão inválida');
     }
-
-    return this.startSession(session.user, session.tokenFamily, userAgent);
+    return rotated;
   }
 
   /** Idempotente: sair duas vezes, ou com cookie inexistente, não é erro. */
@@ -112,13 +118,14 @@ export class AuthService {
     user: Prisma.UserGetPayload<object>,
     tokenFamily: string,
     userAgent?: string,
+    db: Pick<Prisma.TransactionClient, 'session'> = this.prisma,
   ): Promise<AuthResult> {
     const now = new Date();
     const refreshToken = generateRefreshToken();
     const ttlDays = this.config.get('REFRESH_TTL_DAYS');
     const expiresAt = computeRefreshExpiry(now, ttlDays);
 
-    await this.prisma.session.create({
+    await db.session.create({
       data: {
         userId: user.id,
         tokenFamily,
@@ -129,7 +136,7 @@ export class AuthService {
     });
 
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id },
+      { sub: user.id, sid: tokenFamily },
       { expiresIn: this.config.get('ACCESS_TTL_SECONDS') },
     );
 
