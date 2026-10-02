@@ -1,4 +1,4 @@
-import { addDays, type CivilDate, type Occurrence, type Streak } from '@lifexp/shared';
+import { addDays, weekStartOf, type CivilDate, type Occurrence, type Streak } from '@lifexp/shared';
 
 /** O que importa de um dia civil para o streak. */
 export interface StreakDay {
@@ -36,6 +36,11 @@ export function buildStreakDays(
  * Um dia planejado SEM nenhuma conclusão só quebra a sequência quando a janela de conclusão dele
  * fecha (23:59 do dia seguinte). Enquanto ainda dá tempo (hoje e ontem), ele é neutro: a pessoa
  * não perde nada por um dia que ainda está em aberto. Dias futuros não existem para o streak.
+ *
+ * Coringa (RN14): em cada semana (segunda a domingo), o PRIMEIRO dia planejado perdido é perdoado, e
+ * fica neutro: não quebra nem avança a sequência. Só gasta quando há sequência a proteger (current > 0),
+ * então um dia perdido com o streak zerado não queima o coringa. Não acumula: semana sem uso não
+ * dá dois na seguinte. O estado devolvido é o da semana de `today`.
  */
 export function computeStreak(days: readonly StreakDay[], today: CivilDate): Streak {
   const lastSettled = addDays(today, -2);
@@ -46,6 +51,7 @@ export function computeStreak(days: readonly StreakDay[], today: CivilDate): Str
   let current = 0;
   let best = 0;
   let lastFulfilledDate: CivilDate | null = null;
+  const jokerUsedOn = new Map<CivilDate, CivilDate>();
 
   for (const day of ordered) {
     if (day.completed > 0) {
@@ -53,9 +59,13 @@ export function computeStreak(days: readonly StreakDay[], today: CivilDate): Str
       best = Math.max(best, current);
       lastFulfilledDate = day.date;
     } else if (day.date <= lastSettled) {
-      current = 0;
+      const week = weekStartOf(day.date);
+      if (current > 0 && !jokerUsedOn.has(week)) jokerUsedOn.set(week, day.date);
+      else current = 0;
     }
   }
 
-  return { current, best, lastFulfilledDate };
+  const weekStart = weekStartOf(today);
+  const usedOn = jokerUsedOn.get(weekStart) ?? null;
+  return { current, best, lastFulfilledDate, joker: { weekStart, used: usedOn !== null, usedOn } };
 }

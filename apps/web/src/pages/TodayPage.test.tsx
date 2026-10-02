@@ -58,7 +58,12 @@ interface Options {
   eventsStatus?: number;
   /** Resposta do POST de conclusão; padrão: ganhou 90 XP sem subir de nível. */
   completeResponse?: () => Response;
-  streak?: { current: number; best: number; lastFulfilledDate: string | null };
+  streak?: {
+    current: number;
+    best: number;
+    lastFulfilledDate: string | null;
+    joker?: { weekStart: string; used: boolean; usedOn: string | null };
+  };
   /** Resposta de GET /api/quest; sem ela a rota falha (404) e a tela segue sem o cartão. */
   quest?: unknown;
   /** Resposta do DELETE de conclusão; padrão: 90 XP devolvidos, sem mexer na quest. */
@@ -95,7 +100,7 @@ function setup({
         return json(200, {
           total: level(totalXp, 2),
           areas: [],
-          streak,
+          streak: { joker: { weekStart: '2026-10-05', used: false, usedOn: null }, ...streak },
         });
       if (url.startsWith('/api/activities')) {
         return json(200, [
@@ -219,6 +224,30 @@ describe('TodayPage', () => {
     });
 
     expect(await screen.findByText('Streak: 1 dia')).toBeInTheDocument();
+  });
+
+  it('mostra o coringa da semana: disponível ou usado', async () => {
+    setup({ items: [makeItem(BLOCK_1)] });
+    expect(
+      await screen.findByText(/Coringa da semana disponível: ele perdoa o primeiro dia perdido/),
+    ).toBeInTheDocument();
+  });
+
+  it('com o coringa usado, diz qual dia ele protegeu', async () => {
+    setup({
+      items: [makeItem(BLOCK_1)],
+      streak: {
+        current: 3,
+        best: 7,
+        lastFulfilledDate: '2026-10-06',
+        joker: { weekStart: '2026-10-05', used: true, usedOn: '2026-10-06' },
+      },
+    });
+    expect(
+      await screen.findByText(
+        'Coringa da semana usado em terça-feira (06/10): sua sequência foi protegida.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('em dia livre avisa que o streak não muda', async () => {

@@ -6,6 +6,7 @@ import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
 import { useCharacter } from '@/features/character/useCharacter';
 import { useActivities } from '@/features/activities/useActivities';
+import { describeJoker } from '@/features/character/jokerModel';
 import { useAreas } from '@/features/areas/useAreas';
 import { useBlockMutations } from '@/features/blocks/useBlockMutations';
 import { EventChip } from '@/features/events/EventChip';
@@ -172,6 +173,9 @@ export function TodayPage() {
                 Streak: {character.streakDays} {character.streakDays === 1 ? 'dia' : 'dias'}
                 {character.streakBest > 0 && ` · recorde ${character.streakBest}`}
               </p>
+            )}
+            {character.joker && (
+              <p className="mt-1 text-xs text-muted-foreground">{describeJoker(character.joker)}</p>
             )}
           </div>
           <div className="text-right">

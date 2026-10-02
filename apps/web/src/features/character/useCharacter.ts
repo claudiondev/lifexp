@@ -1,3 +1,4 @@
+import type { Joker } from '@lifexp/shared';
 import { useProgress } from './useProgress';
 
 export interface Character {
@@ -12,6 +13,8 @@ export interface Character {
   streakDays: number;
   /** O maior streak que a pessoa já teve. */
   streakBest: number;
+  /** O coringa semanal (RF26); nulo enquanto o progresso real não chegou. */
+  joker: Joker | null;
   /** Falso enquanto o progresso real não chegou da API (os números abaixo são o ponto de partida). */
   ready: boolean;
 }
@@ -25,6 +28,7 @@ const STARTING_POINT: Character = {
   xpForNextLevel: 100,
   streakDays: 0,
   streakBest: 0,
+  joker: null,
   ready: false,
 };
 
@@ -40,6 +44,7 @@ export function useCharacter(): Character {
     xpForNextLevel: total.xpForNextLevel,
     streakDays: data.streak.current,
     streakBest: data.streak.best,
+    joker: data.streak.joker,
     ready: true,
   };
 }

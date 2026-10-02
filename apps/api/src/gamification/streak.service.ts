@@ -6,8 +6,6 @@ import { CLOCK, type Clock } from '../clock/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildStreakDays, computeStreak } from './domain/streak.js';
 
-const EMPTY: Streak = { current: 0, best: 0, lastFulfilledDate: null };
-
 @Injectable()
 export class StreakService {
   constructor(
@@ -36,7 +34,7 @@ export class StreakService {
         completions: { where: { undoneAt: null }, select: { occurrenceDate: true } },
       },
     });
-    if (blocks.length === 0) return EMPTY;
+    if (blocks.length === 0) return computeStreak([], today);
 
     const templates = blocks.map((block) => toBlockTemplate(block, block.activity.areaId));
     const exceptions = blocks.flatMap((block) => block.exceptions.map(toExceptionRule));
@@ -50,7 +48,7 @@ export class StreakService {
       .map((block) => block.validFrom ?? block.date)
       .filter(isDate)
       .sort()[0];
-    if (!first) return EMPTY;
+    if (!first) return computeStreak([], today);
 
     const occurrences = [];
     for (let week = weekStartOf(first); week <= today; week = addDays(week, 7)) {

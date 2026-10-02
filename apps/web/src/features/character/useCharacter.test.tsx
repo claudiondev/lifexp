@@ -11,7 +11,12 @@ const json = (status: number, body: unknown = {}) =>
 const progress = {
   total: { xp: 250, level: 3, xpIntoLevel: 50, xpForNextLevel: 183, progress: 0.27 },
   areas: [],
-  streak: { current: 4, best: 9, lastFulfilledDate: '2026-10-07' },
+  streak: {
+    current: 4,
+    best: 9,
+    lastFulfilledDate: '2026-10-07',
+    joker: { weekStart: '2026-10-05', used: true, usedOn: '2026-10-06' },
+  },
 };
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -36,6 +41,7 @@ describe('useCharacter', () => {
       levelProgress: 0,
       streakDays: 0,
       streakBest: 0,
+      joker: null,
       ready: false,
     });
   });
@@ -56,6 +62,7 @@ describe('useCharacter', () => {
       xpForNextLevel: 183,
       streakDays: 4,
       streakBest: 9,
+      joker: { weekStart: '2026-10-05', used: true, usedOn: '2026-10-06' },
     });
   });
 

@@ -6,6 +6,7 @@ import {
   completionSchema,
   levelProgressSchema,
   progressSchema,
+  jokerSchema,
   streakSchema,
   undoResultSchema,
 } from './completion.schema.js';
@@ -53,7 +54,7 @@ describe('levelProgressSchema / progressSchema', () => {
     const area = { ...levelProgress(30), areaId: id(3) };
     expect(areaProgressSchema.safeParse(area).success).toBe(true);
     expect(areaProgressSchema.safeParse({ ...area, areaId: 'x' }).success).toBe(false);
-    const streak = { current: 2, best: 5, lastFulfilledDate: '2026-10-07' };
+    const streak = { current: 2, best: 5, lastFulfilledDate: '2026-10-07', joker };
     expect(
       progressSchema.safeParse({ total: levelProgress(30), areas: [area], streak }).success,
     ).toBe(true);
@@ -64,18 +65,43 @@ describe('levelProgressSchema / progressSchema', () => {
   });
 });
 
-describe('streakSchema', () => {
-  it('aceita streak zerado (sem dia cumprido) e com dia cumprido', () => {
-    expect(streakSchema.safeParse({ current: 0, best: 0, lastFulfilledDate: null }).success).toBe(
+const joker = { weekStart: '2026-10-05', used: false, usedOn: null };
+
+describe('jokerSchema', () => {
+  it('aceita disponível e usado (com o dia perdoado)', () => {
+    expect(jokerSchema.safeParse(joker).success).toBe(true);
+    expect(jokerSchema.safeParse({ ...joker, used: true, usedOn: '2026-10-06' }).success).toBe(
       true,
     );
+  });
+
+  it('exige que "usado" e o dia perdoado concordem', () => {
+    expect(jokerSchema.safeParse({ ...joker, used: true }).success).toBe(false);
+    expect(jokerSchema.safeParse({ ...joker, usedOn: '2026-10-06' }).success).toBe(false);
+  });
+
+  it('a semana começa numa segunda-feira válida', () => {
+    expect(jokerSchema.safeParse({ ...joker, weekStart: '2026-10-06' }).success).toBe(false);
+    expect(jokerSchema.safeParse({ ...joker, weekStart: '2026-02-30' }).success).toBe(false);
+  });
+});
+
+describe('streakSchema', () => {
+  it('aceita streak zerado (sem dia cumprido) e com dia cumprido', () => {
     expect(
-      streakSchema.safeParse({ current: 3, best: 3, lastFulfilledDate: '2026-10-07' }).success,
+      streakSchema.safeParse({ current: 0, best: 0, lastFulfilledDate: null, joker }).success,
     ).toBe(true);
+    expect(
+      streakSchema.safeParse({ current: 3, best: 3, lastFulfilledDate: '2026-10-07', joker })
+        .success,
+    ).toBe(true);
+    expect(streakSchema.safeParse({ current: 3, best: 3, lastFulfilledDate: null }).success).toBe(
+      false,
+    );
   });
 
   it('rejeita negativos, fracionados e data inválida', () => {
-    const ok = { current: 1, best: 1, lastFulfilledDate: '2026-10-07' };
+    const ok = { current: 1, best: 1, lastFulfilledDate: '2026-10-07', joker };
     expect(streakSchema.safeParse({ ...ok, current: -1 }).success).toBe(false);
     expect(streakSchema.safeParse({ ...ok, best: 1.5 }).success).toBe(false);
     expect(streakSchema.safeParse({ ...ok, lastFulfilledDate: '2026-02-30' }).success).toBe(false);

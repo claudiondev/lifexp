@@ -19,6 +19,7 @@ const MON = '2026-10-05';
 const TUE = '2026-10-06';
 const WED = '2026-10-07';
 const THU = '2026-10-08';
+const FRI = '2026-10-09';
 
 describe('Streak (e2e)', () => {
   let app: INestApplication;
@@ -79,7 +80,13 @@ describe('Streak (e2e)', () => {
   const streakOf = async (user: TestUser) => {
     const res = await request(server()).get('/api/progress').set(bearer(user));
     expect(res.status).toBe(200);
-    return progressSchema.parse(res.body).streak;
+    const { current, best, lastFulfilledDate } = progressSchema.parse(res.body).streak;
+    return { current, best, lastFulfilledDate };
+  };
+  const jokerOf = async (user: TestUser) => {
+    const res = await request(server()).get('/api/progress').set(bearer(user));
+    expect(res.status).toBe(200);
+    return progressSchema.parse(res.body).streak.joker;
   };
   /** Conclui o bloco estando "no dia" dado (meio-dia em São Paulo). */
   const completeOn = async (user: TestUser, blockId: string, date: string) => {
@@ -130,23 +137,39 @@ describe('Streak (e2e)', () => {
     expect(await streakOf(user)).toEqual({ current: 2, best: 2, lastFulfilledDate: WED });
   });
 
-  it('dia perdido só quebra quando a janela dele fecha (23:59 do dia seguinte)', async () => {
+  it('dia perdido só gasta o coringa quando a janela dele fecha (23:59 do dia seguinte)', async () => {
     const { user, activity } = await setup();
     const monday = await onceBlock(user, activity.id, MON);
     await onceBlock(user, activity.id, TUE); // terça: nunca cumprida
     await completeOn(user, monday.id, MON);
 
-    // quarta 12:00: ainda dá para concluir a terça (até 23:59 de quarta) -> não quebrou
+    // quarta 12:00: ainda dá para concluir a terça (até 23:59 de quarta) -> coringa intacto
     clock.set(noon(WED));
-    expect((await streakOf(user)).current).toBe(1);
+    expect(await jokerOf(user)).toEqual({ weekStart: MON, used: false, usedOn: null });
 
     // quarta 23:59:59 ainda dentro da janela
     clock.set('2026-10-08T02:59:59.000Z');
-    expect((await streakOf(user)).current).toBe(1);
+    expect((await jokerOf(user)).used).toBe(false);
 
-    // quinta 00:00 local: a janela da terça fechou -> quebrou, o recorde fica
+    // quinta 00:00 local: a janela da terça fechou -> o coringa perdoa, a sequência segue
     clock.set('2026-10-08T03:00:00.000Z');
-    expect(await streakOf(user)).toEqual({ current: 0, best: 1, lastFulfilledDate: MON });
+    expect(await jokerOf(user)).toEqual({ weekStart: MON, used: true, usedOn: TUE });
+    expect(await streakOf(user)).toEqual({ current: 1, best: 1, lastFulfilledDate: MON });
+  });
+
+  it('o segundo dia perdido da mesma semana quebra: o coringa é um só por semana', async () => {
+    const { user, activity } = await setup();
+    const mon = await onceBlock(user, activity.id, MON);
+    await onceBlock(user, activity.id, TUE);
+    await onceBlock(user, activity.id, WED);
+    const thu = await onceBlock(user, activity.id, THU);
+    await completeOn(user, mon.id, MON);
+    await completeOn(user, thu.id, THU);
+
+    // sexta: terça (perdoada) e quarta (quebra) já fecharam; quinta cumprida recomeça do 1
+    clock.set(noon(FRI));
+    expect(await streakOf(user)).toEqual({ current: 1, best: 1, lastFulfilledDate: THU });
+    expect(await jokerOf(user)).toEqual({ weekStart: MON, used: true, usedOn: TUE });
   });
 
   it('dá para salvar o dia de ontem concluindo dentro da janela', async () => {
@@ -161,7 +184,7 @@ describe('Streak (e2e)', () => {
     expect(await streakOf(user)).toEqual({ current: 2, best: 2, lastFulfilledDate: TUE });
   });
 
-  it('desfazer uma conclusão e a janela fechar quebra a sequência, que recomeça do 1', async () => {
+  it('desfazer uma conclusão cujo dia fecha sem cumprir gasta o coringa da semana', async () => {
     const { user, activity } = await setup();
     const [mon, tue, wed] = (await Promise.all(
       [MON, TUE, WED].map((date) => onceBlock(user, activity.id, date)),
@@ -172,12 +195,14 @@ describe('Streak (e2e)', () => {
 
     clock.set(noon(THU));
     expect(await streakOf(user)).toEqual({ current: 3, best: 3, lastFulfilledDate: WED });
+    expect((await jokerOf(user)).used).toBe(false);
 
     // desfaz a terça ainda dentro da janela dela; na quinta ela fecha sem conclusão
     clock.set(noon(WED));
     expect((await undo(user, tue.id, TUE)).status).toBe(200);
     clock.set(noon(THU));
-    expect(await streakOf(user)).toEqual({ current: 1, best: 1, lastFulfilledDate: WED });
+    expect(await streakOf(user)).toEqual({ current: 2, best: 2, lastFulfilledDate: WED });
+    expect(await jokerOf(user)).toEqual({ weekStart: MON, used: true, usedOn: TUE });
   });
 
   it('na segunda-feira (semana que começa hoje), concluir hoje já conta', async () => {
@@ -212,10 +237,14 @@ describe('Streak (e2e)', () => {
     await completeOn(user, wednesday.id, WED);
 
     clock.set(noon(THU));
-    expect((await streakOf(user)).current).toBe(1); // terça perdida e fechada: quebrou
+    // terça perdida e fechada gasta o coringa; a sequência de segunda a quarta segue
+    expect((await streakOf(user)).current).toBe(2);
+    expect((await jokerOf(user)).used).toBe(true);
 
+    // pular a terça a torna neutra: o coringa volta a ficar disponível
     expect((await skip(user, tuesday.id, TUE)).status).toBe(200);
     expect(await streakOf(user)).toEqual({ current: 2, best: 2, lastFulfilledDate: WED });
+    expect((await jokerOf(user)).used).toBe(false);
   });
 
   it('um bloco movido de dia conta no dia para onde foi', async () => {
@@ -285,6 +314,18 @@ describe('Streak (e2e)', () => {
       .send({ from: '2026-10-14', startTime: '10:00' });
     expect(edit.status).toBe(200);
     expect(await streakOf(user)).toEqual({ current: 3, best: 3, lastFulfilledDate: WED });
+  });
+
+  it('o coringa é de cada pessoa: o de uma conta não é gasto pela outra', async () => {
+    const { user: ana, activity } = await setup();
+    const { user: bia } = await setup();
+    const mon = await onceBlock(ana, activity.id, MON);
+    await onceBlock(ana, activity.id, TUE);
+    await completeOn(ana, mon.id, MON);
+
+    clock.set(noon(THU));
+    expect((await jokerOf(ana)).used).toBe(true);
+    expect(await jokerOf(bia)).toEqual({ weekStart: MON, used: false, usedOn: null });
   });
 
   it('exige autenticação (o streak vem em /progress)', async () => {
