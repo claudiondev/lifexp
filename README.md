@@ -75,6 +75,25 @@ produção (mesma origem, cookie `SameSite=Strict`).
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
 
+### Radar de equilíbrio (Marco 4b)
+
+Na tela inicial, **"Equilíbrio das áreas"**: a aderência de cada área nas últimas 4 semanas (28 dias terminando hoje).
+
+| Método | Rota           | O que faz                                                    |
+| ------ | -------------- | ------------------------------------------------------------ |
+| GET    | `/api/balance` | Por área ativa: blocos planejados, concluídos e a nota 0-100 |
+
+- **Nota = blocos concluídos ÷ planejados (RN41).** Conta **blocos**, nunca XP (RN40) nem minutos (RN42): uma leitura de 15 minutos
+  pesa o mesmo que um treino de 10 horas, então rotinas curtas não parecem abandonadas.
+- **Mesmas regras do streak:** pular tira o bloco da conta; o que ainda dá tempo de concluir (hoje e ontem) só entra quando é
+  concluído (o que não foi concluído só vira "planejado" depois que a janela de conclusão fecha, em `settledThrough`).
+- **Área sem blocos no período = sem nota** (`score: null`, "sem dados"), nunca zero: não é abandono. Área arquivada sai do radar.
+  Sem nenhum bloco em nenhuma área, a seção nem aparece.
+- Sem tabela: recalculado a cada leitura (`BalanceService`, regra pura em `gamification/domain/balance.ts`), com o histórico de
+  ocorrências compartilhado com o streak (`OccurrenceHistoryService`, que só calcula as semanas necessárias).
+- Front: radar em **SVG sem biblioteca** (`features/balance`), com a lista de barras ao lado como versão acessível (o desenho é
+  `aria-hidden`); com menos de 3 áreas só a lista aparece.
+
 ### Quest semanal (Marco 4a)
 
 Na tela **Hoje**, um cartão mostra a **quest da semana**: cumprir **80%** dos blocos planejados rende um **bônus de 20%** do XP dessa semana.
@@ -288,8 +307,12 @@ planejado contam; dia sem bloco é **neutro** (não avança e não quebra).
 - Uma ocorrência movida de dia conta no dia para onde foi; a conclusão é ligada pela data original.
 - **Sem tabela de cache:** o streak é recalculado do histórico a cada leitura (`StreakService`, regra pura em
   `gamification/domain/streak.ts`). Ele muda com o tempo e com edições, não só ao concluir; um cache ficaria
-  desatualizado por construção. Vem junto em `GET /api/progress` (`streak: {current, best, lastFulfilledDate}`).
-- O coringa semanal (RF26) é da fase 4 e ainda não existe.
+  desatualizado por construção. Vem junto em `GET /api/progress` (`streak: {current, best, lastFulfilledDate, joker}`).
+- **Coringa semanal (Marco 4b, RF26, RN14):** 1 por semana (segunda a domingo), usado **automaticamente** no primeiro dia
+  planejado perdido da semana (com a janela já fechada). O dia perdoado fica neutro: não quebra e também não avança. Só
+  é gasto quando há sequência a proteger (um dia perdido com o streak zerado não queima o coringa) e **não acumula**: semana
+  sem uso não rende dois na seguinte. Também é derivado do histórico, sem tabela: `streak.joker`
+  (`{weekStart, used, usedOn}`, sempre o estado da semana atual) vem em `GET /api/progress`; pular o dia perdido devolve o coringa.
 
 Telas: HUD, ficha ("Recorde") e a tela Hoje mostram o streak; em dia livre a Hoje avisa que o streak não muda.
 

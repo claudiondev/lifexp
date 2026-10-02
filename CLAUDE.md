@@ -103,7 +103,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   suspeito. Se virar gargalo, cachear por (usuário, dia) é o caminho.
 - `best` também é derivado do histórico: desfazer conclusão antiga pode reduzi-lo (é coerente com a história).
 - Front: `useCharacter` traz `streakDays`/`streakBest`; `useBlockMutations` invalida `progress` (pular/editar
-  bloco muda dias planejados). Texto nunca culpa: dia livre = "seu streak não muda". Coringa é fase 4.
+  bloco muda dias planejados). Texto nunca culpa: dia livre = "seu streak não muda". Coringa: veja "Coringa e radar (decisões do 4b)".
 
 ## PWA (decisões do 1f)
 
@@ -276,6 +276,22 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
   (`useCompletionMutations`) e por TODA mutação de bloco (`useBlockMutations`). O cartão some se a rota falha ou a quest é `none`
   (extra, não pode derrubar a Hoje). Avisos de bônus/estorno são toasts, sempre em tom positivo.
 
+## Coringa e radar (decisões do 4b)
+
+- **Coringa (RN14) é derivado, sem tabela:** `computeStreak` varre os dias em ordem e, num dia planejado sem conclusão e já fechado
+  (`settledThrough(today) = hoje-2`), perdoa o PRIMEIRO da semana (`weekStartOf`) se `current > 0`; senão quebra. Perdoado = neutro
+  (não avança `current` nem `lastFulfilledDate`). Não acumula (um `Map` por semana). `streak.joker` descreve só a semana de hoje.
+  Escolha de produto: com `current === 0` o coringa NÃO é gasto (nada a proteger).
+- `streakSchema` agora exige `joker` (`jokerSchema`: `used ⇔ usedOn`, `weekStart` segunda-feira). Todo fake de `/progress` nos testes
+  do web precisa trazer `joker`.
+- `OccurrenceHistoryService.load(userId, today, since?)` é a fonte única das ocorrências + conclusões do histórico (streak e radar).
+  `since` é só otimização de desempenho (mutantes de `since` são equivalentes; o teste direto confere o que é carregado).
+- **Radar (RF24):** `domain/balance.ts` (`tallyByArea`, `balanceScore`, `balanceWindow` = 28 dias). Conta blocos, nunca XP/minutos.
+  Concluído sempre entra; não concluído só depois de `settledThrough`; pulado fora; área sem planejado = `score: null`.
+  Só áreas ativas, na ordem `position` (teste altera a posição direto no banco, porque a API só cria em ordem).
+- Front: `features/balance` (`useBalance`, `BalanceRadar`, `BalanceSection`, `radarGeometry`). `balanceKey` é invalidada por
+  concluir/desfazer e por toda mutação de bloco, como `questKey`. A seção some se a rota falha ou não há dados.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -329,8 +345,8 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)** feito; próximos:
-  4b (radar de equilíbrio e coringa de streak), 4c (conquistas), 4d (push e relatório) e, por último, o deploy.
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)** e **4b (radar de equilíbrio e coringa de streak)** feitos; próximos:
+  4c (conquistas e recompensas), 4d (push e relatório) e, por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
