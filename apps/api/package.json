@@ -12,7 +12,8 @@
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "mail:test": "node --env-file=.env scripts/send-test-email.mjs",
-    "push:keys": "node scripts/generate-vapid-keys.mjs"
+    "push:keys": "node scripts/generate-vapid-keys.mjs",
+    "perf:smoke": "node --env-file=.env scripts/perf-smoke.mjs"
   },
   "dependencies": {
     "@lifexp/shared": "workspace:^",

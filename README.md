@@ -607,6 +607,13 @@ Na grade da **Semana** (desktop), arraste um bloco para outro dia ou horário.
 - **`GET /api/health/jobs`** (público, só nomes, instantes e contagens): `status` `ok` ou `degraded` (algum job com **3 falhas seguidas**), e,
   por job, a última execução, a última vez que deu certo e as falhas seguidas. `GET /api/health` segue sendo o "está no ar".
 
+### Desempenho (RNF04)
+
+`pnpm --filter @lifexp/api perf:smoke` (com a API no ar) cria uma conta descartável com ~1 ano de séries semanais e centenas de conclusões, mede as
+rotas das telas principais (Hoje, progresso, Semana, quest, radar, conquistas, histórico, relatório, revisão) e apaga a conta. Falha se algum **p95**
+passar de **300 ms**. Medido em desenvolvimento (Postgres local), o pior caso foi `GET /progress` com **p95 ≈ 75 ms** (o streak é recalculado do histórico a cada
+leitura, ver Marco 1e): a margem é grande, e a decisão de **não cachear** o streak continua valendo.
+
 ### Dependências verificadas (RS16)
 
 - **CI:** `pnpm audit --audit-level=high` roda antes do lint e **falha com vulnerabilidade alta ou crítica**.
