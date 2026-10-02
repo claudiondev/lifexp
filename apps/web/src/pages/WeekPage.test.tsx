@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { weekStartOf, type Occurrence } from '@lifexp/shared';
+import { addDays, weekdayOf, weekStartOf, type Occurrence } from '@lifexp/shared';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { setAccessToken } from '@/lib/apiClient';
 import { WeekPage } from './WeekPage';
@@ -78,6 +78,38 @@ function setup(options: ApiOptions = {}, initialUrl = '/semana') {
             archivedAt: null,
           },
         ]);
+      }
+      if (url === '/api/blocks/weekly' && init?.method === 'POST') {
+        // Imita a API: um bloco semanal por dia, e as ocorrências passam a existir na semana.
+        const body = JSON.parse(String(init.body));
+        const created = (body.weekdays as number[]).map((weekday, index) => {
+          const date = addDays(weekStartOf(body.validFrom), weekday - 1);
+          return occurrence({
+            blockId: `0192f1a0-7b3c-7000-8000-0000000000c${index + 1}`,
+            occurrenceDate: date,
+            date,
+            startTime: body.startTime,
+            durationMin: body.durationMin,
+            activityId: body.activityId,
+          });
+        });
+        const key = weekStartOf(body.validFrom);
+        options.weeks = { ...options.weeks, [key]: [...(options.weeks?.[key] ?? []), ...created] };
+        return json(
+          201,
+          created.map((item) => ({
+            id: item.blockId,
+            activityId: item.activityId,
+            recurrence: 'weekly',
+            weekday: weekdayOf(item.date),
+            date: null,
+            startTime: item.startTime,
+            durationMin: item.durationMin,
+            validFrom: body.validFrom,
+            validUntil: null,
+            goalId: null,
+          })),
+        );
       }
       if (url === '/api/blocks' && init?.method === 'POST') {
         // Imita a API: cria o bloco e a ocorrência passa a existir na semana dele.

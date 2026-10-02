@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   blockExceptionSchema,
   blockSchema,
@@ -6,6 +7,7 @@ import {
   type BlockException,
   type CivilDate,
   type CreateBlockInput,
+  type CreateWeeklyBlocksInput,
   type PutExceptionInput,
   type UpdateBlockInput,
   type WeekResponse,
@@ -17,6 +19,10 @@ export const getWeek = (weekStart: CivilDate): Promise<WeekResponse> =>
 
 export const createBlock = (input: CreateBlockInput): Promise<Block> =>
   apiJson('/blocks', blockSchema, { method: 'POST', json: input });
+
+/** Um bloco semanal por dia marcado, tudo ou nada: a API devolve a lista, de segunda a domingo. */
+export const createWeeklyBlocks = (input: CreateWeeklyBlocksInput): Promise<Block[]> =>
+  apiJson('/blocks/weekly', z.array(blockSchema), { method: 'POST', json: input });
 
 /** Edita a partir de `input.from` (esta e as próximas); o passado não muda. */
 export const updateBlock = (id: string, input: UpdateBlockInput): Promise<Block> =>

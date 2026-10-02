@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +22,7 @@ interface Options {
   goals?: unknown[];
   activities?: unknown[];
   postResponse?: () => Response;
+  weeklyResponse?: () => Response;
 }
 
 const defaultActivities = [
@@ -78,6 +79,28 @@ function setup(options: Options = {}) {
           })
         );
       }
+      if (url === '/api/blocks/weekly' && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body));
+        posts.push(body);
+        return (
+          options.weeklyResponse?.() ??
+          json(
+            201,
+            (body.weekdays as number[]).map((weekday, index) => ({
+              id: `0192f1a0-7b3c-7000-8000-00000000c10${index}`,
+              activityId: body.activityId,
+              recurrence: 'weekly',
+              weekday,
+              date: null,
+              startTime: body.startTime,
+              durationMin: body.durationMin,
+              validFrom: body.validFrom,
+              validUntil: body.validUntil ?? null,
+              goalId: body.goalId ?? null,
+            })),
+          )
+        );
+      }
       return json(404);
     }),
   );
@@ -106,6 +129,12 @@ const choose = async (label: string) => {
   await userEvent.selectOptions(screen.getByLabelText('Atividade'), label);
 };
 const submit = () => userEvent.click(screen.getByRole('button', { name: 'Criar bloco' }));
+const day = (name: string) => screen.getByRole('checkbox', { name });
+const checkedDays = () =>
+  screen
+    .getAllByRole('checkbox')
+    .filter((box) => (box as HTMLInputElement).checked)
+    .map((box) => box.getAttribute('aria-label'));
 
 describe('BlockFormDialog', () => {
   beforeEach(() => {
@@ -119,12 +148,13 @@ describe('BlockFormDialog', () => {
     await screen.findByLabelText('Atividade');
 
     expect(screen.getByRole('radio', { name: 'Toda semana' })).toBeChecked();
-    expect(screen.getByLabelText('Dia da semana')).toHaveValue('3'); // hoje é quarta
+    expect(checkedDays()).toEqual(['Quarta-feira']); // hoje é quarta
+    expect(screen.getByRole('radio', { name: 'Sem fim' })).toBeChecked();
     expect(screen.getByLabelText('A partir de')).toHaveValue('2026-10-07');
     expect(screen.getByLabelText('Início')).toHaveValue('09:00');
     expect(screen.getByLabelText('Duração')).toHaveValue('60');
     expect(screen.getByTestId('block-summary')).toHaveTextContent(
-      'Toda quarta-feira, das 09:00 às 10:00. Começa em 7 de outubro de 2026.',
+      'Toda quarta-feira, das 09:00 às 10:00. Começa em 7 de outubro de 2026. Sem data para terminar.',
     );
   });
 
@@ -200,16 +230,16 @@ describe('BlockFormDialog', () => {
     const { posts, onOpenChange } = setup();
     await choose('Reunião');
 
-    await userEvent.selectOptions(screen.getByLabelText('Dia da semana'), 'Sexta-feira');
+    await userEvent.click(day('Quarta-feira'));
+    await userEvent.click(day('Sexta-feira'));
     await userEvent.selectOptions(screen.getByLabelText('Duração'), '1 h 30 min');
     fireEvent.change(screen.getByLabelText('Início'), { target: { value: '14:30' } });
     await submit();
 
     await waitFor(() => expect(posts).toHaveLength(1));
     expect(posts[0]).toEqual({
-      recurrence: 'weekly',
       activityId: ACT_MEETING,
-      weekday: 5,
+      weekdays: [5],
       startTime: '14:30',
       durationMin: 90,
       validFrom: '2026-10-09', // a sexta da semana que está na tela
@@ -227,10 +257,22 @@ describe('BlockFormDialog', () => {
     setup();
     await screen.findByLabelText('Atividade');
 
-    await userEvent.selectOptions(screen.getByLabelText('Dia da semana'), 'Segunda-feira');
+    await userEvent.click(day('Segunda-feira'));
+    await userEvent.click(day('Quarta-feira'));
     expect(screen.getByLabelText('A partir de')).toHaveValue('2026-10-05');
-    await userEvent.selectOptions(screen.getByLabelText('Dia da semana'), 'Domingo');
+    await userEvent.click(day('Domingo'));
+    await userEvent.click(day('Segunda-feira'));
     expect(screen.getByLabelText('A partir de')).toHaveValue('2026-10-11');
+  });
+
+  it('com vários dias, a data de início acompanha o primeiro deles', async () => {
+    setup();
+    await screen.findByLabelText('Atividade');
+
+    await userEvent.click(day('Sexta-feira'));
+    expect(screen.getByLabelText('A partir de')).toHaveValue('2026-10-07'); // quarta é a mais cedo
+    await userEvent.click(day('Terça-feira'));
+    expect(screen.getByLabelText('A partir de')).toHaveValue('2026-10-06');
   });
 
   it('depois que a pessoa escolhe uma data própria, trocar o dia não a sobrescreve', async () => {
@@ -238,7 +280,8 @@ describe('BlockFormDialog', () => {
     await screen.findByLabelText('Atividade');
 
     fireEvent.change(screen.getByLabelText('A partir de'), { target: { value: '2026-11-02' } });
-    await userEvent.selectOptions(screen.getByLabelText('Dia da semana'), 'Sexta-feira');
+    await userEvent.click(day('Quarta-feira'));
+    await userEvent.click(day('Sexta-feira'));
 
     expect(screen.getByLabelText('A partir de')).toHaveValue('2026-11-02');
     expect(screen.getByTestId('block-summary')).toHaveTextContent(
@@ -251,7 +294,8 @@ describe('BlockFormDialog', () => {
     await choose('Corrida');
 
     await userEvent.click(screen.getByRole('radio', { name: 'Só uma vez' }));
-    expect(screen.queryByLabelText('Dia da semana')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Quarta-feira' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Sem fim' })).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Data'), { target: { value: '2026-10-12' } });
     await submit();
 
@@ -303,7 +347,7 @@ describe('BlockFormDialog', () => {
     expect(screen.getByTestId('block-summary')).toHaveTextContent('das 23:00 às 24:00');
   });
 
-  it('mostra o erro do servidor e mantém o diálogo aberto', async () => {
+  it('mostra o erro do servidor e mantém o diálogo aberto (bloco avulso)', async () => {
     const { onOpenChange } = setup({
       postResponse: () =>
         json(409, {
@@ -311,6 +355,7 @@ describe('BlockFormDialog', () => {
         }),
     });
     await choose('Reunião');
+    await userEvent.click(screen.getByRole('radio', { name: 'Só uma vez' }));
     await submit();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('A atividade está arquivada');
@@ -351,7 +396,282 @@ describe('BlockFormDialog', () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByLabelText('Dia da semana')).toHaveValue('1');
+    await screen.findByLabelText('Atividade');
+    expect(checkedDays()).toEqual(['Segunda-feira']);
     expect(screen.getByLabelText('A partir de')).toHaveValue('2026-10-19');
+  });
+
+  describe('vários dias da semana', () => {
+    it('marca e desmarca dias, e o resumo acompanha', async () => {
+      setup();
+      await screen.findByLabelText('Atividade');
+
+      await userEvent.click(day('Segunda-feira'));
+      await userEvent.click(day('Sexta-feira'));
+      expect(checkedDays()).toEqual(['Segunda-feira', 'Quarta-feira', 'Sexta-feira']);
+      expect(screen.getByTestId('block-summary')).toHaveTextContent(
+        'Toda semana: segunda, quarta e sexta, das 09:00 às 10:00.',
+      );
+
+      await userEvent.click(day('Quarta-feira'));
+      expect(checkedDays()).toEqual(['Segunda-feira', 'Sexta-feira']);
+    });
+
+    it('"Dias úteis" e "Todos os dias" marcam os dias de uma vez', async () => {
+      setup();
+      await screen.findByLabelText('Atividade');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Dias úteis' }));
+      expect(checkedDays()).toEqual([
+        'Segunda-feira',
+        'Terça-feira',
+        'Quarta-feira',
+        'Quinta-feira',
+        'Sexta-feira',
+      ]);
+      expect(screen.getByTestId('block-summary')).toHaveTextContent(
+        'De segunda a sexta, das 09:00',
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'Todos os dias' }));
+      expect(checkedDays()).toHaveLength(7);
+      expect(screen.getByTestId('block-summary')).toHaveTextContent('Todos os dias, das 09:00');
+    });
+
+    it('cria um bloco por dia marcado numa única chamada e avisa quantos', async () => {
+      const { posts, onOpenChange } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Dias úteis' }));
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toEqual({
+        activityId: ACT_MEETING,
+        weekdays: [1, 2, 3, 4, 5],
+        startTime: '09:00',
+        durationMin: 60,
+        validFrom: '2026-10-05',
+      });
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('5 blocos criados', {
+          description: 'Começa em 5 de outubro de 2026.',
+        }),
+      );
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('com a meta escolhida, ela vai junto para todos os dias', async () => {
+      const goalId = '0192f1a0-7b3c-7000-8000-0000000000c1';
+      const { posts } = setup({ goals: [makeGoal({ id: goalId, title: 'Ler 12 livros' })] });
+      await choose('Reunião');
+      await userEvent.selectOptions(
+        await screen.findByLabelText('Meta (opcional)'),
+        'Ler 12 livros',
+      );
+      await userEvent.click(day('Sexta-feira'));
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ weekdays: [3, 5], goalId });
+    });
+
+    it('sem nenhum dia marcado, avisa e não chama a API', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(day('Quarta-feira'));
+      expect(screen.getByTestId('block-summary')).toHaveTextContent('Escolha ao menos um dia');
+      await submit();
+
+      expect(await screen.findByText('Escolha ao menos um dia da semana')).toBeInTheDocument();
+      expect(posts).toHaveLength(0);
+      // o aviso some assim que um dia volta a ser marcado
+      await userEvent.click(day('Quinta-feira'));
+      await waitFor(() =>
+        expect(screen.queryByText('Escolha ao menos um dia da semana')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('o horário e a duração valem para todos os dias', async () => {
+      const { posts } = setup();
+      await choose('Corrida');
+
+      await userEvent.click(day('Segunda-feira'));
+      fireEvent.change(screen.getByLabelText('Início'), { target: { value: '18:30' } });
+      await userEvent.selectOptions(screen.getByLabelText('Duração'), '45 min');
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ weekdays: [1, 3], startTime: '18:30', durationMin: 45 });
+    });
+  });
+
+  describe('término da série', () => {
+    it('"Sem fim" não envia validUntil', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+      await submit();
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).not.toHaveProperty('validUntil');
+    });
+
+    it('"Até uma data" envia a data final e a mostra no resumo e no aviso', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Até uma data' }));
+      fireEvent.change(screen.getByLabelText('Último dia'), { target: { value: '2026-11-25' } });
+      expect(screen.getByTestId('block-summary')).toHaveTextContent(
+        'Termina em 25 de novembro de 2026.',
+      );
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ validFrom: '2026-10-07', validUntil: '2026-11-25' });
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('Bloco criado', {
+          description: 'Começa em 7 de outubro de 2026. Termina em 25 de novembro de 2026.',
+        }),
+      );
+    });
+
+    it('"Por semanas" converte N semanas na data final, contando o dia de início', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Por semanas' }));
+      expect(screen.getByLabelText('Quantas semanas')).toHaveValue(8);
+      fireEvent.change(screen.getByLabelText('Quantas semanas'), { target: { value: '4' } });
+      // 4 semanas a partir de quarta 7/10 terminam na terça 3/11 (28 dias corridos)
+      expect(screen.getByTestId('block-summary')).toHaveTextContent(
+        'Termina em 3 de novembro de 2026.',
+      );
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ validFrom: '2026-10-07', validUntil: '2026-11-03' });
+    });
+
+    it('o fim por semanas acompanha a data de início quando ela muda', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Por semanas' }));
+      fireEvent.change(screen.getByLabelText('Quantas semanas'), { target: { value: '1' } });
+      fireEvent.change(screen.getByLabelText('A partir de'), { target: { value: '2026-12-30' } });
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ validFrom: '2026-12-30', validUntil: '2027-01-05' });
+    });
+
+    it.each([['0'], ['105'], ['2.5'], ['']])(
+      '"Por semanas" com %s é recusado sem chamar a API',
+      async (value) => {
+        const { posts } = setup();
+        await choose('Reunião');
+
+        await userEvent.click(screen.getByRole('radio', { name: 'Por semanas' }));
+        fireEvent.change(screen.getByLabelText('Quantas semanas'), { target: { value } });
+        await submit();
+
+        expect(await screen.findByText('Informe de 1 a 104 semanas')).toBeInTheDocument();
+        expect(posts).toHaveLength(0);
+      },
+    );
+
+    it('aceita os limites de 1 e de 104 semanas', async () => {
+      for (const weeks of ['1', '104']) {
+        const { posts } = setup();
+        await choose('Reunião');
+        await userEvent.click(screen.getByRole('radio', { name: 'Por semanas' }));
+        fireEvent.change(screen.getByLabelText('Quantas semanas'), { target: { value: weeks } });
+        await submit();
+        await waitFor(() => expect(posts).toHaveLength(1));
+        cleanup();
+      }
+    });
+
+    it('data final antes do início é recusada, com o motivo, sem chamar a API', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Até uma data' }));
+      fireEvent.change(screen.getByLabelText('Último dia'), { target: { value: '2026-10-01' } });
+      await submit();
+
+      expect(
+        await screen.findByText('O fim não pode ser antes do primeiro dia do bloco'),
+      ).toBeInTheDocument();
+      expect(posts).toHaveLength(0);
+    });
+
+    it('data final sem preencher é recusada', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Até uma data' }));
+      fireEvent.change(screen.getByLabelText('Último dia'), { target: { value: '' } });
+      await submit();
+
+      expect(await screen.findByText('Informe a data final')).toBeInTheDocument();
+      expect(posts).toHaveLength(0);
+    });
+
+    it('data final que deixa um dia marcado sem nenhuma ocorrência é recusada', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Dias úteis' }));
+      await userEvent.click(screen.getByRole('radio', { name: 'Até uma data' }));
+      // a série começa na segunda 5/10 e termina na terça 6/10: quarta a sexta nunca ocorrem
+      fireEvent.change(screen.getByLabelText('Último dia'), { target: { value: '2026-10-06' } });
+      await submit();
+
+      expect(
+        await screen.findByText(
+          'O período termina antes da primeira ocorrência de algum dia marcado',
+        ),
+      ).toBeInTheDocument();
+      expect(posts).toHaveLength(0);
+    });
+
+    it('"Sem fim" de novo esconde os campos de término e deixa de enviar o fim', async () => {
+      const { posts } = setup();
+      await choose('Reunião');
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Até uma data' }));
+      expect(screen.getByLabelText('Último dia')).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('radio', { name: 'Sem fim' }));
+      expect(screen.queryByLabelText('Último dia')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Quantas semanas')).not.toBeInTheDocument();
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).not.toHaveProperty('validUntil');
+    });
+
+    it('mostra o erro do servidor e mantém o diálogo aberto também na criação em vários dias', async () => {
+      const { onOpenChange } = setup({
+        weeklyResponse: () => json(409, { message: 'A atividade está arquivada.' }),
+      });
+      await choose('Reunião');
+      await userEvent.click(day('Sexta-feira'));
+      await submit();
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('A atividade está arquivada');
+      expect(onOpenChange).not.toHaveBeenCalledWith(false);
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+  });
+
+  it('bloco avulso não mostra dias nem término', async () => {
+    setup();
+    await screen.findByLabelText('Atividade');
+    await userEvent.click(screen.getByRole('radio', { name: 'Só uma vez' }));
+    expect(screen.queryByRole('button', { name: 'Dias úteis' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Por semanas' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('block-summary')).not.toHaveTextContent('Sem data para terminar');
   });
 });

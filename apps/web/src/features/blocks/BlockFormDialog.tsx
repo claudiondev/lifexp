@@ -1,10 +1,12 @@
 import {
+  MAX_SERIES_WEEKS,
   addDays,
   createBlockSchema,
+  createWeeklyBlocksSchema,
   endsSameDay,
-  firstOccurrenceOnOrAfter,
   minutesToTime,
   timeToMinutes,
+  validUntilForWeeks,
   weekdayOf,
   type CivilDate,
   type CreateBlockInput,
@@ -26,6 +28,16 @@ import { useGoalList } from '../goals/useGoals';
 import { useServerError } from '../auth/useAuthForm';
 import { useAreas } from '../areas/useAreas';
 import { DURATION_OPTIONS, WEEKDAY_OPTIONS } from './blockOptions';
+import {
+  DEFAULT_SERIES_WEEKS,
+  WEEKDAY_PRESETS,
+  createdTitle,
+  describeWeekdays,
+  firstOccurrence,
+  resolveEnd,
+  toggleWeekday,
+  type EndMode,
+} from './seriesForm';
 import { useBlockMutations } from './useBlockMutations';
 
 interface FormValues {
@@ -33,8 +45,14 @@ interface FormValues {
   /** Vazio = bloco sem meta. */
   goalId: string;
   recurrence: 'weekly' | 'once';
-  weekday: number;
+  /** Dias da semana marcados (1 = segunda ... 7 = domingo). */
+  weekdays: number[];
   validFrom: CivilDate;
+  endMode: EndMode;
+  /** "Até uma data". */
+  endDate: CivilDate;
+  /** "Por N semanas". */
+  endWeeks: number;
   date: CivilDate;
   startTime: string;
   durationMin: number;
@@ -64,34 +82,30 @@ export function BlockFormDialog({ open, onOpenChange, weekStart, today }: BlockF
   );
 }
 
-/** Monta exatamente o que a API espera para o tipo escolhido (a API rejeita campos de sobra). */
-function toPayload(values: FormValues) {
-  const common = {
+/** Monta o bloco avulso exatamente como a API espera (ela rejeita campos de sobra). */
+function toOncePayload(values: FormValues) {
+  return {
+    recurrence: 'once' as const,
     activityId: values.activityId,
     // Só envia a meta quando há uma escolhida: a API não precisa de campo vazio.
     ...(values.goalId ? { goalId: values.goalId } : {}),
+    date: values.date,
     startTime: values.startTime,
     durationMin: Number(values.durationMin),
   };
-  return values.recurrence === 'weekly'
-    ? {
-        recurrence: 'weekly' as const,
-        ...common,
-        weekday: Number(values.weekday),
-        validFrom: values.validFrom,
-      }
-    : { recurrence: 'once' as const, ...common, date: values.date };
 }
 
 const FIELD_NAMES: readonly string[] = [
   'activityId',
   'goalId',
-  'weekday',
+  'weekdays',
   'validFrom',
   'date',
   'startTime',
   'durationMin',
 ];
+
+const WEEKDAY_SHORT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] as const;
 
 function BlockForm({
   weekStart,
@@ -102,7 +116,7 @@ function BlockForm({
   today: CivilDate;
   onDone: () => void;
 }) {
-  const { create } = useBlockMutations();
+  const { create, createWeekly } = useBlockMutations();
   const { serverError, run } = useServerError();
   const activities = useActivities(false);
   const areas = useAreas(false);
@@ -121,35 +135,54 @@ function BlockForm({
     watch,
     setValue,
     setError,
+    clearErrors,
     formState: { errors, dirtyFields, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
       activityId: '',
       goalId: '',
       recurrence: 'weekly',
-      weekday: baseWeekday,
+      weekdays: [baseWeekday],
       validFrom: baseDate,
+      endMode: 'never',
+      endDate: validUntilForWeeks(baseDate, DEFAULT_SERIES_WEEKS),
+      endWeeks: DEFAULT_SERIES_WEEKS,
       date: baseDate,
       startTime: '09:00',
       durationMin: 60,
     },
   });
 
-  const [recurrence, weekday, validFrom, date, startTime, durationMin] = watch([
+  const [
+    recurrence,
+    weekdays,
+    validFrom,
+    endMode,
+    endDate,
+    endWeeks,
+    date,
+    startTime,
+    durationMin,
+  ] = watch([
     'recurrence',
-    'weekday',
+    'weekdays',
     'validFrom',
+    'endMode',
+    'endDate',
+    'endWeeks',
     'date',
     'startTime',
     'durationMin',
   ]);
 
-  // Ao trocar o dia da semana, a data de início acompanha (até a pessoa escolher uma própria).
+  // Ao trocar os dias da semana, a data de início acompanha o primeiro deles na semana da tela
+  // (até a pessoa escolher uma data própria).
+  const earliestWeekday = weekdays.length > 0 ? Math.min(...weekdays) : null;
   useEffect(() => {
-    if (!dirtyFields.validFrom) {
-      setValue('validFrom', addDays(weekStart, Number(weekday) - 1));
+    if (!dirtyFields.validFrom && earliestWeekday !== null) {
+      setValue('validFrom', addDays(weekStart, earliestWeekday - 1));
     }
-  }, [weekday, weekStart, dirtyFields.validFrom, setValue]);
+  }, [earliestWeekday, weekStart, dirtyFields.validFrom, setValue]);
 
   const groups = useMemo(() => {
     const byArea = new Map<string, { id: string; name: string }[]>();
@@ -161,17 +194,42 @@ function BlockForm({
       .map((area) => ({ area, activities: byArea.get(area.id) ?? [] }));
   }, [activities.data, areas.data]);
 
+  /** Troca os dias marcados; o aviso de "nenhum dia" some assim que há um dia de novo. */
+  const setDays = (next: number[]) => {
+    setValue('weekdays', next);
+    if (next.length > 0) clearErrors('weekdays');
+  };
+
+  /** Mostra cada erro do schema embaixo do campo dele; `validUntil` vai para o campo de término. */
+  const showIssues = (
+    issues: readonly { path: PropertyKey[]; message: string }[],
+    endField: 'endDate' | 'endWeeks' = 'endDate',
+  ) => {
+    for (const issue of issues) {
+      const field = String(issue.path[0]);
+      if (field === 'validUntil') setError(endField, { message: issue.message });
+      else if (FIELD_NAMES.includes(field)) {
+        setError(field as FieldPath<FormValues>, { message: issue.message });
+      }
+    }
+  };
+
   const noActivities = activities.isSuccess && areas.isSuccess && groups.length === 0;
   const duration = Number(durationMin);
   const crossesMidnight = !endsSameDay(startTime, duration);
   const endTime = crossesMidnight ? null : minutesToTime(timeToMinutes(startTime) + duration);
 
-  const summary =
-    recurrence === 'weekly'
-      ? `Toda ${WEEKDAY_OPTIONS[Number(weekday) - 1]?.label.toLowerCase()}`
-      : `Em ${longDate(date)}`;
-  const firstDate =
-    recurrence === 'weekly' ? firstOccurrenceOnOrAfter(validFrom, Number(weekday)) : date;
+  const end = resolveEnd({ mode: endMode, until: endDate, weeks: Number(endWeeks) }, validFrom);
+  const firstDate = recurrence === 'weekly' ? firstOccurrence(validFrom, weekdays) : date;
+  const summary = recurrence === 'weekly' ? describeWeekdays(weekdays) : `Em ${longDate(date)}`;
+  const endText =
+    recurrence !== 'weekly'
+      ? null
+      : end.ok && end.validUntil
+        ? `Termina em ${longDate(end.validUntil)}.`
+        : end.ok
+          ? 'Sem data para terminar.'
+          : null;
 
   const onSubmit = handleSubmit((values) =>
     run(async () => {
@@ -179,20 +237,48 @@ function BlockForm({
         setError('activityId', { message: 'Escolha uma atividade' });
         return;
       }
-      // A mesma validação da API: se passar aqui, o servidor aceita.
-      const parsed = createBlockSchema.safeParse(toPayload(values));
-      if (!parsed.success) {
-        for (const issue of parsed.error.issues) {
-          const field = String(issue.path[0]);
-          if (FIELD_NAMES.includes(field)) {
-            setError(field as FieldPath<FormValues>, { message: issue.message });
-          }
+
+      if (values.recurrence === 'once') {
+        // A mesma validação da API: se passar aqui, o servidor aceita.
+        const parsed = createBlockSchema.safeParse(toOncePayload(values));
+        if (!parsed.success) {
+          showIssues(parsed.error.issues);
+          return;
         }
+        await create.mutateAsync(parsed.data as CreateBlockInput);
+        toast.success('Bloco criado', {
+          description: `Começa em ${longDate(values.date)}.`,
+        });
+        onDone();
         return;
       }
-      await create.mutateAsync(parsed.data as CreateBlockInput);
-      toast.success('Bloco criado', {
-        description: `Começa em ${longDate(parsed.data.recurrence === 'once' ? parsed.data.date : firstDate)}.`,
+
+      const ended = resolveEnd(
+        { mode: values.endMode, until: values.endDate, weeks: Number(values.endWeeks) },
+        values.validFrom,
+      );
+      if (!ended.ok) {
+        setError(ended.field, { message: ended.message });
+        return;
+      }
+      const parsed = createWeeklyBlocksSchema.safeParse({
+        activityId: values.activityId,
+        ...(values.goalId ? { goalId: values.goalId } : {}),
+        weekdays: values.weekdays,
+        startTime: values.startTime,
+        durationMin: Number(values.durationMin),
+        validFrom: values.validFrom,
+        ...(ended.validUntil ? { validUntil: ended.validUntil } : {}),
+      });
+      if (!parsed.success) {
+        showIssues(parsed.error.issues, values.endMode === 'weeks' ? 'endWeeks' : 'endDate');
+        return;
+      }
+      const created = await createWeekly.mutateAsync(parsed.data);
+      toast.success(createdTitle(created.length), {
+        description: `Começa em ${longDate(firstDate ?? values.validFrom)}.${
+          ended.validUntil ? ` Termina em ${longDate(ended.validUntil)}.` : ''
+        }`,
       });
       onDone();
     }),
@@ -272,17 +358,51 @@ function BlockForm({
       </fieldset>
 
       {recurrence === 'weekly' ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="block-weekday">Dia da semana</Label>
-            <Select id="block-weekday" {...register('weekday')}>
+        <>
+          <fieldset className="flex flex-col gap-2">
+            <Label asChild>
+              <legend>Dias da semana</legend>
+            </Label>
+            <div className="grid grid-cols-7 gap-1.5">
               {WEEKDAY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+                <label
+                  key={option.value}
+                  className="cursor-pointer rounded-lg border border-border px-1 py-2.5 text-center text-sm font-medium transition has-checked:border-primary has-checked:bg-primary/15 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={option.label}
+                    checked={weekdays.includes(option.value)}
+                    onChange={() => setDays(toggleWeekday(weekdays, option.value))}
+                    className="sr-only"
+                  />
+                  {WEEKDAY_SHORT[option.value - 1]}
+                </label>
               ))}
-            </Select>
-          </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setDays([...WEEKDAY_PRESETS.workdays])}
+              >
+                Dias úteis
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setDays([...WEEKDAY_PRESETS.everyday])}
+              >
+                Todos os dias
+              </Button>
+            </div>
+            {errors.weekdays && (
+              <span className="text-sm text-destructive">{errors.weekdays.message}</span>
+            )}
+          </fieldset>
+
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="block-valid-from">A partir de</Label>
             <Input
@@ -295,7 +415,61 @@ function BlockForm({
               <span className="text-sm text-destructive">{errors.validFrom.message}</span>
             )}
           </div>
-        </div>
+
+          <fieldset className="flex flex-col gap-2">
+            <Label asChild>
+              <legend>Término</legend>
+            </Label>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  ['never', 'Sem fim'],
+                  ['until', 'Até uma data'],
+                  ['weeks', 'Por semanas'],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="cursor-pointer rounded-lg border border-border px-2 py-2.5 text-center text-sm font-medium transition has-checked:border-primary has-checked:bg-primary/15 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
+                >
+                  <input type="radio" value={value} className="sr-only" {...register('endMode')} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            {endMode === 'until' && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="block-end-date">Último dia</Label>
+                <Input
+                  id="block-end-date"
+                  type="date"
+                  aria-invalid={errors.endDate ? true : undefined}
+                  {...register('endDate')}
+                />
+                {errors.endDate && (
+                  <span className="text-sm text-destructive">{errors.endDate.message}</span>
+                )}
+              </div>
+            )}
+            {endMode === 'weeks' && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="block-end-weeks">Quantas semanas</Label>
+                <Input
+                  id="block-end-weeks"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={MAX_SERIES_WEEKS}
+                  aria-invalid={errors.endWeeks ? true : undefined}
+                  {...register('endWeeks', { valueAsNumber: true })}
+                />
+                {errors.endWeeks && (
+                  <span className="text-sm text-destructive">{errors.endWeeks.message}</span>
+                )}
+              </div>
+            )}
+          </fieldset>
+        </>
       ) : (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="block-date">Data</Label>
@@ -348,9 +522,15 @@ function BlockForm({
         data-testid="block-summary"
         className="rounded-xl border border-border bg-background/50 px-3 py-2.5 text-sm text-muted-foreground"
       >
-        <span className="font-medium text-foreground">{summary}</span>
-        {endTime && `, das ${startTime} às ${endTime}`}.{' '}
-        {recurrence === 'weekly' && `Começa em ${longDate(firstDate)}.`}
+        {summary ? (
+          <span className="font-medium text-foreground">{summary}</span>
+        ) : (
+          <span className="font-medium text-foreground">Escolha ao menos um dia</span>
+        )}
+        {summary && endTime && `, das ${startTime} às ${endTime}`}
+        {summary && '.'}{' '}
+        {recurrence === 'weekly' && summary && firstDate && `Começa em ${longDate(firstDate)}.`}{' '}
+        {endText}
       </p>
 
       {serverError && (

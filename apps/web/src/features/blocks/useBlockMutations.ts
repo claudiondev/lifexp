@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CivilDate, PutExceptionInput, UpdateBlockInput } from '@lifexp/shared';
-import { createBlock, deleteBlock, putException, removeException, updateBlock } from './blocksApi';
+import {
+  createBlock,
+  createWeeklyBlocks,
+  deleteBlock,
+  putException,
+  removeException,
+  updateBlock,
+} from './blocksApi';
 import { progressKey } from '../character/useProgress';
 import { todayKey } from '../today/useToday';
 import { blocksKey } from './useWeek';
@@ -24,6 +31,7 @@ export function useBlockMutations() {
 
   return {
     create: useMutation({ mutationFn: createBlock, onSuccess: refresh }),
+    createWeekly: useMutation({ mutationFn: createWeeklyBlocks, onSuccess: refresh }),
     edit: useMutation({
       mutationFn: ({ blockId, input }: { blockId: string; input: UpdateBlockInput }) =>
         updateBlock(blockId, input),
