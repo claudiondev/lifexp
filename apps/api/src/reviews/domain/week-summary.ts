@@ -1,3 +1,4 @@
+import { settledThrough } from '../../gamification/domain/streak.js';
 import {
   addDays,
   localDateTimeToUtc,
@@ -13,6 +14,8 @@ export interface PlannedOccurrence {
   blockId: string;
   /** Data ORIGINAL da ocorrência na série: com o bloco, é a identidade dela (RN32). */
   occurrenceDate: CivilDate;
+  /** Dia efetivo (muda se a ocorrência foi movida); sem ele vale a data original. */
+  date?: CivilDate;
   areaId: string;
   durationMin: number;
   skipped: boolean;
@@ -34,6 +37,12 @@ export interface WeekSummaryInput {
   areas: readonly SummaryArea[];
   /** XP líquido da semana (ganhos menos estornos). */
   xp: number;
+  /**
+   * O dia de hoje da pessoa. Com ele, o que ainda dá tempo de cumprir (hoje, ontem e o que vem depois) só entra como
+   * "planejado" quando já foi concluído: assim a aderência bate com a do relatório, do radar e do streak (RN42) e não
+   * mostra 0% numa área cujo bloco simplesmente ainda não aconteceu. Sem ele, tudo o que não foi pulado conta.
+   */
+  today?: CivilDate;
 }
 
 export const completionKey = (blockId: string, occurrenceDate: CivilDate): string =>
@@ -76,6 +85,9 @@ export function computeWeekSummary(input: WeekSummaryInput): WeekSummary {
       continue;
     }
     const done = input.completed.has(completionKey(occurrence.blockId, occurrence.occurrenceDate));
+    // O que não foi cumprido e ainda está dentro do prazo (ou por vir) não pesa na aderência.
+    const effectiveDate = occurrence.date ?? occurrence.occurrenceDate;
+    if (!done && input.today !== undefined && effectiveDate > settledThrough(input.today)) continue;
     totals.planned += 1;
     totals.plannedMin += occurrence.durationMin;
     const area = byArea.get(occurrence.areaId);

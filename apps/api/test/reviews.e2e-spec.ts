@@ -133,22 +133,19 @@ describe('Revisão semanal (e2e, RF46)', () => {
 
       const { summary } = await detail(user);
 
+      // "Hoje" é quarta: a terça (ontem) e a quinta (futuro) ainda não pesam, e a sexta foi pulada; só o cumprido conta
       expect(summary.totals).toEqual({
-        planned: 4,
+        planned: 2,
         completed: 2,
-        plannedMin: 195,
+        plannedMin: 90,
         completedMin: 90,
         skipped: 1,
-        adherence: 0.5,
+        adherence: 1,
         xp: 90,
       });
       expect(
         summary.areas.map((area) => [area.name, area.planned, area.completed, area.adherence]),
-      ).toEqual([
-        ['Trabalho', 2, 2, 1],
-        ['Estudo', 1, 0, 0], // a quinta; a sexta foi pulada e não conta como planejada
-        ['Saúde', 1, 0, 0],
-      ]);
+      ).toEqual([['Trabalho', 2, 2, 1]]);
       expect(summary.areas[0]).toMatchObject({
         areaId: work.areaId,
         plannedMin: 90,
@@ -158,14 +155,31 @@ describe('Revisão semanal (e2e, RF46)', () => {
       });
     });
 
+    it('os números batem com os do relatório da mesma semana (uma só definição de aderência)', async () => {
+      const { user, by } = await setup();
+      const a = await block(user, by('Trabalho').id, '2026-10-07', '09:00', 60);
+      await block(user, by('Saúde').id, '2026-10-05', '07:00', 45); // segunda, perdida
+      await block(user, by('Estudo').id, '2026-10-06', '10:00', 60); // ontem: ainda em aberto
+      await block(user, by('Estudo').id, '2026-10-09', '10:00', 60); // futuro
+      await complete(user, a, '2026-10-07');
+
+      const { summary } = await detail(user);
+      const report = (await send('get', user, `/api/reports/weekly?weekStart=${WEEK}`)).body;
+
+      expect(summary.totals.planned).toBe(report.blocks.planned);
+      expect(summary.totals.completed).toBe(report.blocks.completed);
+      expect(Math.round((summary.totals.adherence ?? 0) * 100)).toBe(report.blocks.adherence);
+      expect(summary.totals.completedMin).toBe(report.minutes);
+    });
+
     it('pular uma ocorrência nunca derruba a aderência (RN11)', async () => {
       const { user, by } = await setup();
       const a = await block(user, by('Trabalho').id, '2026-10-07', '09:00', 60);
-      const b = await block(user, by('Trabalho').id, '2026-10-08', '09:00', 60);
+      const b = await block(user, by('Trabalho').id, '2026-10-05', '09:00', 60); // segunda: janela já fechada
       await complete(user, a, '2026-10-07');
       expect((await detail(user)).summary.totals.adherence).toBe(0.5);
 
-      await skip(user, b, '2026-10-08');
+      await skip(user, b, '2026-10-05');
 
       const { totals } = (await detail(user)).summary;
       expect(totals).toMatchObject({ planned: 1, completed: 1, skipped: 1, adherence: 1 });
@@ -179,11 +193,12 @@ describe('Revisão semanal (e2e, RF46)', () => {
 
       await undo(user, a, '2026-10-07');
 
+      // a quarta ainda está dentro do prazo: sem conclusão ela deixa de contar (nem pesa como 0%)
       expect((await detail(user)).summary.totals).toMatchObject({
-        planned: 1,
+        planned: 0,
         completed: 0,
         xp: 0,
-        adherence: 0,
+        adherence: null,
       });
     });
 
@@ -197,8 +212,10 @@ describe('Revisão semanal (e2e, RF46)', () => {
         durationMin: 30,
         validFrom: '2026-09-01',
       });
-      expect((await detail(user, WEEK)).summary.totals.planned).toBe(1);
+      // na semana atual a terça (ontem) ainda está dentro do prazo e não pesa; nas passadas já fechou
+      expect((await detail(user, WEEK)).summary.totals.planned).toBe(0);
       expect((await detail(user, '2026-09-28')).summary.totals.planned).toBe(1);
+      expect((await detail(user, '2026-09-21')).summary.totals.planned).toBe(1);
       expect((await detail(user, '2026-08-24')).summary.totals.planned).toBe(0); // antes do início
     });
 
@@ -227,7 +244,7 @@ describe('Revisão semanal (e2e, RF46)', () => {
     it('uma área arquivada continua no resumo da semana em que tinha blocos', async () => {
       const { user, by } = await setup();
       const health = by('Saúde');
-      await block(user, health.id, '2026-10-06', '07:00', 45);
+      await block(user, health.id, '2026-10-05', '07:00', 45); // segunda: janela já fechada
       await send('post', user, `/api/areas/${health.areaId}/archive`);
 
       const { summary } = await detail(user);

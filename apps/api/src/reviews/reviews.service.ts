@@ -49,10 +49,8 @@ export class ReviewsService {
       where: { id: userId },
       select: { timezone: true },
     });
-    return {
-      timezone: user.timezone,
-      currentWeekStart: weekStartOf(todayIn(user.timezone, this.clock.now())),
-    };
+    const today = todayIn(user.timezone, this.clock.now());
+    return { timezone: user.timezone, today, currentWeekStart: weekStartOf(today) };
   }
 
   private assertReviewable(weekStart: CivilDate, currentWeekStart: CivilDate): void {
@@ -64,7 +62,7 @@ export class ReviewsService {
    * reflexão já escrita e a prioridade que a pessoa definiu na semana anterior para esta.
    */
   async getDetail(userId: string, weekStart: CivilDate): Promise<ReviewDetail> {
-    const { timezone, currentWeekStart } = await this.currentWeek(userId);
+    const { timezone, today, currentWeekStart } = await this.currentWeek(userId);
     this.assertReviewable(weekStart, currentWeekStart);
     const range = weekRangeUtc(weekStart, timezone);
 
@@ -105,6 +103,7 @@ export class ReviewsService {
           icon: area.icon as AreaIcon,
         })),
         xp: xp._sum.amount ?? 0,
+        today,
       }),
       review: review ? toReviewResponse(review) : null,
       previousPriority: previous?.nextPriority ? previous.nextPriority : null,

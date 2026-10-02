@@ -183,6 +183,83 @@ describe('computeWeekSummary', () => {
   });
 });
 
+describe('computeWeekSummary com o "hoje" (o que ainda dá tempo de cumprir não pesa)', () => {
+  // Hoje = quarta 2026-10-07: as janelas fechadas vão até segunda 2026-10-05.
+  const TODAY = '2026-10-07';
+  const at = (date: string, n: number, areaId: string, over: Partial<PlannedOccurrence> = {}) =>
+    occ(n, areaId, 60, { occurrenceDate: date, date, ...over });
+  const withToday = (occurrences: PlannedOccurrence[], completed = new Set<string>()) =>
+    computeWeekSummary({
+      weekStart: '2026-10-05',
+      occurrences,
+      completed,
+      areas: [HEALTH, WORK],
+      xp: 0,
+      today: TODAY,
+    });
+
+  it('o que não foi cumprido só vira "planejado" depois que a janela fecha (ontem, hoje e o futuro ficam de fora)', () => {
+    const summary = withToday([
+      at('2026-10-05', 1, HEALTH.id), // fechado e não cumprido: conta
+      at('2026-10-06', 2, HEALTH.id), // ontem: ainda dá tempo
+      at('2026-10-07', 3, HEALTH.id), // hoje
+      at('2026-10-09', 4, HEALTH.id), // futuro
+    ]);
+    expect(summary.totals).toMatchObject({
+      planned: 1,
+      completed: 0,
+      plannedMin: 60,
+      adherence: 0,
+    });
+    expect(summary.areas[0]).toMatchObject({ planned: 1, completed: 0 });
+  });
+
+  it('o que foi cumprido entra sempre, mesmo dentro do prazo ou no futuro da janela', () => {
+    const today = at('2026-10-07', 1, HEALTH.id);
+    const yesterday = at('2026-10-06', 2, WORK.id);
+    const summary = withToday([today, yesterday], done(today, yesterday));
+    expect(summary.totals).toMatchObject({ planned: 2, completed: 2, adherence: 1 });
+  });
+
+  it('uma área cujo bloco ainda vai acontecer não aparece com 0%: some até ter algo contado', () => {
+    const summary = withToday([at('2026-10-09', 1, WORK.id)]);
+    expect(summary.areas).toEqual([]);
+    expect(summary.totals.adherence).toBeNull();
+  });
+
+  it('pular continua não pesando, antes e depois da janela', () => {
+    const summary = withToday([
+      at('2026-10-05', 1, HEALTH.id, { skipped: true }),
+      at('2026-10-09', 2, HEALTH.id, { skipped: true }),
+    ]);
+    expect(summary.totals).toMatchObject({ planned: 0, skipped: 2 });
+  });
+
+  it('usa o dia EFETIVO: uma ocorrência movida para o futuro não conta enquanto não for cumprida', () => {
+    const moved = at('2026-10-09', 1, HEALTH.id, { occurrenceDate: '2026-10-05' });
+    expect(withToday([moved]).totals.planned).toBe(0);
+    const movedToPast = at('2026-10-05', 2, HEALTH.id, { occurrenceDate: '2026-10-09' });
+    expect(withToday([movedToPast]).totals.planned).toBe(1);
+  });
+
+  it('sem o "hoje", tudo o que não foi pulado conta (comportamento de antes)', () => {
+    const summary = summarize([at('2026-10-09', 1, HEALTH.id), at('2026-10-06', 2, HEALTH.id)]);
+    expect(summary.totals.planned).toBe(2);
+  });
+
+  it('semana passada inteira fechada: tudo conta, como sem o "hoje"', () => {
+    const summary = computeWeekSummary({
+      weekStart: '2026-10-05',
+      occurrences: [at('2026-10-11', 1, HEALTH.id), at('2026-10-05', 2, HEALTH.id)],
+      completed: new Set(),
+      areas: [HEALTH],
+      xp: 0,
+      today: '2026-10-20',
+    });
+    expect(summary.totals.planned).toBe(2);
+  });
+});
+
 describe('weekRangeUtc', () => {
   it('vai da meia-noite local de segunda à da segunda seguinte, no fuso da pessoa', () => {
     expect(weekRangeUtc('2026-10-05', 'UTC')).toEqual({
