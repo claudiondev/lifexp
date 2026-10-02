@@ -1,6 +1,6 @@
 import type { AppNotification } from '@lifexp/shared';
 import { describe, expect, it } from 'vitest';
-import { badgeText, notificationTarget, relativeTime } from './notificationFormat';
+import { badgeText, leadLabel, notificationTarget, relativeTime } from './notificationFormat';
 
 const base: AppNotification = {
   id: '0192f1a0-7b3c-7000-8000-0000000000a1',
@@ -61,5 +61,14 @@ describe('badgeText', () => {
     expect(badgeText(1)).toBe('1');
     expect(badgeText(99)).toBe('99');
     expect(badgeText(100)).toBe('99+');
+  });
+});
+
+describe('leadLabel', () => {
+  it('minutos e 1 hora', () => {
+    expect(leadLabel(5)).toBe('5 minutos antes');
+    expect(leadLabel(15)).toBe('15 minutos antes');
+    expect(leadLabel(30)).toBe('30 minutos antes');
+    expect(leadLabel(60)).toBe('1 hora antes');
   });
 });

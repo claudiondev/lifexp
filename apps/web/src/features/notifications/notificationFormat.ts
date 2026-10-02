@@ -26,3 +26,8 @@ export function badgeText(count: number): string | null {
   if (count <= 0) return null;
   return count > 99 ? '99+' : String(count);
 }
+
+/** "15 minutos antes", "1 hora antes" (opções de lembrete de bloco). */
+export function leadLabel(minutes: number): string {
+  return minutes === 60 ? '1 hora antes' : `${minutes} minutos antes`;
+}

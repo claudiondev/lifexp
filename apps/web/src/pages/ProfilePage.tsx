@@ -1,4 +1,5 @@
 import { useAuth } from '@/features/auth/useAuth';
+import { NotificationPreferencesCard } from '@/features/notifications/NotificationPreferencesCard';
 import { InstallAppCard } from '@/features/pwa/InstallAppCard';
 import { ProfileForm } from '@/features/profile/ProfileForm';
 import { PageHeader } from './PageHeader';
@@ -15,6 +16,7 @@ export function ProfilePage() {
         description="Escolha como seu personagem aparece e em que fuso a sua semana é contada."
       />
       <ProfileForm user={state.user} />
+      <NotificationPreferencesCard />
       <InstallAppCard />
     </main>
   );

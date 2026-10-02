@@ -29,6 +29,16 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
     vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
       if (url === '/api/auth/refresh') return json(200, { user, accessToken: 't' });
+      if (url === '/api/notification-preferences') {
+        return json(200, {
+          blockRemindersEnabled: true,
+          blockLeadMin: 15,
+          eventRemindersEnabled: true,
+          digestEnabled: true,
+          digestTime: '07:00',
+          digestEmailEnabled: false,
+        });
+      }
       if (url === '/api/users/me' && init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body));
         patches.push(body);

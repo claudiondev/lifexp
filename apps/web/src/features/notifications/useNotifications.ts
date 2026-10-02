@@ -35,3 +35,18 @@ export function useNotificationMutations() {
     markAllRead: useMutation({ mutationFn: api.markAllNotificationsRead, onSuccess: refresh }),
   };
 }
+
+const preferencesKey = [...notificationsKey, 'preferences'] as const;
+
+export function useNotificationPreferences() {
+  return useQuery({ queryKey: preferencesKey, queryFn: api.getNotificationPreferences });
+}
+
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: api.updateNotificationPreferences,
+    // A resposta já traz as preferências completas: dispensa uma nova consulta.
+    onSuccess: (preferences) => queryClient.setQueryData(preferencesKey, preferences),
+  });
+}
