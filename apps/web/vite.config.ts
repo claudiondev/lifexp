@@ -28,5 +28,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
+    // Com a suíte inteira rodando em paralelo (e a API e2e junto), 5 s (padrão) estoura em testes de
+    // tela longos; a falha seria da máquina, não do código.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
   },
 });
