@@ -45,6 +45,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   weeklyReviews       WeeklyReview[]
   notes               Note[]
+  weeklyQuests        WeeklyQuest[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -176,6 +177,7 @@ enum XpTransactionType {
   COMPLETION // conclusão de bloco
   MILESTONE // marco de meta concluído (RN21)
   GOAL // meta concluída (RN21)
+  QUEST // bônus da quest semanal (RN17)
   REVERSAL
 }
 
@@ -432,4 +434,43 @@ model Note {
   @@index([blockId])
   @@index([goalId])
   @@index([eventId])
+}
+
+enum QuestStatus {
+  ACTIVE
+  COMPLETED
+}
+
+// Quest semanal (RF22). Nasce no começo da semana com um SNAPSHOT dos blocos planejados (QuestItem): é isso que
+// mantém a meta estável (RN18: blocos criados depois não entram). Uma por pessoa e semana (segunda-feira, DATE).
+// O progresso NÃO é gravado: sai das conclusões ativas a cada leitura. Só o estado "cumprida" e o bônus ficam
+// no livro-caixa (XpTransaction QUEST). createdAt e completedAt vêm do Clock.
+model WeeklyQuest {
+  id          String      @id @default(uuid(7))
+  userId      String
+  weekStart   DateTime    @db.Date
+  status      QuestStatus @default(ACTIVE)
+  createdAt   DateTime
+  completedAt DateTime?
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items QuestItem[]
+
+  @@unique([userId, weekStart])
+}
+
+// Uma ocorrência do snapshot. Identidade = bloco + data ORIGINAL (RN32). Sem chave estrangeira no bloco: o
+// bloco pode ser excluído depois e o snapshot da semana continua sendo o que era.
+model QuestItem {
+  id             String   @id @default(uuid(7))
+  questId        String
+  blockId        String
+  occurrenceDate DateTime @db.Date
+  durationMin    Int
+  // XP previsto quando o snapshot foi tirado (base do bônus de 20%).
+  xp             Int
+
+  quest WeeklyQuest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([questId, blockId, occurrenceDate])
 }

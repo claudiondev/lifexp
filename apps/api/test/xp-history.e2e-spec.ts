@@ -200,6 +200,79 @@ describe('Histórico de XP por origem (e2e, RF53)', () => {
     expect((await send('get', user, '/api/progress')).body.total.xp).toBe(total);
   });
 
+  describe('bônus da quest semanal (RN17)', () => {
+    const questEntry = async (user: TestUser, weekStart = '2026-10-05') => {
+      const quest = await prisma.weeklyQuest.create({
+        data: {
+          userId: user.userId,
+          weekStart: new Date(`${weekStart}T00:00:00.000Z`),
+          createdAt: clock.now(),
+        },
+      });
+      const award = await prisma.xpTransaction.create({
+        data: {
+          userId: user.userId,
+          amount: 120,
+          type: 'QUEST',
+          sourceId: quest.id,
+          createdAt: clock.now(),
+        },
+      });
+      return { quest, award };
+    };
+
+    it('aparece com o nome da semana, sem área, e o estorno diz o que estornou', async () => {
+      const user = await registerUser(app);
+      const { quest, award } = await questEntry(user);
+      clock.set('2026-10-07T16:00:00.000Z');
+      await prisma.xpTransaction.create({
+        data: {
+          userId: user.userId,
+          amount: -120,
+          type: 'REVERSAL',
+          sourceId: quest.id,
+          reversedTransactionId: award.id,
+          createdAt: clock.now(),
+        },
+      });
+
+      const { items } = await page(user);
+
+      expect(items.map((e) => [e.type, e.amount, e.reversedType, e.sourceLabel, e.areaId])).toEqual(
+        [
+          ['reversal', -120, 'quest', 'Quest da semana de 05/10', null],
+          ['quest', 120, null, 'Quest da semana de 05/10', null],
+        ],
+      );
+    });
+
+    it('filtra por "quest" e o nome da quest de outra pessoa não vaza (RS06)', async () => {
+      const [a, b] = [await registerUser(app), await registerUser(app)];
+      await questEntry(a, '2026-09-28');
+      const { quest } = await questEntry(b, '2026-10-05');
+      // lançamento de Bia apontando para a quest de Ana (estado impossível pela API)
+      const anaQuest = await prisma.weeklyQuest.findFirstOrThrow({ where: { userId: a.userId } });
+      await prisma.xpTransaction.create({
+        data: {
+          userId: b.userId,
+          amount: 30,
+          type: 'QUEST',
+          sourceId: anaQuest.id,
+          createdAt: clock.now(),
+        },
+      });
+
+      const own = await page(b, '?type=quest');
+      expect(own.items).toHaveLength(2);
+      expect(new Set(own.items.map((e) => e.sourceLabel))).toEqual(
+        new Set([null, 'Quest da semana de 05/10']),
+      );
+      expect(JSON.stringify(own)).not.toContain('28/09');
+      expect(quest.id).toBeDefined();
+      expect((await page(b, '?type=completion')).items).toEqual([]);
+    });
+  });
+
   describe('filtro por origem', () => {
     it('traz só o tipo pedido', async () => {
       const user = await registerUser(app);
@@ -232,7 +305,7 @@ describe('Histórico de XP por origem (e2e, RF53)', () => {
 
     it('rejeita tipo desconhecido (400)', async () => {
       const user = await registerUser(app);
-      expect((await send('get', user, '/api/xp/history?type=quest')).status).toBe(400);
+      expect((await send('get', user, '/api/xp/history?type=conquista')).status).toBe(400);
     });
   });
 

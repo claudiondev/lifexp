@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { XpHistoryPage, XpHistoryQuery } from '@lifexp/shared';
+import { toCivil } from '../blocks/blocks.mapper.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   TYPE_TO_LEDGER,
@@ -8,6 +9,10 @@ import {
   toHistoryEntries,
   type LedgerRow,
 } from './domain/xp-history.js';
+
+/** "Quest da semana de 05/10": a segunda-feira que abre a semana, em dia/mês. */
+export const questLabel = (weekStart: string): string =>
+  `Quest da semana de ${weekStart.slice(8, 10)}/${weekStart.slice(5, 7)}`;
 
 const byId = <T extends { id: string }>(rows: T[], label: (row: T) => string | undefined) => {
   const map = new Map<string, string>();
@@ -56,7 +61,7 @@ export class XpHistoryService {
 
     const ids = collectSourceIds(rows);
     // Sempre com o dono no filtro (RS06), mesmo o id vindo do livro-caixa da própria pessoa.
-    const [completions, milestones, goals] = await Promise.all([
+    const [completions, milestones, goals, quests] = await Promise.all([
       ids.completion.length === 0
         ? []
         : this.prisma.completion.findMany({
@@ -75,6 +80,12 @@ export class XpHistoryService {
             where: { id: { in: ids.goal }, userId },
             select: { id: true, title: true },
           }),
+      ids.quest.length === 0
+        ? []
+        : this.prisma.weeklyQuest.findMany({
+            where: { id: { in: ids.quest }, userId },
+            select: { id: true, weekStart: true },
+          }),
     ]);
     // A conclusão guarda a "foto" da atividade: o nome vem dela, não do bloco (que pode ter mudado).
     const activities =
@@ -91,6 +102,7 @@ export class XpHistoryService {
         completion: byId(completions, (completion) => activityNames.get(completion.activityId)),
         milestone: byId(milestones, (milestone) => milestone.title),
         goal: byId(goals, (goal) => goal.title),
+        quest: byId(quests, (quest) => questLabel(toCivil(quest.weekStart))),
       }),
       nextCursor,
     };

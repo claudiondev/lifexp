@@ -167,6 +167,22 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         updatedAt: clock.now(),
       },
     });
+    const quest = await prisma.weeklyQuest.create({
+      data: {
+        userId: user.userId,
+        weekStart: new Date('2026-10-05T00:00:00.000Z'),
+        createdAt: clock.now(),
+      },
+    });
+    await prisma.questItem.create({
+      data: {
+        questId: quest.id,
+        blockId: once.id,
+        occurrenceDate: new Date('2026-10-07T00:00:00.000Z'),
+        durationMin: 60,
+        xp: 60,
+      },
+    });
     await prisma.weeklyReview.create({
       data: {
         userId: user.userId,
@@ -250,6 +266,8 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         }),
         weeklyReviews: await prisma.weeklyReview.count({ where: { userId: user.userId } }),
         notes: await prisma.note.count({ where: { userId: user.userId } }),
+        weeklyQuests: await prisma.weeklyQuest.count({ where: { userId: user.userId } }),
+        questItems: await prisma.questItem.count({ where: { quest: { userId: user.userId } } }),
       };
       for (const [key, count] of Object.entries(expected)) {
         expect([key, data[key]!.length]).toEqual([key, count]);

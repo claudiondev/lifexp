@@ -39,6 +39,11 @@ const READERS: Record<ExportedModel, Reader> = {
   WeeklyReview: (tx, userId) =>
     tx.weeklyReview.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
   Note: (tx, userId) => tx.note.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  WeeklyQuest: (tx, userId) =>
+    tx.weeklyQuest.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  // Sem userId próprio: pertence à pessoa pela quest.
+  QuestItem: (tx, userId) =>
+    tx.questItem.findMany({ where: { quest: { userId } }, orderBy: { id: 'asc' } }),
 };
 
 export interface ExportResult {

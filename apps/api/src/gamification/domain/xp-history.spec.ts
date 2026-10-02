@@ -22,6 +22,7 @@ const labels = (over: Partial<SourceLabels> = {}): SourceLabels => ({
   completion: new Map(),
   milestone: new Map(),
   goal: new Map(),
+  quest: new Map(),
   ...over,
 });
 const uuid = (n: number) => `0192f1a0-7b3c-7000-8000-00000000000${n}`;
@@ -35,7 +36,12 @@ describe('collectSourceIds', () => {
       row({ id: '4', type: 'MILESTONE', sourceId: 'm1' }),
       row({ id: '5', type: 'GOAL', sourceId: 'g1' }),
     ]);
-    expect(ids).toEqual({ completion: ['c1', 'c2'], milestone: ['m1'], goal: ['g1'] });
+    expect(ids).toEqual({
+      completion: ['c1', 'c2'],
+      milestone: ['m1'],
+      goal: ['g1'],
+      quest: [],
+    });
   });
 
   it('o estorno busca a origem pelo tipo do lançamento original', () => {
@@ -43,7 +49,7 @@ describe('collectSourceIds', () => {
       row({ id: '1', type: 'REVERSAL', amount: -100, sourceId: 'm1', reversedType: 'MILESTONE' }),
       row({ id: '2', type: 'REVERSAL', amount: -500, sourceId: 'g1', reversedType: 'GOAL' }),
     ]);
-    expect(ids).toEqual({ completion: [], milestone: ['m1'], goal: ['g1'] });
+    expect(ids).toEqual({ completion: [], milestone: ['m1'], goal: ['g1'], quest: [] });
   });
 
   it('ignora lançamento sem origem e estorno sem original conhecido', () => {
@@ -52,7 +58,7 @@ describe('collectSourceIds', () => {
       row({ id: '2', type: 'REVERSAL', amount: -1, sourceId: 'x', reversedType: null }),
       row({ id: '3', type: 'REVERSAL', amount: -1, sourceId: 'y', reversedType: 'REVERSAL' }),
     ]);
-    expect(ids).toEqual({ completion: [], milestone: [], goal: [] });
+    expect(ids).toEqual({ completion: [], milestone: [], goal: [], quest: [] });
   });
 });
 
@@ -113,6 +119,42 @@ describe('toHistoryEntries', () => {
     expect(xpHistoryEntrySchema.safeParse(entry).success).toBe(true);
   });
 
+  it('o bônus da quest e o estorno dele resolvem o nome pela quest', () => {
+    const entries = toHistoryEntries(
+      [
+        row({
+          id: uuid(2),
+          type: 'REVERSAL',
+          amount: -120,
+          sourceId: 'q1',
+          reversedType: 'QUEST',
+          areaId: null,
+          areaName: null,
+        }),
+        row({
+          id: uuid(1),
+          type: 'QUEST',
+          amount: 120,
+          sourceId: 'q1',
+          areaId: null,
+          areaName: null,
+        }),
+      ],
+      labels({
+        quest: new Map([['q1', 'Quest da semana de 05/10']]),
+        completion: new Map([['q1', 'errado']]),
+      }),
+    );
+    expect(entries.map((e) => [e.type, e.sourceLabel, e.reversedType])).toEqual([
+      ['reversal', 'Quest da semana de 05/10', 'quest'],
+      ['quest', 'Quest da semana de 05/10', null],
+    ]);
+    for (const entry of entries) expect(xpHistoryEntrySchema.safeParse(entry).success).toBe(true);
+    expect(
+      collectSourceIds([row({ id: '1', type: 'QUEST', amount: 5, sourceId: 'q1' })]).quest,
+    ).toEqual(['q1']);
+  });
+
   it('origem excluída, ou lançamento sem origem, fica sem nome (o lançamento continua lá)', () => {
     const entries = toHistoryEntries(
       [
@@ -141,6 +183,7 @@ describe('TYPE_TO_LEDGER', () => {
       completion: 'COMPLETION',
       milestone: 'MILESTONE',
       goal: 'GOAL',
+      quest: 'QUEST',
       reversal: 'REVERSAL',
     });
   });

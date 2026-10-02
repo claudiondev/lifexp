@@ -40,6 +40,8 @@ describe('entryTitle', () => {
     // no estorno, o que foi excluído é a origem do lançamento estornado
     expect(entryTitle(reversal('goal', { sourceLabel: null }))).toBe('Meta excluída');
     expect(entryTitle(reversal('milestone', { sourceLabel: null }))).toBe('Marco excluído');
+    expect(entryTitle(entry({ type: 'quest', sourceLabel: null }))).toBe('Quest da semana');
+    expect(entryTitle(reversal('quest', { sourceLabel: null }))).toBe('Quest da semana');
   });
 });
 
@@ -51,6 +53,8 @@ describe('entryKind', () => {
     expect(entryKind(reversal('completion'))).toBe('Estorno de bloco');
     expect(entryKind(reversal('milestone'))).toBe('Estorno de marco');
     expect(entryKind(reversal('goal'))).toBe('Estorno de meta');
+    expect(entryKind(entry({ type: 'quest' }))).toBe('Quest');
+    expect(entryKind(reversal('quest'))).toBe('Estorno de quest');
   });
 });
 

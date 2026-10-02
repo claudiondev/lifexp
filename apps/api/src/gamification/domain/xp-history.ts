@@ -1,12 +1,13 @@
 import type { XpEntryType, XpHistoryEntry, XpSourceType } from '@lifexp/shared';
 
-export type LedgerType = 'COMPLETION' | 'MILESTONE' | 'GOAL' | 'REVERSAL';
+export type LedgerType = 'COMPLETION' | 'MILESTONE' | 'GOAL' | 'QUEST' | 'REVERSAL';
 type SourceLedgerType = Exclude<LedgerType, 'REVERSAL'>;
 
 const TYPE_TO_API = {
   COMPLETION: 'completion',
   MILESTONE: 'milestone',
   GOAL: 'goal',
+  QUEST: 'quest',
   REVERSAL: 'reversal',
 } as const satisfies Record<LedgerType, XpEntryType>;
 
@@ -14,6 +15,7 @@ export const TYPE_TO_LEDGER = {
   completion: 'COMPLETION',
   milestone: 'MILESTONE',
   goal: 'GOAL',
+  quest: 'QUEST',
   reversal: 'REVERSAL',
 } as const satisfies Record<XpEntryType, LedgerType>;
 
@@ -49,6 +51,7 @@ export function collectSourceIds(rows: readonly LedgerRow[]): SourceIds {
     completion: new Set(),
     milestone: new Set(),
     goal: new Set(),
+    quest: new Set(),
   };
   for (const row of rows) {
     const type = sourceTypeOf(row);
@@ -58,6 +61,7 @@ export function collectSourceIds(rows: readonly LedgerRow[]): SourceIds {
     completion: [...sets.completion],
     milestone: [...sets.milestone],
     goal: [...sets.goal],
+    quest: [...sets.quest],
   };
 }
 

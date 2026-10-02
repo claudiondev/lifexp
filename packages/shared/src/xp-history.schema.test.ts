@@ -28,7 +28,11 @@ describe('xpHistoryEntrySchema', () => {
     expect(ok(xpHistoryEntrySchema, entry)).toBe(true);
     expect(ok(xpHistoryEntrySchema, { ...entry, type: 'milestone', amount: 100 })).toBe(true);
     expect(ok(xpHistoryEntrySchema, { ...entry, type: 'goal', amount: 500 })).toBe(true);
+    expect(ok(xpHistoryEntrySchema, { ...entry, type: 'quest', amount: 120 })).toBe(true);
     expect(ok(xpHistoryEntrySchema, reversal)).toBe(true);
+    expect(ok(xpHistoryEntrySchema, { ...reversal, reversedType: 'quest', amount: -120 })).toBe(
+      true,
+    );
   });
 
   it('aceita meta sem área e origem excluída', () => {

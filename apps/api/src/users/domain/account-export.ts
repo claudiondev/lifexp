@@ -19,6 +19,8 @@ export const EXPORT_KEYS = {
   NotificationPreference: 'notificationPreferences',
   WeeklyReview: 'weeklyReviews',
   Note: 'notes',
+  WeeklyQuest: 'weeklyQuests',
+  QuestItem: 'questItems',
 } as const;
 
 export type ExportedModel = keyof typeof EXPORT_KEYS;

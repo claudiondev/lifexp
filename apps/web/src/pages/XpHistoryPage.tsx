@@ -1,6 +1,6 @@
 import type { XpEntryType, XpHistoryEntry } from '@lifexp/shared';
 import { todayIn } from '@lifexp/shared';
-import { Flag, RotateCcw, Swords, Trophy, type LucideIcon } from 'lucide-react';
+import { Flag, RotateCcw, Scroll, Swords, Trophy, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/useAuth';
@@ -21,6 +21,7 @@ const ICONS: Record<XpEntryType, LucideIcon> = {
   completion: Swords,
   milestone: Flag,
   goal: Trophy,
+  quest: Scroll,
   reversal: RotateCcw,
 };
 
@@ -29,6 +30,7 @@ const EMPTY_TEXT: Record<XpEntryType | 'all', string> = {
   completion: 'Nenhum bloco concluído ainda.',
   milestone: 'Nenhum marco concluído ainda. Cada um vale +100 XP.',
   goal: 'Nenhuma meta concluída ainda. Cada uma vale +500 XP.',
+  quest: 'Nenhuma quest cumprida ainda. Cumpra 80% dos blocos da semana para ganhar o bônus.',
   reversal: 'Nenhum estorno. Desfazer uma conclusão aparece aqui.',
 };
 
