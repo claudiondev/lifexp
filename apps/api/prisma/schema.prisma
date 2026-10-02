@@ -38,6 +38,9 @@ model User {
   areaProgress   AreaProgress[]
   goals          Goal[]
   events         CalendarEvent[]
+
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -302,4 +305,56 @@ model CalendarEvent {
 
   @@index([userId, date])
   @@index([areaId])
+}
+
+enum NotificationKind {
+  BLOCK // lembrete de bloco
+  EVENT // lembrete de evento
+  DIGEST // resumo do dia
+}
+
+// Central de avisos (RF37, RF38). Uma linha por aviso gerado pela varredura.
+model Notification {
+  id             String           @id @default(uuid(7))
+  userId         String
+  kind           NotificationKind
+  title          String
+  body           String
+  // Quando o aviso deveria sair (o instante do lembrete). createdAt é quando foi gerado.
+  scheduledFor   DateTime
+  // Chave lógica única por pessoa (RF55, RN25): a mesma chave nunca gera dois avisos,
+  // mesmo que a varredura rode duas vezes ou em duas instâncias.
+  dedupeKey      String
+  // Origem, só para abrir o item certo. Sem chave estrangeira: o aviso sobrevive à exclusão dela.
+  blockId        String?
+  occurrenceDate DateTime?        @db.Date
+  eventId        String?
+  readAt         DateTime?
+  // Só o resumo (DIGEST) vai por e-mail (RF39): quando foi enviado e quantas tentativas houve.
+  emailSentAt    DateTime?
+  emailAttempts  Int              @default(0)
+  createdAt      DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+// Preferências de notificação (RF40), 1:1 com a pessoa. Sem linha = padrões; a linha nasce no 1º PUT.
+model NotificationPreference {
+  id                    String   @id @default(uuid(7))
+  userId                String   @unique
+  blockRemindersEnabled Boolean  @default(true)
+  // Antecedência do lembrete de bloco em minutos (RN24: padrão 15).
+  blockLeadMin          Int      @default(15)
+  eventRemindersEnabled Boolean  @default(true)
+  digestEnabled         Boolean  @default(true)
+  // Hora de relógio, no fuso da pessoa, em que o resumo do dia sai.
+  digestTime            String   @default("07:00")
+  digestEmailEnabled    Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
