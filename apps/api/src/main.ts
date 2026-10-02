@@ -17,4 +17,6 @@ if (
   app.useLogger(new JsonLogger());
 }
 setupApp(app);
+// SIGTERM (deploy novo, reinício) fecha as conexões e termina os agendadores em vez de cortar o que estiver rodando.
+app.enableShutdownHooks();
 await app.listen(config.get('PORT'));

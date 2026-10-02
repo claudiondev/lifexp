@@ -18,6 +18,15 @@ export class HealthController {
     return this.healthService.check();
   }
 
+  @Get('ready')
+  @ApiOperation({
+    summary: 'A API está pronta para receber tráfego? (confere o banco; 503 se não)',
+  })
+  @ZodResponse({ type: HealthResponseDto })
+  ready(): Promise<HealthResponseDto> {
+    return this.healthService.ready();
+  }
+
   @Get('jobs')
   @ApiOperation({
     summary:

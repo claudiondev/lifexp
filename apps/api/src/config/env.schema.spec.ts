@@ -66,6 +66,67 @@ describe('validateEnv', () => {
     }
   });
 
+  describe('atrás de proxy (TRUST_PROXY)', () => {
+    it('é o número de proxies confiáveis; "true" vale 1 e "false" vale 0 (padrão)', () => {
+      expect(validateEnv(base).TRUST_PROXY).toBe(0);
+      expect(validateEnv({ ...base, TRUST_PROXY: 'false' }).TRUST_PROXY).toBe(0);
+      expect(validateEnv({ ...base, TRUST_PROXY: 'true' }).TRUST_PROXY).toBe(1);
+      expect(validateEnv({ ...base, TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+      expect(validateEnv({ ...base, TRUST_PROXY: '0' }).TRUST_PROXY).toBe(0);
+    });
+
+    it('recusa valores que não são um número pequeno de proxies', () => {
+      for (const bad of ['6', '-1', '1.5', 'sim', '', '10']) {
+        expect(() => validateEnv({ ...base, TRUST_PROXY: bad }), bad).toThrow(/TRUST_PROXY/);
+      }
+    });
+  });
+
+  describe('Swagger (SWAGGER_ENABLED)', () => {
+    it('ligado em desenvolvimento e teste, desligado em produção, e o valor explícito vence', () => {
+      const prod = {
+        ...base,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: 'true',
+        APP_URL: 'https://x.app',
+      };
+      expect(validateEnv(base).SWAGGER_ENABLED).toBe(true);
+      expect(validateEnv({ ...base, NODE_ENV: 'test' }).SWAGGER_ENABLED).toBe(true);
+      expect(validateEnv(prod).SWAGGER_ENABLED).toBe(false);
+      expect(validateEnv({ ...prod, SWAGGER_ENABLED: 'true' }).SWAGGER_ENABLED).toBe(true);
+      expect(validateEnv({ ...base, SWAGGER_ENABLED: 'false' }).SWAGGER_ENABLED).toBe(false);
+      expect(() => validateEnv({ ...base, SWAGGER_ENABLED: 'talvez' })).toThrow(/SWAGGER_ENABLED/);
+    });
+  });
+
+  describe('produção só sobe configurada com segurança', () => {
+    const prod = {
+      ...base,
+      NODE_ENV: 'production',
+      COOKIE_SECURE: 'true',
+      APP_URL: 'https://lifexp.app',
+    };
+
+    it('aceita a configuração segura', () => {
+      expect(validateEnv(prod).NODE_ENV).toBe('production');
+    });
+
+    it('exige cookie Secure', () => {
+      expect(() => validateEnv({ ...prod, COOKIE_SECURE: 'false' })).toThrow(/COOKIE_SECURE/);
+      expect(() => validateEnv({ ...prod, COOKIE_SECURE: undefined })).toThrow(/COOKIE_SECURE/);
+    });
+
+    it('exige o link do app em https', () => {
+      expect(() => validateEnv({ ...prod, APP_URL: 'http://lifexp.app' })).toThrow(/APP_URL/);
+      expect(() => validateEnv({ ...prod, APP_URL: undefined })).toThrow(/APP_URL/);
+    });
+
+    it('as mesmas coisas em desenvolvimento e teste não são exigidas', () => {
+      expect(() => validateEnv(base)).not.toThrow();
+      expect(() => validateEnv({ ...base, NODE_ENV: 'test' })).not.toThrow();
+    });
+  });
+
   it('falha quando DATABASE_URL está ausente', () => {
     expect(() => validateEnv({ JWT_ACCESS_SECRET: base.JWT_ACCESS_SECRET })).toThrow(
       /DATABASE_URL/,

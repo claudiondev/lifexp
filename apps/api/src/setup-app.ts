@@ -24,18 +24,20 @@ function securityHeaders() {
 export function setupApp(app: INestApplication): void {
   const config = app.get(ConfigService<Env, true>);
 
-  if (config.get('TRUST_PROXY')) {
-    app.getHttpAdapter().getInstance().set('trust proxy', 1);
-  }
+  // Quantos proxies confiáveis ficam à frente da API (0 = nenhum): ver TRUST_PROXY em env.schema.ts.
+  const proxies = config.get('TRUST_PROXY');
+  if (proxies > 0) app.getHttpAdapter().getInstance().set('trust proxy', proxies);
 
   app.setGlobalPrefix('api');
   app.use(securityHeaders());
   app.use(cookieParser());
 
-  const document = SwaggerModule.createDocument(
-    app,
-    new DocumentBuilder().setTitle('LifeXP API').setVersion('0.0.0').addBearerAuth().build(),
-  );
-  // O path do Swagger não recebe o prefixo global, por isso já inclui "api/".
-  SwaggerModule.setup('api/docs', app, cleanupOpenApiDoc(document));
+  if (config.get('SWAGGER_ENABLED')) {
+    const document = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().setTitle('LifeXP API').setVersion('0.0.0').addBearerAuth().build(),
+    );
+    // O path do Swagger não recebe o prefixo global, por isso já inclui "api/".
+    SwaggerModule.setup('api/docs', app, cleanupOpenApiDoc(document));
+  }
 }

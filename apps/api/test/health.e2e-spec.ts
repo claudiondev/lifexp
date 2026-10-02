@@ -25,6 +25,13 @@ describe('GET /api/health (e2e)', () => {
     expect(healthResponseSchema.safeParse(res.body).success).toBe(true);
   });
 
+  describe('GET /api/health/ready', () => {
+    it('é público e responde 200 com o banco no ar', async () => {
+      const res = await request(app.getHttpServer()).get('/api/health/ready').expect(200);
+      expect(healthResponseSchema.parse(res.body).status).toBe('ok');
+    });
+  });
+
   describe('GET /api/health/jobs (RNF13)', () => {
     it('é público e devolve o contrato: ok e sem jobs quando nada rodou', async () => {
       const res = await request(app.getHttpServer()).get('/api/health/jobs').expect(200);
