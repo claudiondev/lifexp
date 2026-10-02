@@ -349,6 +349,21 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Dependências: `pnpm audit --audit-level=high` no CI e Dependabot; os `pnpm.overrides` (mysql2, deepmerge-ts) existem para limpar alertas que só
   vêm do CLI do Prisma. Se `pnpm audit` voltar a acusar algo, ver primeiro se é transitivo de dev/CLI antes de trocar versão direta.
 
+## Deploy (decisões)
+
+- Front estático na Vercel (`apps/web/vercel.json`: rewrite `/api/*` > Railway ANTES do fallback `/index.html`; `sw.js` e `push-sw.js` sem cache) e API em
+  Docker na Railway (`Dockerfile` na raiz: estágios base/build/runtime, `pnpm deploy --prod`, `prisma` em `dependencies` porque o `CMD` roda
+  `prisma migrate deploy`). O `.dockerignore` deixa o front fora da imagem. O contexto de build é a RAIZ; o `package.json` de `apps/web` precisa estar na
+  imagem só para o `pnpm` validar o lockfile.
+- Produção só sobe configurada: o `superRefine` do env exige `COOKIE_SECURE=true` e `APP_URL` https. `TRUST_PROXY` é o NÚMERO de proxies (Vercel -> Railway = 2): o
+  Express usa o IP de N saltos atrás, então o limite por IP não se burla escrevendo X-Forwarded-For. Swagger desligado por padrão em produção.
+- `/api/health` = vivo; `/api/health/ready` = o banco responde (503 senão; é o healthcheck da imagem e da Railway); `/api/health/jobs` = estado dos jobs.
+- Verificação sem Docker (esta máquina não tem acesso ao socket): `pnpm deploy --prod` + `migrate deploy` num banco vazio + `NODE_ENV=production node dist/main.js` +
+  `pnpm --filter @lifexp/api smoke:prod`. O job `docker` do CI é o primeiro build real da imagem.
+- Teste que muda variável de ambiente precisa recarregar os módulos (`vi.resetModules()` + import dinâmico dos helpers): o `ConfigModule` lê o ambiente na
+  importação do `AppModule` (ver `test/production-setup.e2e-spec.ts`).
+- `apps/web` fixa `typescript` 5.9.3 (igual ao raiz): sem isso o `pnpm` ligava o `tsc` 6.x vindo de um peer opcional e o `tsc -b` do build quebrava com TS5101.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -403,7 +418,7 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
   recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** feitos; próximos:
-  extras opcionais (RF13, RF56), transversais (logs de jobs, Dependabot/audit) e, por último, o deploy.
+  **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy preparado** (Dockerfile, Vercel, guia no README). Sobram só o que depende de contas e decisões do usuário (publicar), os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
