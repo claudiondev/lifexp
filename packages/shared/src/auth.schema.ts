@@ -27,6 +27,19 @@ export const authResponseSchema = z.object({
   accessToken: z.string(),
 });
 
+/** Pedido de recuperação de senha (RF05). strictObject: campos extras viram 400 (RS07). */
+export const forgotPasswordSchema = z.strictObject({ email: emailSchema });
+
+/** O token do link: 32 bytes em base64url (43 caracteres). A faixa só barra lixo óbvio. */
+const resetTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{32,128}$/, 'Link inválido ou expirado');
+
+export const resetPasswordSchema = z.strictObject({
+  token: resetTokenSchema,
+  password: passwordSchema,
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type AuthResponse = z.infer<typeof authResponseSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
