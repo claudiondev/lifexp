@@ -14,7 +14,7 @@ export function StreakFlame({ days, className }: StreakFlameProps) {
         aria-hidden
         className={cn('size-4', active ? 'fill-xp text-xp' : 'text-muted-foreground')}
       />
-      <span className="font-hud text-sm font-medium tabular-nums">
+      <span className="font-hud text-sm font-medium whitespace-nowrap tabular-nums">
         {days} {days === 1 ? 'dia' : 'dias'}
       </span>
     </span>

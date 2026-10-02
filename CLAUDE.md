@@ -150,6 +150,23 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   `eventAppearance` reaproveita as cores das áreas). `useEvents` só consulta com período definido (`enabled`).
   Falha ao carregar eventos nunca derruba a Semana nem a tela Hoje. O mês fica na URL (`?mes=AAAA-MM`).
 
+## Notificações (decisões do 2c)
+
+- Regra pura em `notifications/domain/notification-plan.ts` (`planNotifications`, `scanWindow`, chaves de idempotência,
+  textos); `NotificationGenerator` (lê blocos via `BlocksService.getWeek`, eventos e preferências) grava com
+  `createMany(skipDuplicates)` sobre `@@unique([userId, dedupeKey])`. Janela de 60 min; lembrete de algo que já começou é
+  descartado (exceção: "no horário" tolera 5 min). Evento de dia todo avisa na hora do resumo, N dias antes.
+- `NotificationsScheduler` (`@Cron` por minuto) roda tudo dentro de `$transaction` com `pg_try_advisory_xact_lock`; com
+  `NOTIFICATIONS_SCHEDULER=false` (testes) o minuto não faz nada e os testes chamam `generator.scanUser(...)`/`runOnce`.
+  Lição: `pg_advisory_xact_lock` retorna `void`, e o Prisma não lê `void` no `$queryRaw` (use `$executeRaw`).
+- E-mail: `Mailer` (token `MAILER`) com `ResendMailer` (fetch, sem SDK) e `LogMailer`; `DigestEmailService` só envia o
+  DIGEST de quem ligou `digestEmailEnabled`, no máx. 3 tentativas, só se `scheduledFor` for recente (NÃO use `createdAt`:
+  é relógio do banco). A exclusão entre instâncias vem da trava da varredura, não de um "claim" no banco. `FakeMailer` nos
+  testes (`createTestApp({ mailer })`).
+- API: id UUID v7 serve de cursor (`before`); aviso alheio = 404; `GET/PUT /notification-preferences` com padrões em memória.
+- Front: `features/notifications` (`NotificationBell` no `AppShell`, `NotificationPreferencesCard` no Perfil); contador
+  consultado a cada 60 s, lista só com o painel aberto. `StreakFlame` não quebra linha (o sino apertou o HUD).
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -202,7 +219,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)** e **2b (Eventos)** feitos; próximos: 2c (notificações), 2d (extras).
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)** e **2c (Notificações)** feitos; próximo: 2d (extras).
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em

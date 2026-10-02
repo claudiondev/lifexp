@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 2b (Calendário de eventos)** concluído, sobre 2a (metas) e o **Marco 1** completo (PWA, streak,
-> Hoje/XP, blocos/Semana, perfil/áreas, autenticação, fundação). Próximos: 2c (notificações) e 2d (extras da fase 2).
+> Status: **Marco 2c (Notificações)** concluído, sobre 2b (eventos), 2a (metas) e o **Marco 1** completo (PWA, streak,
+> Hoje/XP, blocos/Semana, perfil/áreas, autenticação, fundação). Próximo: 2d (extras da fase 2).
 
 ## Stack
 
@@ -254,6 +254,45 @@ compromisso de tempo seu, **evento não rende XP (RN23)**, não se conclui e nã
 Telas: faixa de **eventos no topo da grade da Semana** (RF35; no celular, os do dia aberto no topo da lista), a visão
 **mensal** em `/calendario` (RF34: navegação entre meses, até 2 eventos por dia e "+N mais", pontos coloridos no
 celular, lista do dia escolhido) e os eventos do dia na tela **Hoje** como informativos.
+
+## Notificações (Marco 2c)
+
+Avisos **dentro do app** (o sino no topo) e, se você quiser, o **resumo do dia por e-mail**. Push no celular é da fase 4.
+
+- **O que avisa:** lembrete de **bloco** (15 min antes, configurável: 5/10/15/30/60), lembrete de **evento** (na antecedência do
+  próprio evento, 1 dia antes por padrão) e o **resumo do dia** (às 07:00 locais por padrão; dia sem nada não gera aviso).
+  Blocos pulados ou concluídos não avisam. O tom é de aviso, nunca de cobrança.
+- **Como funciona (RN38):** `@nestjs/schedule` roda uma varredura **a cada minuto**. A decisão é uma função pura
+  (`notifications/domain/notification-plan.ts`) testada com relógio falso; o serviço só lê o banco, chama a função e grava.
+  Tudo é calculado no **fuso da pessoa**. A janela olha os últimos 60 minutos: se a API ficou fora do ar, a próxima varredura
+  recupera os lembretes, **mas descarta** os de algo que já começou (seria "começa em 15 min" para o que já começou).
+- **Idempotência (RF55, RN25):** cada aviso tem uma `dedupeKey` lógica (`block:<id>:<data original>:<antecedência>`,
+  `event:<id>:<data>:<hora|all-day>:<antecedência>`, `digest:<dia>`), **única por pessoa** no banco. A gravação usa
+  `createMany(skipDuplicates)`, então rodar a varredura de novo, ou em duas instâncias, nunca duplica. Editar a data/hora
+  de um evento gera chave nova (o aviso acompanha a edição).
+- **Várias instâncias:** a varredura roda sob `pg_try_advisory_xact_lock`: só uma instância varre por minuto (as outras
+  pulam). A trava some sozinha no fim da transação, mesmo se a instância cair.
+- **E-mail (RF39):** interface `Mailer` com **Resend** (se `RESEND_API_KEY` estiver definido, via HTTP, sem SDK) ou um
+  **mailer de log** (dev e testes: só registra, com o endereço mascarado). Só o resumo vai por e-mail, **desligado por
+  padrão**. Falhou? Tenta de novo nos minutos seguintes, até 3 vezes; resumo com mais de 3 h é descartado. A chave nunca
+  vai para o repositório nem para mensagem de erro.
+- **Preferências (RF40):** sem linha gravada valem os padrões; a linha nasce na primeira alteração.
+
+| Método | Rota                              | O que faz                                              |
+| ------ | --------------------------------- | ------------------------------------------------------ |
+| GET    | `/api/notifications`              | Central, do mais novo ao mais antigo (cursor `before`) |
+| GET    | `/api/notifications/unread-count` | Quantas não lidas                                      |
+| POST   | `/api/notifications/:id/read`     | Marca como lida (idempotente)                          |
+| POST   | `/api/notifications/read-all`     | Marca todas como lidas                                 |
+| GET    | `/api/notification-preferences`   | Preferências (padrões se nunca alteradas)              |
+| PUT    | `/api/notification-preferences`   | Altera só os campos enviados                           |
+
+Variáveis novas (`apps/api/.env.example`): `NOTIFICATIONS_SCHEDULER` (liga a varredura), `RESEND_API_KEY` (opcional),
+`MAIL_FROM` e `APP_URL` (link do e-mail). Em produção com Resend você precisa de conta, chave e domínio verificado; para
+rodar e testar localmente, nada disso é necessário.
+
+Telas: **sino** no HUD com contador e a central (lista paginada, marcar como lida, "marcar todas") e as preferências em
+**Perfil > Notificações**, salvas a cada mudança. O contador atualiza a cada minuto (sem WebSocket).
 
 ## Glossário (para quem vem de Java/Spring)
 
