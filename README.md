@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 4a (quest semanal)**, **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 4c (conquistas, títulos e recompensas reais)**, **4b (radar e coringa)**, **Marco 4a (quest semanal)**, **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -74,6 +74,38 @@ produção (mesma origem, cookie `SameSite=Strict`).
   Reuso de um token já rotacionado revoga a família inteira da sessão.
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
+
+### Conquistas, títulos e recompensas reais (Marco 4c)
+
+| Método | Rota                      | O que faz                                                          |
+| ------ | ------------------------- | ------------------------------------------------------------------ |
+| GET    | `/api/achievements`       | As 8 conquistas do catálogo: desbloqueadas, bloqueadas e progresso |
+| GET    | `/api/rewards`            | As recompensas da pessoa (mais novas primeiro)                     |
+| POST   | `/api/rewards`            | Cadastra uma recompensa com o gatilho (até 50)                     |
+| PATCH  | `/api/rewards/:id`        | Edita nome e descrição (o gatilho **não** muda)                    |
+| POST   | `/api/rewards/:id/redeem` | Resgata uma recompensa já desbloqueada (idempotente)               |
+| DELETE | `/api/rewards/:id`        | Exclui                                                             |
+
+- **Conquistas (RF23):** catálogo fixo no código (`@lifexp/shared`); o banco só guarda quais foram desbloqueadas. São **permanentes**:
+  desfazer uma conclusão depois não retira nenhuma (recompensar, nunca punir). Desbloqueiam **na mesma transação** de concluir
+  bloco, concluir marco/meta e cumprir a quest, e o resultado traz `achievementsUnlocked`. Quem já merecia antes recebe na **próxima
+  ação** (retroativo). Catálogo: _Primeiro passo_ (1º bloco), _Semana completa_ (1ª quest), _Constante_ (7 dias de streak),
+  _Inabalável_ (30), _Equilibrado_, _100 horas_, _Sonho realizado_ (1ª meta) e _Descanso merecido_ (10 blocos de Descanso).
+- **Adaptações da sugestão dos requisitos (decisões de produto):** _100 horas_ vale para **qualquer área** (6.000 min cumpridos numa
+  mesma área), não só Código, porque as áreas são livres; _Equilibrado_ = na mesma semana, **todas as áreas ativas** (mínimo 2) tiveram
+  bloco planejado e cada uma cumpriu ao menos **80%** (a mesma conta da quest, por área; pular não conta); _Descanso_ é a área padrão
+  com esse nome (renomeá-la tira o papel; limitação). Streak usa o **melhor** da história.
+- **Títulos (RF23):** `levelTitle(nível)` em `@lifexp/shared` (Aprendiz, Explorador, Aventureiro, Veterano, Mestre, Lenda), exibido
+  na ficha. Sem tabela.
+- **Recompensas reais (RF25):** o prêmio é da própria pessoa (ex.: "Jantar no japonês"). Gatilhos: **nível geral**, **dias de streak**,
+  **XP total** ou **uma conquista**. O instante em que o gatilho é atingido fica em `reachedAt` e **não some** se o streak cair depois;
+  o resgate é sempre decisão da pessoa (`available` → `redeemed`). Um gatilho que já valia na criação nasce desbloqueado. O resultado
+  de concluir traz `rewardsReached`. O gatilho é imutável (para trocar, exclua e crie outra). Máximo de 50 por pessoa (409, também
+  com pedidos simultâneos).
+- **Segurança:** tudo filtrado pelo dono (alheio = 404); `strictObject` por tipo de gatilho (RS07); CHECKs no banco para a forma do
+  gatilho, faixas, chaves de conquista e `redeemedAt ≥ reachedAt`; entram na exportação e na exclusão da conta (RS15).
+- Telas: `/conquistas` (cartões com barra de progresso nas numéricas), `/recompensas` (agrupadas em prontas, em andamento e resgatadas),
+  atalhos e título na ficha do painel; avisos (toasts) ao desbloquear.
 
 ### Radar de equilíbrio (Marco 4b)
 

@@ -292,6 +292,24 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Front: `features/balance` (`useBalance`, `BalanceRadar`, `BalanceSection`, `radarGeometry`). `balanceKey` é invalidada por
   concluir/desfazer e por toda mutação de bloco, como `questKey`. A seção some se a rota falha ou não há dados.
 
+## Conquistas e recompensas (decisões do 4c)
+
+- `Achievement` (`userId`+`key` único; `key` é texto com CHECK igual a `ACHIEVEMENT_KEYS` de `@lifexp/shared`: o teste de constraints insere
+  TODAS as chaves e quebra se a lista do banco ficar para trás) e `Reward` (gatilho em `RewardTrigger` + `threshold`/`achievementKey` com CHECK
+  de forma e faixas; `redeemedAt` exige `reachedAt`). Ambos entram em `EXPORT_KEYS` e no `fullAccount` do teste de conta.
+- Regras puras em `gamification/domain/achievements.ts` (`newlyUnlocked`, `achievementProgress`, `isBalancedWeek`, `isRestArea`,
+  `isRewardReached`). `AchievementsService.evaluate(tx, ...)` roda DENTRO das transações de concluir bloco, marco, meta e consulta da quest
+  que cumpre; lê só os fatos das conquistas que ainda faltam (contagens, `groupBy` de minutos por área, histórico para streak/equilíbrio) e
+  chama `RewardsService.refresh`. **Permanentes**: desfazer não chama evaluate nem retira nada.
+- Resultados: `CompletionResult` e `GoalActionResult` ganharam `achievementsUnlocked` e `rewardsReached` (`.default([])`: fakes de teste do web
+  que montam o tipo de SAÍDA precisam trazer os dois; os que passam pelo zod não).
+- `OccurrenceHistoryService.load(userId, today, since?, db?)` aceita a transação (`db`) para enxergar a conclusão recém-gravada.
+- Equivalentes aceitos (mutantes): streak "atual" vs "melhor" no momento do cruzamento, trava do resgate com relógio fixo, `weekStartOf(resolved.date)`
+  vs data original (mover ocorrência só vale dentro da semana), `since` do histórico (só desempenho).
+- Front: `features/achievements` (`useAchievements`, `announceUnlocks`), `features/rewards` (`useRewards`, `useRewardMutations`, `rewardModel`,
+  `RewardFormDialog` com estado local + `createRewardSchema.safeParse`), páginas `AchievementsPage` e `RewardsPage`. `achievementsKey` e `rewardsKey`
+  são invalidadas por concluir/desfazer e pelas mutações de metas. `CharacterCard` recebe `title`.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -345,8 +363,8 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)** e **4b (radar de equilíbrio e coringa de streak)** feitos; próximos:
-  4c (conquistas e recompensas), 4d (push e relatório) e, por último, o deploy.
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** feitos; próximos:
+  4d (push e relatório) e, por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
