@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 2a (Metas)** concluído, sobre o **Marco 1** completo (PWA, streak, Hoje/XP, blocos/Semana,
-> perfil/áreas, autenticação, fundação). Próximos: 2b (eventos), 2c (notificações) e 2d (extras da fase 2).
+> Status: **Marco 2b (Calendário de eventos)** concluído, sobre 2a (metas) e o **Marco 1** completo (PWA, streak,
+> Hoje/XP, blocos/Semana, perfil/áreas, autenticação, fundação). Próximos: 2c (notificações) e 2d (extras da fase 2).
 
 ## Stack
 
@@ -228,6 +228,32 @@ Uma **meta** junta marcos e blocos de tempo em torno de algo que você quer alca
 Telas: **Metas** (`/metas`: filtro por status, progresso, selo "Atrasada", horas) e o detalhe (`/metas/:id`:
 marcos com check, valor atual, status, tempo investido e histórico, comemoração ao concluir). O formulário de
 bloco ganhou o campo "Meta (opcional)" e o painel da ocorrência mostra a meta.
+
+## Calendário de eventos (Marco 2b)
+
+Um **evento** é algo que acontece numa data (consulta, viagem, aniversário, prazo). Diferente de um bloco, que é um
+compromisso de tempo seu, **evento não rende XP (RN23)**, não se conclui e não entra no streak.
+
+- **Campos:** título, data civil, hora opcional (sem hora = "dia todo"), categoria (compromisso, aniversário,
+  consulta, viagem, prazo, outro), área opcional, notas e **lembrete** (`remindBeforeMin`).
+- **Lembrete (RF36, RN24):** padrão **1 dia antes**; opções: sem lembrete, no horário, 15 min, 1 h, 1 dia e 2 dias
+  antes. Evento **sem hora só aceita lembrete em dias** (1 ou 2): não há horário para antecipar. Ao editar, a regra vale
+  para o resultado final (tirar a hora de um evento com lembrete de 1 h dá 400, a menos que o lembrete também mude).
+- **Só guarda o lembrete:** quem dispara a notificação é o Marco 2c, que lê `remindBeforeMin` e a data/hora do evento.
+- Sem recorrência nesta versão. A hora é de relógio no fuso da pessoa (RN37), como nos blocos.
+- Consulta por **período** de datas civis (inclusive), de no máximo **93 dias** (cabe o mês com as semanas vizinhas).
+
+| Método | Rota                    | O que faz                                       |
+| ------ | ----------------------- | ----------------------------------------------- |
+| GET    | `/api/events?from=&to=` | Eventos do período, em ordem cronológica        |
+| POST   | `/api/events`           | Cria um evento                                  |
+| GET    | `/api/events/:id`       | Detalhe do evento                               |
+| PATCH  | `/api/events/:id`       | Edita (valida o lembrete contra o evento final) |
+| DELETE | `/api/events/:id`       | Exclui (idempotente)                            |
+
+Telas: faixa de **eventos no topo da grade da Semana** (RF35; no celular, os do dia aberto no topo da lista), a visão
+**mensal** em `/calendario` (RF34: navegação entre meses, até 2 eventos por dia e "+N mais", pontos coloridos no
+celular, lista do dia escolhido) e os eventos do dia na tela **Hoje** como informativos.
 
 ## Glossário (para quem vem de Java/Spring)
 

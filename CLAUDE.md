@@ -136,6 +136,20 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   `GoalCelebration`, `GoalSelect`); mutações invalidam `goals` + `progress` + `today`. Subida de nível espera a
   comemoração da meta fechar. `test-setup.ts` agora simula `ResizeObserver` (Radix Switch em formulário).
 
+## Eventos (decisões do 2b)
+
+- `CalendarEvent` (migration `calendar_events` com CHECKs: título, categoria, hora `HH:mm`, antecedências 0/15/60/1440/2880
+  e "sem hora só em dias"). Categoria é `String` + CHECK (como cor de área), não enum do Prisma. Não gera XP (RN23).
+- Regras puras em `@lifexp/shared/event.schema.ts` (usadas por API e front): `isReminderAllowed`, `sortEvents` (por data;
+  no dia, "dia todo" primeiro e depois por hora), `groupEventsByDate`, `DEFAULT_REMIND_BEFORE_MIN` (1 dia, RN24).
+  Lição: refinamentos do Zod 4 rodam mesmo com campo inválido; `addDays` com data inválida lança, então a validação de
+  período guarda com `isValidCivilDate`.
+- API só guarda `remindBeforeMin`; o disparo é do 2c. Período máximo da listagem: 93 dias (`MAX_EVENT_RANGE_DAYS`).
+  Atualização valida o lembrete contra o resultado final (hora + lembrete), não só contra os campos enviados.
+- Front: `features/events` (`EventChip`, `EventDialog` de detalhes/exclusão, `EventFormDialog`, `monthGrid`,
+  `eventAppearance` reaproveita as cores das áreas). `useEvents` só consulta com período definido (`enabled`).
+  Falha ao carregar eventos nunca derruba a Semana nem a tela Hoje. O mês fica na URL (`?mes=AAAA-MM`).
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -188,7 +202,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)** feito; próximos: 2b (eventos), 2c (notificações), 2d (extras).
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)** e **2b (Eventos)** feitos; próximos: 2c (notificações), 2d (extras).
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
