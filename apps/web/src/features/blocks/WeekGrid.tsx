@@ -1,6 +1,7 @@
-import { timeToMinutes, weekDates, type CivilDate } from '@lifexp/shared';
+import { timeToMinutes, weekDates, type CalendarEvent, type CivilDate } from '@lifexp/shared';
 import { cn } from '@/lib/utils';
 import { dayOfMonth, longDate, weekdayLong, weekdayShort } from '@/lib/civilFormat';
+import { EventChip } from '../events/EventChip';
 import { layoutDay, visibleHourRange } from './layoutDay';
 import { OccurrenceCard, timeRange, type OccurrenceDisplay } from './OccurrenceCard';
 
@@ -15,11 +16,22 @@ interface WeekGridProps {
   nowMinutes: number;
   items: OccurrenceDisplay[];
   onSelect: (display: OccurrenceDisplay) => void;
+  /** Eventos da semana por dia (RF35): ficam numa faixa acima das horas. */
+  events?: Map<CivilDate, CalendarEvent[]>;
+  onSelectEvent?: (event: CalendarEvent) => void;
 }
 
 const pad = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
-export function WeekGrid({ weekStart, today, nowMinutes, items, onSelect }: WeekGridProps) {
+export function WeekGrid({
+  weekStart,
+  today,
+  nowMinutes,
+  items,
+  onSelect,
+  events,
+  onSelectEvent,
+}: WeekGridProps) {
   const dates = weekDates(weekStart);
   const range = visibleHourRange(items.map(({ occurrence }) => occurrence));
   const hours = Array.from({ length: range.end - range.start }, (_, index) => range.start + index);
@@ -54,6 +66,33 @@ export function WeekGrid({ weekStart, today, nowMinutes, items, onSelect }: Week
             );
           })}
         </div>
+
+        {events && events.size > 0 && onSelectEvent && (
+          <div
+            role="group"
+            aria-label="Eventos da semana"
+            className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-border"
+          >
+            <span className="pt-2 pr-2 text-right font-hud text-[0.6rem] tracking-wider text-muted-foreground uppercase">
+              Eventos
+            </span>
+            {dates.map((date) => (
+              <ul
+                key={date}
+                className={cn(
+                  'flex min-w-0 flex-col gap-1 border-l border-border p-1',
+                  date === today && 'bg-xp/5',
+                )}
+              >
+                {(events.get(date) ?? []).map((event) => (
+                  <li key={event.id}>
+                    <EventChip event={event} onSelect={onSelectEvent} compact />
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        )}
 
         <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
           <div aria-hidden className="relative" style={{ height: totalHeight }}>

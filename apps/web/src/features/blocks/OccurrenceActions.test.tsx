@@ -94,6 +94,7 @@ function setup(
         ]);
       }
       if (url === '/api/goals') return json(200, options.goals ?? []);
+      if (url.startsWith('/api/events')) return json(200, []);
       if (url.startsWith('/api/areas')) {
         return json(200, [
           {

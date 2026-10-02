@@ -1,9 +1,10 @@
 import { Check } from 'lucide-react';
-import { weekDates, type CivilDate } from '@lifexp/shared';
+import { weekDates, type CalendarEvent, type CivilDate } from '@lifexp/shared';
 import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { dayOfMonth, longDate, weekdayLong, weekdayShort } from '@/lib/civilFormat';
 import { AREA_COLOR_CLASSES, AREA_ICON_COMPONENTS } from '../areas/areaAppearance';
+import { EventChip } from '../events/EventChip';
 import { formatDuration } from './blockOptions';
 import { timeRange, type OccurrenceDisplay } from './OccurrenceCard';
 
@@ -14,6 +15,9 @@ interface DayViewProps {
   onSelectDate: (date: CivilDate) => void;
   items: OccurrenceDisplay[];
   onSelect: (display: OccurrenceDisplay) => void;
+  /** Eventos da semana por dia (RF35): os do dia aberto ficam no topo da lista. */
+  events?: Map<CivilDate, CalendarEvent[]>;
+  onSelectEvent?: (event: CalendarEvent) => void;
 }
 
 /** Visão do celular: abas com os 7 dias e a agenda (lista cronológica) do dia escolhido. */
@@ -24,6 +28,8 @@ export function DayView({
   onSelectDate,
   items,
   onSelect,
+  events,
+  onSelectEvent,
 }: DayViewProps) {
   const dates = weekDates(weekStart);
   const tabRefs = useRef(new Map<CivilDate, HTMLButtonElement>());
@@ -52,6 +58,7 @@ export function DayView({
   };
 
   const selectedItems = itemsOf(selectedDate);
+  const selectedEvents = events?.get(selectedDate) ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -108,6 +115,15 @@ export function DayView({
         aria-label={`${weekdayLong(selectedDate)}, ${longDate(selectedDate)}`}
         className="flex flex-col gap-3"
       >
+        {selectedEvents.length > 0 && onSelectEvent && (
+          <ul aria-label="Eventos do dia" className="flex flex-col gap-2">
+            {selectedEvents.map((event) => (
+              <li key={event.id}>
+                <EventChip event={event} onSelect={onSelectEvent} />
+              </li>
+            ))}
+          </ul>
+        )}
         {selectedItems.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border bg-card/40 p-6 text-center text-muted-foreground">
             Nenhum bloco neste dia.

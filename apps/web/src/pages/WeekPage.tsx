@@ -1,21 +1,26 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
   addDays,
+  groupEventsByDate,
+  type CalendarEvent,
   isValidCivilDate,
   isWeekStart,
   todayIn,
   weekStartOf,
   type CivilDate,
 } from '@lifexp/shared';
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { CalendarPlus, CalendarRange, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { useIsDesktop } from '@/lib/useIsDesktop';
 import { formatWeekRange } from '@/lib/civilFormat';
 import { useActivities } from '@/features/activities/useActivities';
 import { useAreas } from '@/features/areas/useAreas';
 import { useAuth } from '@/features/auth/useAuth';
+import { EventDialog } from '@/features/events/EventDialog';
+import { EventFormDialog } from '@/features/events/EventFormDialog';
+import { useEvents } from '@/features/events/useEvents';
 import { BlockFormDialog } from '@/features/blocks/BlockFormDialog';
 import { DayView } from '@/features/blocks/DayView';
 import { OccurrenceDialog } from '@/features/blocks/OccurrenceDialog';
@@ -39,6 +44,9 @@ export function WeekPage() {
   const [params, setParams] = useSearchParams();
   const now = useNow();
   const [creating, setCreating] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [creatingEvent, setCreatingEvent] = useState(false);
   const [selected, setSelected] = useState<OccurrenceDisplay | null>(null);
   const [pickedDay, setPickedDay] = useState<CivilDate | null>(null);
   const isDesktop = useIsDesktop();
@@ -57,6 +65,9 @@ export function WeekPage() {
       : defaultDay;
 
   const week = useWeek(weekStart);
+  // Eventos da semana (RF35). Se falharem, a grade de blocos continua funcionando sem eles.
+  const weekEvents = useEvents(weekStart, addDays(weekStart, 6));
+  const eventsByDate = useMemo(() => groupEventsByDate(weekEvents.data ?? []), [weekEvents.data]);
   // Inclui arquivadas: blocos antigos de uma atividade arquivada continuam aparecendo.
   const activities = useActivities(true);
   const areas = useAreas(true);
@@ -113,6 +124,15 @@ export function WeekPage() {
             <Button onClick={() => setCreating(true)}>
               <Plus aria-hidden className="size-4" />
               Novo bloco
+            </Button>
+            <Button variant="secondary" onClick={() => setCreatingEvent(true)}>
+              <CalendarPlus aria-hidden className="size-4" />
+              Novo evento
+            </Button>
+            <Button asChild variant="secondary" size="icon" aria-label="Calendário do mês">
+              <Link to="/calendario">
+                <CalendarRange aria-hidden className="size-4" />
+              </Link>
             </Button>
             <Button
               variant="secondary"
@@ -185,6 +205,8 @@ export function WeekPage() {
                 nowMinutes={nowMinutes}
                 items={items}
                 onSelect={setSelected}
+                events={eventsByDate}
+                onSelectEvent={setSelectedEvent}
               />
             ) : (
               <DayView
@@ -194,6 +216,8 @@ export function WeekPage() {
                 onSelectDate={setPickedDay}
                 items={items}
                 onSelect={setSelected}
+                events={eventsByDate}
+                onSelectEvent={setSelectedEvent}
               />
             )}
           </>
@@ -201,6 +225,25 @@ export function WeekPage() {
       </section>
 
       <OccurrenceDialog display={selected} onClose={() => setSelected(null)} />
+      <EventDialog
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onEdit={(event) => {
+          setSelectedEvent(null);
+          setEditingEvent(event);
+        }}
+      />
+      <EventFormDialog
+        open={creatingEvent || editingEvent !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreatingEvent(false);
+            setEditingEvent(null);
+          }
+        }}
+        event={editingEvent}
+        defaultDate={selectedDay}
+      />
       <BlockFormDialog
         open={creating}
         onOpenChange={setCreating}
