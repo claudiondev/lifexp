@@ -1,4 +1,4 @@
-import { ArrowRight, Scroll } from 'lucide-react';
+import { ArrowRight, History, Scroll } from 'lucide-react';
 import { Link } from 'react-router';
 import { CharacterCard } from '@/components/game/CharacterCard';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,16 @@ export function HomePage() {
       </h1>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,26rem)_1fr]">
-        <CharacterCard name={state.user.name} emblem={state.user.avatarKey} {...character} />
+        <div className="flex flex-col gap-3">
+          <CharacterCard name={state.user.name} emblem={state.user.avatarKey} {...character} />
+          <Link
+            to="/historico"
+            className="inline-flex items-center gap-2 self-start rounded-lg px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <History aria-hidden className="size-4" />
+            Ver histórico de XP
+          </Link>
+        </div>
 
         <section
           aria-labelledby="today-title"

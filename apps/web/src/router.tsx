@@ -12,6 +12,7 @@ import { HomePage } from './pages/HomePage';
 import { TodayPage } from './pages/TodayPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { WeekPage } from './pages/WeekPage';
+import { XpHistoryPage } from './pages/XpHistoryPage';
 
 export function AppRoutes() {
   return (
@@ -28,6 +29,7 @@ export function AppRoutes() {
           <Route path="/calendario" element={<CalendarPage />} />
           <Route path="/metas" element={<GoalsPage />} />
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
+          <Route path="/historico" element={<XpHistoryPage />} />
           <Route path="/areas" element={<AreasPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
         </Route>
