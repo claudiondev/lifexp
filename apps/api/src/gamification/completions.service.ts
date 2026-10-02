@@ -14,6 +14,7 @@ import { occursOn, resolveOccurrence } from '../blocks/domain/week-occurrences.j
 import { CLOCK, type Clock } from '../clock/clock.js';
 import type { Completion as CompletionEntity } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { AchievementsService } from './achievements.service.js';
 import { QuestService } from './quest.service.js';
 import { XpLedgerService, type Tx } from './xp-ledger.service.js';
 import {
@@ -40,6 +41,7 @@ export class CompletionsService {
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly ledger: XpLedgerService,
     private readonly quests: QuestService,
+    private readonly achievements: AchievementsService,
   ) {}
 
   /**
@@ -99,6 +101,10 @@ export class CompletionsService {
       // A conclusão pode cumprir a quest da semana (RN17): o bônus sai na MESMA transação (RN30), e o nível e o
       // total devolvidos já contam com ele.
       const quest = await this.quests.settle(tx, userId, weekStartOf(occurrenceDate), now);
+      // E pode merecer conquistas e atingir o gatilho de recompensas (RF23, RF25), também na mesma transação.
+      const unlocks = await this.achievements.evaluate(tx, userId, now, {
+        weekStart: weekStartOf(resolved.date),
+      });
       return {
         completion: toCompletionDto(completion),
         alreadyCompleted: false,
@@ -108,6 +114,8 @@ export class CompletionsService {
         total: quest.result?.total ?? total,
         area: area!,
         questBonusXp: quest.awarded,
+        achievementsUnlocked: unlocks.achievements,
+        rewardsReached: unlocks.rewards,
       };
     });
   }
@@ -199,6 +207,8 @@ export class CompletionsService {
       total: levelProgress(user.cachedTotalXp),
       area: { areaId: completion.areaId, ...levelProgress(progress?.cachedXp ?? 0) },
       questBonusXp: 0,
+      achievementsUnlocked: [],
+      rewardsReached: [],
     };
   }
 }

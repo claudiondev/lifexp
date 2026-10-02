@@ -188,8 +188,10 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         xp: 60,
       },
     });
-    await prisma.achievement.create({
-      data: { userId: user.userId, key: 'first_step', unlockedAt: clock.now() },
+    // a conclusão acima já pode ter desbloqueado esta conquista: o que importa é que exista
+    await prisma.achievement.createMany({
+      data: [{ userId: user.userId, key: 'first_step', unlockedAt: clock.now() }],
+      skipDuplicates: true,
     });
     await prisma.reward.create({
       data: {

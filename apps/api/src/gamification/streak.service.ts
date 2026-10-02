@@ -4,6 +4,7 @@ import { CLOCK, type Clock } from '../clock/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildStreakDays, computeStreak } from './domain/streak.js';
 import { OccurrenceHistoryService } from './occurrence-history.service.js';
+import type { Tx } from './xp-ledger.service.js';
 
 @Injectable()
 export class StreakService {
@@ -19,13 +20,13 @@ export class StreakService {
    * só quando se conclui algo, então um cache ficaria desatualizado por construção. O custo é uma
    * consulta e um cálculo em memória sobre as semanas desde o primeiro bloco.
    */
-  async getStreak(userId: string): Promise<Streak> {
-    const user = await this.prisma.user.findUniqueOrThrow({
+  async getStreak(userId: string, db: Tx = this.prisma): Promise<Streak> {
+    const user = await db.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true },
     });
     const today = todayIn(user.timezone, this.clock.now());
-    const { occurrences, completedKeys } = await this.history.load(userId, today);
+    const { occurrences, completedKeys } = await this.history.load(userId, today, undefined, db);
     return computeStreak(buildStreakDays(occurrences, completedKeys), today);
   }
 }

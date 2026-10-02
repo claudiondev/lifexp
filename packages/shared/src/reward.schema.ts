@@ -36,6 +36,9 @@ export const rewardSchema = z.object({
   createdAt: z.iso.datetime(),
 });
 
+/** Referência curta a uma recompensa que acabou de ser desbloqueada (para a comemoração na tela). */
+export const rewardRefSchema = z.object({ id: z.uuid(), title: z.string() });
+
 export const createRewardSchema = z.strictObject({
   title: titleSchema,
   description: descriptionSchema.nullish(),
@@ -49,6 +52,7 @@ export const updateRewardSchema = z
   .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para alterar');
 
 export type RewardTrigger = z.infer<typeof rewardTriggerSchema>;
+export type RewardRef = z.infer<typeof rewardRefSchema>;
 export type RewardStatus = z.infer<typeof rewardStatusSchema>;
 export type Reward = z.infer<typeof rewardSchema>;
 export type CreateRewardInput = z.infer<typeof createRewardSchema>;

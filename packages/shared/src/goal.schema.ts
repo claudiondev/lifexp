@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { achievementKeySchema } from './achievement.schema.js';
 import { levelProgressSchema } from './completion.schema.js';
 import { civilDateSchema } from './primitives.js';
+import { rewardRefSchema } from './reward.schema.js';
 
 export const GOAL_STATUSES = ['active', 'completed', 'paused', 'abandoned'] as const;
 export const goalStatusSchema = z.enum(GOAL_STATUSES);
@@ -84,6 +86,10 @@ export const goalActionResultSchema = z.object({
   levelBefore: z.number().int().min(1),
   levelAfter: z.number().int().min(1),
   total: levelProgressSchema,
+  /** Conquistas desbloqueadas por esta ação (RF23), como "Sonho realizado"; vazio quando nenhuma. */
+  achievementsUnlocked: z.array(achievementKeySchema).default([]),
+  /** Recompensas reais cujo gatilho esta ação atingiu (RF25). */
+  rewardsReached: z.array(rewardRefSchema).default([]),
 });
 
 /** Um bloco cumprido que contou para a meta (RF54). */

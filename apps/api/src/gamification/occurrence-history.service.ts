@@ -3,6 +3,7 @@ import { addDays, weekStartOf, type CivilDate, type Occurrence } from '@lifexp/s
 import { toBlockTemplate, toCivil, toExceptionRule } from '../blocks/blocks.mapper.js';
 import { computeWeekOccurrences } from '../blocks/domain/week-occurrences.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import type { Tx } from './xp-ledger.service.js';
 
 export interface OccurrenceHistory {
   occurrences: Occurrence[];
@@ -20,9 +21,17 @@ const isDate = (value: CivilDate | null): value is CivilDate => value !== null;
 export class OccurrenceHistoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** `since` limita o início (as semanas anteriores a ele não são calculadas); sem ele, vai do 1º bloco. */
-  async load(userId: string, today: CivilDate, since?: CivilDate): Promise<OccurrenceHistory> {
-    const blocks = await this.prisma.block.findMany({
+  /**
+   * `since` limita o início (as semanas anteriores a ele não são calculadas); sem ele, vai do 1º bloco. `db` permite
+   * ler dentro de uma transação, para enxergar o que ela acabou de gravar.
+   */
+  async load(
+    userId: string,
+    today: CivilDate,
+    since?: CivilDate,
+    db: Tx = this.prisma,
+  ): Promise<OccurrenceHistory> {
+    const blocks = await db.block.findMany({
       where: { userId },
       include: {
         activity: { select: { areaId: true } },

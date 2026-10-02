@@ -58,6 +58,8 @@ export function makeResult(
     levelBefore: levels[0],
     levelAfter: levels[1],
     total: level(300, levels[1]),
+    achievementsUnlocked: [],
+    rewardsReached: [],
   };
 }
 

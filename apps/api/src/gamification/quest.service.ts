@@ -12,6 +12,7 @@ import {
   type QuestEvaluation,
   type QuestItemInput,
 } from './domain/quest.js';
+import { AchievementsService } from './achievements.service.js';
 import { XpLedgerService, type LedgerResult, type Tx } from './xp-ledger.service.js';
 
 type Db = Tx;
@@ -55,6 +56,7 @@ export class QuestService {
     private readonly prisma: PrismaService,
     private readonly blocks: BlocksService,
     private readonly ledger: XpLedgerService,
+    private readonly achievements: AchievementsService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -213,7 +215,9 @@ export class QuestService {
       const now = this.clock.now();
       await this.prisma.$transaction(async (tx) => {
         await this.ledger.lockUser(tx, userId);
-        await this.settle(tx, userId, weekStart, now);
+        const settled = await this.settle(tx, userId, weekStart, now);
+        // Cumprir a quest aqui (pular um bloco a deixou nos 80%) também merece "Semana completa" e pode atingir recompensas.
+        if (settled.awarded > 0) await this.achievements.evaluate(tx, userId, now);
       });
       quest = await this.prisma.weeklyQuest.findUniqueOrThrow({ where, include: { items: true } });
       evaluation = await this.evaluate(this.prisma, userId, quest);

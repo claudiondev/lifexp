@@ -1,5 +1,7 @@
 import { z } from 'zod';
+import { achievementKeySchema } from './achievement.schema.js';
 import { civilDateSchema, weekStartSchema } from './primitives.js';
+import { rewardRefSchema } from './reward.schema.js';
 
 const nonNegativeInt = z.number().int().min(0);
 
@@ -71,6 +73,10 @@ export const completionResultSchema = z.object({
   area: areaProgressSchema,
   /** Bônus da quest semanal que ESTA conclusão destravou (RN17); 0 quando não houve. Já está em `total`. */
   questBonusXp: nonNegativeInt.default(0),
+  /** Conquistas que ESTA conclusão desbloqueou (RF23); vazio quando nenhuma. */
+  achievementsUnlocked: z.array(achievementKeySchema).default([]),
+  /** Recompensas reais cujo gatilho esta conclusão atingiu (RF25); vazio quando nenhuma. */
+  rewardsReached: z.array(rewardRefSchema).default([]),
 });
 
 export const undoResultSchema = z.object({

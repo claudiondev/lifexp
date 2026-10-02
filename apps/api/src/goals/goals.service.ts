@@ -21,6 +21,11 @@ import {
 } from '@lifexp/shared';
 import { fromCivil, toCivil } from '../blocks/blocks.mapper.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
+import {
+  AchievementsService,
+  NO_UNLOCKS,
+  type Unlocks,
+} from '../gamification/achievements.service.js';
 import { XpLedgerService, type LedgerResult, type Tx } from '../gamification/xp-ledger.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { statusXpEffect, type GoalStatus as GoalStatusDb } from './domain/goal-rules.js';
@@ -41,6 +46,7 @@ export class GoalsService {
     private readonly prisma: PrismaService,
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly ledger: XpLedgerService,
+    private readonly achievements: AchievementsService,
   ) {}
 
   async list(userId: string, status?: GoalStatus): Promise<Goal[]> {
@@ -205,6 +211,7 @@ export class GoalsService {
     milestoneId: string,
   ): Promise<GoalActionResult> {
     const now = this.clock.now();
+    let unlocks = NO_UNLOCKS;
     const outcome = await this.prisma.$transaction(async (tx) => {
       await this.ledger.lockUser(tx, userId);
       const milestone = await this.findMilestoneOrThrow(tx, userId, goalId, milestoneId);
@@ -212,7 +219,7 @@ export class GoalsService {
       this.assertMilestonesOpen(milestone.goal.status);
 
       await tx.milestone.update({ where: { id: milestone.id }, data: { done: true, doneAt: now } });
-      return this.ledger.credit(tx, {
+      const credited = await this.ledger.credit(tx, {
         userId,
         areaId: milestone.goal.areaId,
         amount: MILESTONE_XP,
@@ -220,8 +227,11 @@ export class GoalsService {
         sourceId: milestone.id,
         createdAt: now,
       });
+      // O XP do marco pode atingir o gatilho de uma recompensa (nível ou XP total).
+      unlocks = await this.achievements.evaluate(tx, userId, now);
+      return credited;
     });
-    return this.respond(userId, goalId, outcome, MILESTONE_XP);
+    return this.respond(userId, goalId, outcome, MILESTONE_XP, unlocks);
   }
 
   /** Desfaz a conclusão de um marco: estorna os 100 XP. Idempotente. */
@@ -255,6 +265,7 @@ export class GoalsService {
     const now = this.clock.now();
     const target = STATUS_TO_DB[to];
     let delta = 0;
+    let unlocks = NO_UNLOCKS;
     const outcome = await this.prisma.$transaction(async (tx) => {
       await this.ledger.lockUser(tx, userId);
       const goal = await tx.goal.findFirst({ where: { id, userId } });
@@ -269,7 +280,7 @@ export class GoalsService {
       });
       if (effect === 'award') {
         delta = GOAL_XP;
-        return this.ledger.credit(tx, {
+        const credited = await this.ledger.credit(tx, {
           userId,
           areaId: goal.areaId,
           amount: GOAL_XP,
@@ -277,6 +288,9 @@ export class GoalsService {
           sourceId: goal.id,
           createdAt: now,
         });
+        // Concluir a meta merece "Sonho realizado" (RN21) e pode atingir o gatilho de recompensas.
+        unlocks = await this.achievements.evaluate(tx, userId, now);
+        return credited;
       }
       if (effect === 'reverse') {
         const entry = await this.ledger.findActiveEntry(tx, goal.id, 'GOAL');
@@ -286,7 +300,7 @@ export class GoalsService {
       }
       return null;
     });
-    return this.respond(userId, id, outcome, delta);
+    return this.respond(userId, id, outcome, delta, unlocks);
   }
 
   /** Toda leitura/escrita filtra pelo dono (RS06): meta alheia responde 404, como uma inexistente. */
@@ -321,6 +335,7 @@ export class GoalsService {
     goalId: string,
     outcome: LedgerResult | null,
     appliedDelta: number,
+    unlocks: Unlocks = NO_UNLOCKS,
   ): Promise<GoalActionResult> {
     const goal = await this.get(userId, goalId);
     if (outcome) {
@@ -330,6 +345,8 @@ export class GoalsService {
         levelBefore: outcome.change.levelBefore,
         levelAfter: outcome.change.levelAfter,
         total: outcome.total,
+        achievementsUnlocked: unlocks.achievements,
+        rewardsReached: unlocks.rewards,
       };
     }
     const user = await this.prisma.user.findUniqueOrThrow({
@@ -343,6 +360,8 @@ export class GoalsService {
       levelBefore: level,
       levelAfter: level,
       total: levelProgress(user.cachedTotalXp),
+      achievementsUnlocked: [],
+      rewardsReached: [],
     };
   }
 
