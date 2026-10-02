@@ -238,6 +238,26 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
   qualquer data para a segunda-feira, nunca depois da semana atual do fuso da pessoa). Concluir/desfazer e editar blocos invalidam
   `reviewsKey`. O `ReviewForm` tem `key={weekStart}`: sem ele, voltar a uma semana em cache manteria o rascunho da outra.
 
+## Notas (decisões do 3b)
+
+- `Note` (tags `String[]` com GIN, `pinned`, UM vínculo opcional por `areaId|blockId|goalId|eventId` com `SetNull`; CHECKs de título,
+  tamanho, vínculo único, tags (função `note_tags_valid`, SEM regex de letras: acentos dependem do locale do banco) e
+  `tags IS NOT NULL` à parte, porque um `NOT NULL` real gera deriva no Prisma). A relação reversa se chama `linkedNotes` (o
+  `CalendarEvent` já tem um campo `notes`).
+- `NotesService`: toda operação de escrita trava a linha da pessoa (`FOR NO KEY UPDATE`) para o limite de 20 fixadas valer com pedidos
+  simultâneos; vínculo conferido por dono (404 igual a inexistente); `updatedAt` só anda se título/texto/tags/vínculo mudam, NÃO ao
+  fixar. Lista num único SELECT com join (nome do alvo) e cursor opaco (`domain/cursor.ts`: base64url de `[fixada, ms, id]`,
+  `decodeCursor` devolve nulo para qualquer coisa que não seja nossa → 400). Busca com `escapeLike` (`domain/search.ts`).
+- Regras puras do trecho (`domain/excerpt.ts`): sem markdown, sem URL de link, corte por caractere inteiro (emoji) com "…".
+- Front: `features/notes` (`MarkdownView`, `safeUrl`, `NoteForm`, `TagsInput`, `LinkPicker`, `GoalNotes`, `noteLinks`), `NotesPage`,
+  `NoteEditorPage`. Lista na URL (`?q=&tag=`), busca com debounce de 300 ms. O editor recebe o vínculo pelo atalho
+  (`/notas/nova?goalId=…&rotulo=…`; o `rotulo` só aparece na tela, quem confere o alvo é a API). Vínculo com BLOCO só nasce do atalho
+  (não há lista de blocos): no editor se vê e se remove.
+- **`MarkdownView` é a única forma de mostrar o markdown de uma nota** (RS10). Nunca use `dangerouslySetInnerHTML` nem `rehype-raw`.
+  `safeHref` é lista de PERMITIDOS (http, https, mailto; rejeita espaço/controle no meio). Imagens viram texto.
+- Testes de tela: `features/notes/testing.ts` tem a API falsa em memória (`makeFakeNotes`). `vite.config.ts` do web agora usa
+  `testTimeout` de 15 s e `test-setup.ts` põe `asyncUtilTimeout` de 5 s (a suíte inteira roda em paralelo com a API e2e).
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -291,8 +311,8 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)** e **3c (revisão semanal)** feitos; próximos: 3b (notas), fase 4 e,
-  por último, o deploy.
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**; próximos:
+  fase 4 e, por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em

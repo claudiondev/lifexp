@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -74,6 +74,36 @@ produção (mesma origem, cookie `SameSite=Strict`).
   Reuso de um token já rotacionado revoga a família inteira da sessão.
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
+
+### Notas (Marco 3b)
+
+Tela **Notas** (`/notas`): anotações em **markdown**, com tags, busca, vínculo opcional e fixar no topo.
+
+| Método | Rota              | O que faz                                                                       |
+| ------ | ----------------- | ------------------------------------------------------------------------------- |
+| GET    | `/api/notes`      | Lista (fixadas primeiro), com `q` (busca), `tag`, filtro por vínculo e `before` |
+| GET    | `/api/notes/tags` | As tags da pessoa com a quantidade de notas de cada uma                         |
+| POST   | `/api/notes`      | Cria                                                                            |
+| GET    | `/api/notes/:id`  | Uma nota, com o texto completo                                                  |
+| PATCH  | `/api/notes/:id`  | Edita só o que veio (inclusive fixar e vincular; `link: null` desvincula)       |
+| DELETE | `/api/notes/:id`  | Exclui                                                                          |
+
+- **Campos:** título (até 200), texto em markdown (até 20 mil caracteres), até **10 tags** e fixada. Tags são normalizadas
+  (`#Saúde Mental` vira `saúde-mental`: minúsculas, sem `#`, sem repetir; letras com acento valem).
+- **Vínculo opcional com UM alvo (RF44):** área, meta, evento ou bloco, sempre da própria pessoa (alvo alheio responde 404). Se o alvo
+  for excluído, a nota **continua**, só sem vínculo. O atalho **"Anotar"** abre o editor já vinculado: na tela da meta, no painel do
+  evento e no painel da ocorrência de um bloco; a meta mostra **"Notas"** com as dela.
+- **Busca (RF43):** no título e no texto, sem diferenciar maiúsculas; `%` e `_` são buscados como texto (o Prisma não os escapa, então
+  escapamos). Filtro exato por tag e por vínculo. A lista traz só um **trecho** (160 caracteres, sem a sintaxe de markdown nem a URL dos
+  links), nunca o texto todo.
+- **Fixar (RF45):** até **20** fixadas por pessoa (409 além disso, também com pedidos simultâneos). Fixar e desafixar **não mudam** a data
+  de atualização (senão desafixar uma nota antiga a jogaria para o topo). A lista é paginada por **cursor opaco** (fixadas, depois as
+  atualizadas há menos tempo, desempate pelo id) (RNF08).
+- **Segurança (RS10):** o servidor guarda o markdown **exatamente como veio**; a sanitização é na **renderização**. O `MarkdownView` usa
+  o `react-markdown` (HTML cru aparece como texto e nunca é interpretado), o `rehype-sanitize` e regras próprias: só `http(s)` e `mailto`
+  viram link (com `target=_blank` e `rel="noopener noreferrer nofollow"` nos de `http`), e **imagens nunca são carregadas** (uma imagem
+  remota entregaria o IP): aparece `[imagem: texto]`. Há testes com dezenas de vetores de XSS.
+- **Logs (RS14):** nada do título ou do texto vai para log nem volta numa mensagem de erro (há teste). Entra na exportação de dados (3a).
 
 ### Revisão semanal (Marco 3c)
 
