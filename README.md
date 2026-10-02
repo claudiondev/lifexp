@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 2d (extras)** concluído: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -110,17 +110,33 @@ da consulta**; nada de ocorrências futuras gravadas.
 - A semana começa na **segunda-feira**. Datas são civis (`AAAA-MM-DD`, sem fuso); o horário é hora de relógio
   (`HH:mm`). Mudar de fuso preserva o horário local. Bloco não atravessa a meia-noite; blocos podem se sobrepor.
 
-| Método | Rota                               | O que faz                                         |
-| ------ | ---------------------------------- | ------------------------------------------------- |
-| GET    | `/api/blocks/week?weekStart=`      | Ocorrências da semana (uma única consulta)        |
-| POST   | `/api/blocks`                      | Cria bloco semanal ou avulso                      |
-| PATCH  | `/api/blocks/:id`                  | Edita a partir de uma data (`from`)               |
-| DELETE | `/api/blocks/:id?from=`            | Encerra/exclui a partir de uma data (idempotente) |
-| PUT    | `/api/blocks/:id/exceptions/:date` | Pula ou altera só uma ocorrência                  |
-| DELETE | `/api/blocks/:id/exceptions/:date` | Restaura a ocorrência original                    |
+| Método | Rota                               | O que faz                                            |
+| ------ | ---------------------------------- | ---------------------------------------------------- |
+| GET    | `/api/blocks/week?weekStart=`      | Ocorrências da semana (uma única consulta)           |
+| POST   | `/api/blocks`                      | Cria bloco semanal ou avulso                         |
+| POST   | `/api/blocks/weekly`               | Cria um bloco semanal por dia marcado (tudo ou nada) |
+| PATCH  | `/api/blocks/:id`                  | Edita a partir de uma data (`from`)                  |
+| DELETE | `/api/blocks/:id?from=`            | Encerra/exclui a partir de uma data (idempotente)    |
+| PUT    | `/api/blocks/:id/exceptions/:date` | Pula ou altera só uma ocorrência                     |
+| DELETE | `/api/blocks/:id/exceptions/:date` | Restaura a ocorrência original                       |
 
 Telas: **Semana** (grade no desktop; abas dos dias no celular) com navegação entre semanas, criação de
 blocos e um painel de ações ao clicar num bloco.
+
+### Vários dias da semana e término da série (Marco 2e)
+
+No formulário **Novo bloco**, "Toda semana" aceita **vários dias de uma vez** (botões Seg a Dom, com atalhos "Dias úteis" e
+"Todos os dias") e um **término**: **Sem fim**, **Até uma data** ou **Por semanas** (N de 1 a 104).
+
+- `POST /api/blocks/weekly` cria **um bloco semanal por dia marcado, na mesma transação**: ou nascem todos, ou nenhum. Todos
+  compartilham atividade, meta, horário, duração, início e fim, e a resposta é a lista, de segunda a domingo.
+- **Depois de criados, cada dia é um bloco independente** (editar, pular, concluir e excluir funcionam por dia, como antes).
+  Não existe "grupo": para mudar o horário em todos os dias, edite um dia por vez.
+- **Fim da série (`validUntil`):** opcional também em `POST /api/blocks` (um dia só). Não pode ser antes do início, e todo dia
+  marcado precisa ocorrer ao menos uma vez no período (senão nasceria um bloco que nunca aparece): 400 com o motivo.
+- **"Por N semanas"** são `N × 7` dias corridos a partir da data de início, então **cada dia marcado ocorre exatamente N
+  vezes**, qualquer que seja o dia de início. A conversão em data final é feita na tela; a API só recebe a data.
+- Editar "esta e as próximas" numa série com fim **mantém o fim**.
 
 ## Hoje, conclusão, XP e níveis (Marco 1d)
 

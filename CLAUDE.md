@@ -186,6 +186,20 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Lição de teste: a trava da varredura de notificações é global ao banco de teste; suítes em paralelo disputam por ela.
   Use `scanWhenFree` (helpers) e nunca compare com contagens globais.
 
+## Blocos em vários dias e fim da série (decisões do 2e)
+
+- `POST /blocks/weekly` (`BlocksService.createWeekly`, schema `createWeeklyBlocksSchema`): um `Block` semanal por dia, TUDO NA
+  MESMA transação (atividade validada antes; meta travada com `FOR KEY SHARE` como no `create`). Decisão: os dias NÃO ficam
+  agrupados (sem "grupo de blocos"); cada um é um bloco independente, então editar/excluir/pular continua por dia. Não mexeu em
+  `series-split`. `POST /blocks` continua devolvendo um `Block` (contrato antigo) e só ganhou `validUntil` opcional.
+- Regras puras em `@lifexp/shared/block.schema.ts`: `checkSeriesEnd` (fim >= início e todo dia marcado ocorre no período;
+  guarda datas inválidas por causa dos refinamentos do Zod 4), `validUntilForWeeks` (`N*7-1` dias: cada dia da semana ocorre
+  exatamente N vezes), `MAX_SERIES_WEEKS = 104`. Bloco avulso não tem fim (`strictObject`).
+- Front: `features/blocks/seriesForm.ts` (puro: `describeWeekdays`, `firstOccurrence`, `resolveEnd`, `toggleWeekday`), formulário em
+  `BlockFormDialog`. A data de início acompanha o dia mais cedo marcado na semana da tela até a pessoa escolher uma própria.
+  Weekly sempre vai por `/blocks/weekly`; avulso continua em `/blocks`.
+- Lição de teste: o roteiro de mutantes agora confere o ESTADO BASE antes de injetar (se a suíte já falha, "morto" não prova nada).
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -239,7 +253,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. Próximo: fase 3 (a combinar).
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. Próximo: fase 3 (a combinar).
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
