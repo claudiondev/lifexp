@@ -23,6 +23,7 @@ import {
   statusActions,
 } from '@/features/goals/goalFormat';
 import { useGoal, useGoalHistory, useGoalMutations } from '@/features/goals/useGoals';
+import { announceUnlocks } from '@/features/achievements/announceUnlocks';
 import { LevelUpDialog } from '@/features/today/LevelUpDialog';
 import { longDate } from '@/lib/civilFormat';
 import { PageHeader } from './PageHeader';
@@ -84,6 +85,7 @@ function GoalDetail({ goal, area }: { goal: Goal; area: Area | undefined }) {
   const unit = goal.unit ? ` ${goal.unit}` : '';
 
   const announceLevel = (result: GoalActionResult) => {
+    announceUnlocks(result);
     if (result.levelAfter > result.levelBefore) setLevelUp(result.levelAfter);
   };
   const fail = (error: unknown) => toast.error(errorMessage(error));

@@ -16,6 +16,8 @@ interface CharacterCardProps {
   /** Maior streak já atingido; aparece como "recorde" ao lado da sequência atual. */
   streakBest?: number;
   emblem?: AvatarKey;
+  /** Título conforme o nível geral (RF23), como "Aventureiro". */
+  title?: string;
   className?: string;
 }
 
@@ -30,6 +32,7 @@ export function CharacterCard({
   streakDays,
   streakBest,
   emblem,
+  title,
   className,
 }: CharacterCardProps) {
   return (
@@ -51,6 +54,7 @@ export function CharacterCard({
             Ficha do personagem
           </p>
           <p className="truncate font-display text-2xl font-bold sm:text-3xl">{name}</p>
+          {title && <p className="font-hud text-sm tracking-wide text-xp">{title}</p>}
         </div>
       </div>
       <XpBar progress={levelProgress} className="mt-5" valueText={`${xp} XP`} />

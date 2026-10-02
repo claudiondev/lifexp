@@ -1,4 +1,5 @@
-import { ArrowRight, History, Scroll } from 'lucide-react';
+import { ArrowRight, Award, Gift, History, Scroll } from 'lucide-react';
+import { levelTitle } from '@lifexp/shared';
 import { Link } from 'react-router';
 import { CharacterCard } from '@/components/game/CharacterCard';
 import { Button } from '@/components/ui/button';
@@ -31,14 +32,28 @@ export function HomePage() {
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,26rem)_1fr]">
         <div className="flex flex-col gap-3">
-          <CharacterCard name={state.user.name} emblem={state.user.avatarKey} {...character} />
-          <Link
-            to="/historico"
-            className="inline-flex items-center gap-2 self-start rounded-lg px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <History aria-hidden className="size-4" />
-            Ver histórico de XP
-          </Link>
+          <CharacterCard
+            name={state.user.name}
+            emblem={state.user.avatarKey}
+            title={levelTitle(character.level)}
+            {...character}
+          />
+          <nav aria-label="Atalhos do personagem" className="flex flex-wrap gap-x-4 gap-y-1">
+            {[
+              { to: '/historico', label: 'Ver histórico de XP', Icon: History },
+              { to: '/conquistas', label: 'Conquistas', Icon: Award },
+              { to: '/recompensas', label: 'Recompensas', Icon: Gift },
+            ].map(({ to, label, Icon }) => (
+              <Link
+                key={to}
+                to={to}
+                className="inline-flex items-center gap-2 rounded-lg px-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <Icon aria-hidden className="size-4" />
+                {label}
+              </Link>
+            ))}
+          </nav>
         </div>
 
         <section

@@ -130,6 +130,36 @@ describe('rotas e telas de auth', () => {
     ).toBeInTheDocument();
   });
 
+  it('o painel tem atalhos para Conquistas e Recompensas e mostra o título do personagem', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+      '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
+    });
+    renderAt('/');
+    await screen.findByRole('heading', { name: /Olá, Ana/ });
+
+    expect(screen.getByRole('link', { name: 'Conquistas' })).toHaveAttribute('href', '/conquistas');
+    expect(screen.getByRole('link', { name: 'Recompensas' })).toHaveAttribute(
+      'href',
+      '/recompensas',
+    );
+    // nível 1 (ponto de partida) é "Aprendiz"
+    expect(screen.getByText('Aprendiz')).toBeInTheDocument();
+  });
+
+  it('abre as telas de Conquistas e de Recompensas', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+      '/api/achievements': () => json(200, []),
+      '/api/rewards': () => json(200, []),
+    });
+    const first = renderAt('/conquistas');
+    expect(await screen.findByRole('heading', { name: 'Conquistas' })).toBeInTheDocument();
+    first.unmount();
+    renderAt('/recompensas');
+    expect(await screen.findByRole('heading', { name: 'Recompensas' })).toBeInTheDocument();
+  });
+
   it('o menu tem "Notas" no topo e na barra do celular, apontando para /notas', async () => {
     stubApi({
       '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),

@@ -6,6 +6,7 @@ import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
 import { useCharacter } from '@/features/character/useCharacter';
 import { useActivities } from '@/features/activities/useActivities';
+import { announceUnlocks } from '@/features/achievements/announceUnlocks';
 import { describeJoker } from '@/features/character/jokerModel';
 import { useAreas } from '@/features/areas/useAreas';
 import { useBlockMutations } from '@/features/blocks/useBlockMutations';
@@ -92,6 +93,7 @@ export function TodayPage() {
       if (result.questBonusXp > 0) {
         toast.success(`Quest da semana cumprida! +${result.questBonusXp} XP de bônus`);
       }
+      announceUnlocks(result);
       if (result.levelAfter > result.levelBefore) setLevelUp(result.levelAfter);
     });
 

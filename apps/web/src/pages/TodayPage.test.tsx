@@ -306,6 +306,80 @@ describe('TodayPage', () => {
     expect(await screen.findByTestId('hud')).toHaveTextContent('190 XP');
   });
 
+  describe('conquistas e recompensas', () => {
+    it('concluir um bloco que desbloqueia conquista e recompensa avisa dos dois', async () => {
+      setup({
+        items: [makeItem(BLOCK_1)],
+        completeResponse: () =>
+          json(200, {
+            completion: {
+              blockId: BLOCK_1,
+              occurrenceDate: '2026-10-07',
+              completedAt: '2026-10-07T13:00:00.000Z',
+              xpAmount: 90,
+            },
+            alreadyCompleted: false,
+            xpAwarded: 90,
+            levelBefore: 2,
+            levelAfter: 2,
+            total: level(190, 2),
+            area: { areaId: AREA, ...level(190, 2) },
+            achievementsUnlocked: ['first_step', 'constant'],
+            rewardsReached: [{ id: '0192f1a0-7b3c-7000-8000-0000000000e1', title: 'Sorvete' }],
+          }),
+      });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Concluir/ }),
+      );
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('Conquista desbloqueada: Primeiro passo', {
+          description: 'Cumpra o seu primeiro bloco.',
+        }),
+      );
+      expect(toast.success).toHaveBeenCalledWith(
+        'Conquista desbloqueada: Constante',
+        expect.anything(),
+      );
+      expect(toast.success).toHaveBeenCalledWith('Recompensa desbloqueada: Sorvete', {
+        description: 'Você pode resgatá-la em Recompensas.',
+      });
+    });
+
+    it('concluir de novo (já concluído) não avisa de nada, mesmo que a resposta traga algo', async () => {
+      setup({
+        items: [makeItem(BLOCK_1)],
+        completeResponse: () =>
+          json(200, {
+            completion: {
+              blockId: BLOCK_1,
+              occurrenceDate: '2026-10-07',
+              completedAt: '2026-10-07T13:00:00.000Z',
+              xpAmount: 90,
+            },
+            alreadyCompleted: true,
+            xpAwarded: 0,
+            levelBefore: 2,
+            levelAfter: 2,
+            total: level(190, 2),
+            area: { areaId: AREA, ...level(190, 2) },
+            achievementsUnlocked: ['first_step'],
+          }),
+      });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Concluir/ }),
+      );
+      await waitFor(() =>
+        expect(fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/completion'),
+          expect.anything(),
+        ),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(toast.success).not.toHaveBeenCalled();
+    });
+  });
+
   describe('quest da semana', () => {
     it('mostra o cartão com o que falta e o bônus', async () => {
       setup({ items: [makeItem(BLOCK_1)], quest: activeQuest });

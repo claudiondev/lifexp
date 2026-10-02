@@ -6,6 +6,7 @@ import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { AppShell } from './components/layout/AppShell';
+import { AchievementsPage } from './pages/AchievementsPage';
 import { AreasPage } from './pages/AreasPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
@@ -14,6 +15,7 @@ import { HomePage } from './pages/HomePage';
 import { NoteEditorPage } from './pages/NoteEditorPage';
 import { NotesPage } from './pages/NotesPage';
 import { TodayPage } from './pages/TodayPage';
+import { RewardsPage } from './pages/RewardsPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { WeekPage } from './pages/WeekPage';
@@ -42,6 +44,8 @@ export function AppRoutes() {
           <Route path="/metas" element={<GoalsPage />} />
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
           <Route path="/historico" element={<XpHistoryPage />} />
+          <Route path="/conquistas" element={<AchievementsPage />} />
+          <Route path="/recompensas" element={<RewardsPage />} />
           <Route path="/areas" element={<AreasPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           {/* o endereço antigo continua funcionando (favoritos, PWA instalado) */}

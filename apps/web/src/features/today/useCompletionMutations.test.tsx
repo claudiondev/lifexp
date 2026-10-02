@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAccessToken } from '@/lib/apiClient';
 import { blocksKey } from '../blocks/useWeek';
 import { progressKey } from '../character/useProgress';
+import { achievementsKey } from '../achievements/useAchievements';
 import { balanceKey } from '../balance/useBalance';
 import { questKey } from '../quest/useQuest';
+import { rewardsKey } from '../rewards/useRewards';
 import { useCompletionMutations } from './useCompletionMutations';
 import { todayKey } from './useToday';
 
@@ -24,7 +26,7 @@ describe('useCompletionMutations', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it.each(['complete', 'undo'] as const)(
-    '%s invalida a lista de hoje, o progresso, a quest, o radar e as semanas em cache',
+    '%s invalida a lista de hoje, o progresso, a quest, o radar, as conquistas, as recompensas e as semanas em cache',
     async (action) => {
       vi.stubGlobal(
         'fetch',
@@ -53,6 +55,8 @@ describe('useCompletionMutations', () => {
         progressKey,
         questKey,
         balanceKey,
+        achievementsKey,
+        rewardsKey,
         [...blocksKey, 'week', '2026-10-05'],
       ] as const;
       keys.forEach((key) => client.setQueryData(key, { stale: false }));

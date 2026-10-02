@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GoalStatus, UpdateGoalInput } from '@lifexp/shared';
+import { achievementsKey } from '../achievements/useAchievements';
 import { progressKey } from '../character/useProgress';
+import { rewardsKey } from '../rewards/useRewards';
 import { todayKey } from '../today/useToday';
 import * as goalsApi from './goalsApi';
 
@@ -30,7 +32,7 @@ export function useGoalMutations() {
   // muda as horas investidas, então a chave `goals` inteira é invalidada junto com o progresso.
   const refresh = () =>
     Promise.all(
-      [goalsKey, progressKey, todayKey].map((queryKey) =>
+      [goalsKey, progressKey, todayKey, achievementsKey, rewardsKey].map((queryKey) =>
         queryClient.invalidateQueries({ queryKey }),
       ),
     );

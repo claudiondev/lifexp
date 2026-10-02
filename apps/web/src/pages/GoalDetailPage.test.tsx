@@ -252,6 +252,28 @@ describe('GoalDetailPage', () => {
       ).toBeInTheDocument();
     });
 
+    it('um marco que desbloqueia recompensa avisa dela', async () => {
+      setup({
+        overrides: {
+          [`POST /api/goals/${GOAL_ID}/milestones/${MS_2}/completion`]: () =>
+            json(200, {
+              ...makeResult(makeGoal(), 100),
+              rewardsReached: [
+                { id: '0192f1a0-7b3c-7000-8000-0000000000e1', title: 'Jantar fora' },
+              ],
+            }),
+        },
+      });
+
+      await userEvent.click(await screen.findByRole('checkbox', { name: 'Segundo livro' }));
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('Recompensa desbloqueada: Jantar fora', {
+          description: 'Você pode resgatá-la em Recompensas.',
+        }),
+      );
+    });
+
     it('mostra o erro do servidor num aviso', async () => {
       setup({
         overrides: {
@@ -295,6 +317,26 @@ describe('GoalDetailPage', () => {
       expect(dialog.getByText('Meta concluída')).toBeInTheDocument();
       expect(dialog.getByRole('heading', { name: 'Ler 12 livros' })).toBeInTheDocument();
       expect(dialog.getByText('+500 XP')).toBeInTheDocument();
+    });
+
+    it('concluir a meta desbloqueia "Sonho realizado" e avisa', async () => {
+      setup({
+        overrides: {
+          [`PUT /api/goals/${GOAL_ID}/status`]: () =>
+            json(200, {
+              ...makeResult(makeGoal({ status: 'completed' }), 500),
+              achievementsUnlocked: ['dream_realized'],
+            }),
+        },
+      });
+
+      await userEvent.click(await screen.findByRole('button', { name: /Concluir meta/ }));
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('Conquista desbloqueada: Sonho realizado', {
+          description: 'Conclua a sua primeira meta.',
+        }),
+      );
     });
 
     it('concluir uma meta que já estava concluída (sem XP novo) não comemora', async () => {
