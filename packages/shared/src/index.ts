@@ -17,3 +17,4 @@ export * from './event.schema.js';
 export * from './notification.schema.js';
 export * from './xp-history.schema.js';
 export * from './session.schema.js';
+export * from './review.schema.js';

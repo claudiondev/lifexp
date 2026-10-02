@@ -163,6 +163,13 @@ describe('consultas', () => {
     expect(weekQuerySchema.safeParse({}).success).toBe(false);
   });
 
+  it('weekStart com data inexistente é recusado SEM lançar erro', () => {
+    for (const weekStart of ['2026-02-30', '2026-13-01', 'hoje', '', '2026-1-5']) {
+      expect(() => weekQuerySchema.safeParse({ weekStart })).not.toThrow();
+      expect(weekQuerySchema.safeParse({ weekStart }).success).toBe(false);
+    }
+  });
+
   it('delete exige `from` válido', () => {
     expect(deleteBlockQuerySchema.safeParse({ from: '2026-10-07' }).success).toBe(true);
     expect(deleteBlockQuerySchema.safeParse({}).success).toBe(false);

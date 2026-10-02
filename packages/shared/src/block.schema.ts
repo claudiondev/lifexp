@@ -4,7 +4,6 @@ import {
   endsSameDay,
   firstOccurrenceOnOrAfter,
   isValidCivilDate,
-  isWeekStart,
   type CivilDate,
 } from './civil-date.js';
 import { completionSchema } from './completion.schema.js';
@@ -12,6 +11,7 @@ import {
   civilDateSchema,
   durationMinSchema,
   timeOfDaySchema,
+  weekStartSchema,
   weekdaySchema,
 } from './primitives.js';
 
@@ -210,7 +210,7 @@ export const blockExceptionSchema = z.object({
 });
 
 export const weekQuerySchema = z.object({
-  weekStart: civilDateSchema.refine(isWeekStart, 'A semana começa na segunda-feira'),
+  weekStart: weekStartSchema,
 });
 
 /** Uma ocorrência já calculada: identificada por (blockId, occurrenceDate), conforme RN32. */
