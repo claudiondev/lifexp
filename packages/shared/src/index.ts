@@ -16,3 +16,4 @@ export * from './goal.schema.js';
 export * from './event.schema.js';
 export * from './notification.schema.js';
 export * from './xp-history.schema.js';
+export * from './session.schema.js';
