@@ -2,8 +2,10 @@ import {
   authResponseSchema,
   userSchema,
   type AuthResponse,
+  type ForgotPasswordInput,
   type LoginInput,
   type RegisterInput,
+  type ResetPasswordInput,
   type UpdateProfileInput,
   type User,
 } from '@lifexp/shared';
@@ -47,4 +49,16 @@ export function fetchMe(): Promise<User> {
 
 export function updateProfile(input: UpdateProfileInput): Promise<User> {
   return apiJson('/users/me', userSchema, { method: 'PATCH', json: input });
+}
+
+const postJson = (path: string, body: unknown) =>
+  apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+
+/** Responde igual exista ou não a conta: a tela nunca sabe (nem mostra) se o e-mail está cadastrado. */
+export async function requestPasswordReset(input: ForgotPasswordInput): Promise<void> {
+  await postJson('/auth/forgot-password', input);
+}
+
+export async function resetPassword(input: ResetPasswordInput): Promise<void> {
+  await postJson('/auth/reset-password', input);
 }

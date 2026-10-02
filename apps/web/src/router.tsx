@@ -1,8 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router';
+import { ForgotPasswordPage } from './features/auth/ForgotPasswordPage';
 import { GuestRoute } from './features/auth/GuestRoute';
 import { LoginPage } from './features/auth/LoginPage';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { RegisterPage } from './features/auth/RegisterPage';
+import { ResetPasswordPage } from './features/auth/ResetPasswordPage';
 import { AppShell } from './components/layout/AppShell';
 import { AreasPage } from './pages/AreasPage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -20,7 +22,10 @@ export function AppRoutes() {
       <Route element={<GuestRoute />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/esqueci-senha" element={<ForgotPasswordPage />} />
       </Route>
+      {/* Fora do GuestRoute: o link do e-mail precisa abrir mesmo com uma sessão ativa no navegador. */}
+      <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/" element={<HomePage />} />
