@@ -72,6 +72,7 @@ describe('NotificationPreferencesCard (RF40)', () => {
     expect(screen.getByRole('switch', { name: 'Lembrar dos eventos' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Resumo do dia' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Resumo por e-mail' })).not.toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Relatório da semana' })).toBeChecked();
     expect(screen.getByLabelText('Quanto antes')).toHaveValue('15');
     expect(screen.getByLabelText('Hora do resumo')).toHaveValue('07:00');
   });
@@ -86,6 +87,9 @@ describe('NotificationPreferencesCard (RF40)', () => {
 
     await userEvent.click(screen.getByRole('switch', { name: 'Resumo por e-mail' }));
     await waitFor(() => expect(puts.at(-1)).toEqual({ digestEmailEnabled: true }));
+
+    await userEvent.click(screen.getByRole('switch', { name: 'Relatório da semana' }));
+    await waitFor(() => expect(puts.at(-1)).toEqual({ weeklyReportEnabled: false }));
   });
 
   it('troca a antecedência do lembrete de bloco', async () => {

@@ -83,6 +83,8 @@ interface Api {
   history?: ReviewListItem[];
   detailStatus?: number;
   putStatus?: number;
+  /** Resposta do relatório da semana; sem ela a rota falha e a seção some. */
+  report?: unknown;
 }
 
 function setup(entry = '/revisao', api: Api = {}) {
@@ -97,6 +99,9 @@ function setup(entry = '/revisao', api: Api = {}) {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       calls.push({ method, url, body });
 
+      if (url.startsWith('/api/reports/weekly')) {
+        return api.report ? json(200, api.report) : json(404);
+      }
       const week = /^\/api\/reviews\/(\d{4}-\d{2}-\d{2})$/.exec(url);
       if (week && method === 'GET') {
         if (api.detailStatus) return json(api.detailStatus, { message: 'falhou' });
@@ -174,6 +179,69 @@ describe('ReviewPage', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  describe('relatório da semana', () => {
+    const report = {
+      weekStart: WEEK,
+      weekEnd: '2026-10-11',
+      blocks: { planned: 4, completed: 3, skipped: 1, open: 0, adherence: 75 },
+      minutes: 150,
+      xp: { gained: 150, reverted: 0, net: 150, byArea: [] },
+      areas: [],
+      quest: {
+        weekStart: WEEK,
+        status: 'none',
+        eligible: 0,
+        completed: 0,
+        target: 0,
+        ratio: null,
+        bonusXp: 0,
+        tiers: [],
+        completedAt: null,
+      },
+      achievements: [],
+      goals: { milestones: [], completed: [] },
+      streak: {
+        current: 3,
+        best: 3,
+        lastFulfilledDate: '2026-10-06',
+        joker: { weekStart: WEEK, used: false, usedOn: null },
+      },
+      bestDay: null,
+    };
+
+    it('aparece na Revisão, pedindo a semana que está na tela', async () => {
+      const { calls } = setup('/revisao', { report });
+
+      const section = await screen.findByRole('region', { name: 'Relatório da semana' });
+      expect(await within(section).findByText('Aderência')).toBeVisible();
+      expect(calls.map((c) => c.url)).toContain(`/api/reports/weekly?weekStart=${WEEK}`);
+    });
+
+    it('ao trocar de semana, pede o relatório da outra semana', async () => {
+      const { calls } = setup('/revisao', { report });
+      await screen.findByRole('region', { name: 'Relatório da semana' });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Semana anterior' }));
+
+      await waitFor(() =>
+        expect(calls.map((c) => c.url)).toContain('/api/reports/weekly?weekStart=2026-09-28'),
+      );
+    });
+
+    it('com a rota do relatório falhando, a Revisão segue normal (sem alerta)', async () => {
+      setup('/revisao');
+
+      expect(await screen.findByText('Como foi a semana')).toBeVisible();
+      // a seção nasce com o esqueleto de carregamento e some quando a consulta falha
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('region', { name: 'Relatório da semana' }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 
   describe('resumo da semana', () => {

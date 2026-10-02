@@ -34,12 +34,16 @@ export class ReportsService {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  async weekly(userId: string, requested?: CivilDate): Promise<WeeklyReport> {
+  /**
+   * `at` é o instante de referência (o "agora" de quem pede): a varredura de notificações passa o seu, para o relatório
+   * valer para o mesmo momento que ela está processando; sem ele vale o relógio da aplicação.
+   */
+  async weekly(userId: string, requested?: CivilDate, at?: Date): Promise<WeeklyReport> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true },
     });
-    const today = todayIn(user.timezone, this.clock.now());
+    const today = todayIn(user.timezone, at ?? this.clock.now());
     const currentWeek = weekStartOf(today);
     const weekStart = requested ?? currentWeek;
     if (isFutureWeek(weekStart, currentWeek)) throw new BadRequestException(FUTURE_WEEK);

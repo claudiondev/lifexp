@@ -5,10 +5,14 @@ import { fromCivil, toCivil } from '../blocks/blocks.mapper.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   planNotifications,
+  planWeeklyReport,
+  reportNotificationText,
   scanWindow,
+  type NotificationCandidate,
   type PlannedEvent,
   type PlannedOccurrence,
 } from './domain/notification-plan.js';
+import { ReportsService } from '../reviews/reports.service.js';
 import { NotificationPreferencesService } from './notification-preferences.service.js';
 
 export interface ScanSummary {
@@ -25,6 +29,7 @@ export class NotificationGenerator {
     private readonly prisma: PrismaService,
     private readonly blocks: BlocksService,
     private readonly preferences: NotificationPreferencesService,
+    private readonly reports: ReportsService,
   ) {}
 
   /** Varre todas as pessoas que têm blocos ou eventos. Uma que falhe não impede as outras. */
@@ -78,10 +83,12 @@ export class NotificationGenerator {
       occurrences,
       events,
     });
-    if (candidates.length === 0) return 0;
+    const report = await this.reportCandidate(userId, window, user.timezone, prefs);
+    const all = report ? [...candidates, report] : candidates;
+    if (all.length === 0) return 0;
 
     const result = await this.prisma.notification.createMany({
-      data: candidates.map((candidate) => ({
+      data: all.map((candidate) => ({
         userId,
         kind: candidate.kind,
         title: candidate.title,
@@ -95,6 +102,33 @@ export class NotificationGenerator {
       skipDuplicates: true,
     });
     return result.count;
+  }
+
+  /**
+   * O aviso "seu relatório da semana está pronto" (RF47), na segunda-feira, na hora do resumo. O relatório é caro de
+   * montar, e a janela da varredura cobre uma hora de varreduras por minuto: confere primeiro se o aviso desta semana
+   * já existe para montar uma vez só por pessoa.
+   */
+  private async reportCandidate(
+    userId: string,
+    window: ReturnType<typeof scanWindow>,
+    timezone: string,
+    prefs: Awaited<ReturnType<NotificationPreferencesService['get']>>,
+  ): Promise<NotificationCandidate | null> {
+    const plan = planWeeklyReport({ window, timezone, prefs });
+    if (!plan) return null;
+    const dedupeKey = `report:${plan.weekStart}`;
+    const existing = await this.prisma.notification.findUnique({
+      where: { userId_dedupeKey: { userId, dedupeKey } },
+      select: { id: true },
+    });
+    if (existing) return null;
+
+    const text = reportNotificationText(
+      await this.reports.weekly(userId, plan.weekStart, window.to),
+    );
+    if (!text) return null;
+    return { kind: 'REPORT', dedupeKey, ...text, scheduledFor: plan.scheduledFor };
   }
 
   private async occurrences(

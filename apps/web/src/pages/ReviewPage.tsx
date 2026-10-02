@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/useAuth';
 import { useNow } from '@/features/blocks/useNow';
+import { WeeklyReportSection } from '@/features/reports/WeeklyReportSection';
 import { ReviewForm } from '@/features/reviews/ReviewForm';
 import { ReviewSummary } from '@/features/reviews/ReviewSummary';
 import { nextWeekOf, previousWeekOf, resolveReviewWeek } from '@/features/reviews/reviewFormat';
@@ -119,6 +120,8 @@ export function ReviewPage() {
               <ReviewSummary summary={review.data.summary} />
             </div>
           </section>
+
+          <WeeklyReportSection weekStart={weekStart} />
 
           <section
             aria-labelledby="reflection-title"

@@ -152,6 +152,15 @@ function PreferencesForm({
         disabled={busy || !preferences.digestEnabled}
         onChange={(value) => onSave({ digestEmailEnabled: value })}
       />
+
+      <Row
+        id="pref-report"
+        label="Relatório da semana"
+        hint="Toda segunda-feira, na hora do resumo, um aviso de que o relatório da semana que passou está pronto."
+        checked={preferences.weeklyReportEnabled}
+        disabled={busy}
+        onChange={(value) => onSave({ weeklyReportEnabled: value })}
+      />
     </div>
   );
 }

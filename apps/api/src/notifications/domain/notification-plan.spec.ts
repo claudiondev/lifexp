@@ -8,6 +8,8 @@ import {
   inWindow,
   leadText,
   planNotifications,
+  planWeeklyReport,
+  reportNotificationText,
   scanWindow,
   type NotificationPreferences,
   type PlannedEvent,
@@ -483,5 +485,118 @@ describe('planNotifications: juntando tudo', () => {
     }).map((n) => n.dedupeKey);
     expect(keys.filter((key) => key.startsWith('digest:'))).toHaveLength(1);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe('planWeeklyReport', () => {
+  // Segunda 2026-10-12, 07:00 em São Paulo (UTC-3) = 10:00Z. A semana que acabou começou em 2026-10-05.
+  const MONDAY_Z = '2026-10-12T10:00:20.000Z';
+  const input = (now: string, over: Partial<Parameters<typeof planWeeklyReport>[0]> = {}) => ({
+    window: scanWindow(new Date(now)),
+    timezone: 'America/Sao_Paulo',
+    prefs: { weeklyReportEnabled: true, digestTime: '07:00' },
+    ...over,
+  });
+
+  it('na segunda, na hora do resumo, planeja o relatório da semana anterior', () => {
+    expect(planWeeklyReport(input(MONDAY_Z))).toEqual({
+      weekStart: '2026-10-05',
+      scheduledFor: new Date('2026-10-12T10:00:00.000Z'),
+    });
+  });
+
+  it('em qualquer outro dia da semana não há relatório', () => {
+    for (const day of [
+      '2026-10-13',
+      '2026-10-14',
+      '2026-10-15',
+      '2026-10-16',
+      '2026-10-17',
+      '2026-10-18',
+    ]) {
+      expect(planWeeklyReport(input(`${day}T10:00:20.000Z`)), day).toBeNull();
+    }
+  });
+
+  it('só quando a hora do resumo cai na janela da varredura (recupera até 1 h de queda, não antes)', () => {
+    expect(planWeeklyReport(input('2026-10-12T09:59:59.000Z'))).toBeNull();
+    expect(planWeeklyReport(input('2026-10-12T10:00:00.000Z'))).not.toBeNull();
+    expect(planWeeklyReport(input('2026-10-12T10:59:59.000Z'))).not.toBeNull();
+    expect(planWeeklyReport(input('2026-10-12T11:00:01.000Z'))).toBeNull();
+  });
+
+  it('desligado nas preferências, não planeja', () => {
+    expect(
+      planWeeklyReport(
+        input(MONDAY_Z, { prefs: { weeklyReportEnabled: false, digestTime: '07:00' } }),
+      ),
+    ).toBeNull();
+  });
+
+  it('usa a hora do resumo da pessoa e o fuso dela', () => {
+    // 08:30 em São Paulo = 11:30Z
+    const plan = planWeeklyReport(
+      input('2026-10-12T11:30:20.000Z', {
+        prefs: { weeklyReportEnabled: true, digestTime: '08:30' },
+      }),
+    );
+    expect(plan?.scheduledFor).toEqual(new Date('2026-10-12T11:30:00.000Z'));
+    // em Honolulu (UTC-10) são 00:00 de segunda: a hora do resumo (07:00) ainda não chegou
+    expect(planWeeklyReport(input(MONDAY_Z, { timezone: 'Pacific/Honolulu' }))).toBeNull();
+    // em Kiritimati (UTC+14) já é terça: não é segunda
+    expect(planWeeklyReport(input(MONDAY_Z, { timezone: 'Pacific/Kiritimati' }))).toBeNull();
+  });
+
+  it('a segunda é a do fuso da pessoa, mesmo que em UTC ainda seja domingo', () => {
+    // 07:00 de segunda em Tóquio (UTC+9) = 22:00Z de domingo
+    const plan = planWeeklyReport(input('2026-10-11T22:00:20.000Z', { timezone: 'Asia/Tokyo' }));
+    expect(plan).toEqual({
+      weekStart: '2026-10-05',
+      scheduledFor: new Date('2026-10-11T22:00:00.000Z'),
+    });
+    // e para quem está em São Paulo, no mesmo instante, ainda é domingo à noite: nada
+    expect(planWeeklyReport(input('2026-10-11T22:00:20.000Z'))).toBeNull();
+  });
+
+  it('a segunda cruza a virada do mês e do ano', () => {
+    const plan = planWeeklyReport(input('2026-12-28T10:00:20.000Z'));
+    expect(plan?.weekStart).toBe('2026-12-21');
+    const newYear = planWeeklyReport(input('2027-01-04T10:00:20.000Z'));
+    expect(newYear?.weekStart).toBe('2026-12-28');
+  });
+});
+
+describe('reportNotificationText', () => {
+  const report = (blocks: object, net = 640) =>
+    ({
+      weekStart: '2026-10-05',
+      blocks: { planned: 15, completed: 12, skipped: 0, open: 0, adherence: 80, ...blocks },
+      xp: { gained: 700, reverted: 60, net, byArea: [] },
+    }) as Parameters<typeof reportNotificationText>[0];
+
+  it('conta o que foi cumprido, com a aderência e o XP', () => {
+    expect(reportNotificationText(report({}))).toEqual({
+      title: 'Seu relatório da semana',
+      body: 'Semana de 05/10: 12 de 15 blocos (80%) e +640 XP. Veja o relatório completo.',
+    });
+  });
+
+  it('singular, e sem XP líquido positivo não menciona XP', () => {
+    expect(
+      reportNotificationText(report({ planned: 1, completed: 1, adherence: 100 }, 0))?.body,
+    ).toBe('Semana de 05/10: 1 de 1 bloco (100%). Veja o relatório completo.');
+    expect(reportNotificationText(report({}, -20))?.body).not.toContain('XP');
+  });
+
+  it('semana sem nenhum bloco contado não vira aviso', () => {
+    expect(
+      reportNotificationText(report({ planned: 0, completed: 0, adherence: null })),
+    ).toBeNull();
+  });
+
+  it('semana cheia de blocos pulados (nada contado) também não', () => {
+    expect(
+      reportNotificationText(report({ planned: 0, completed: 0, skipped: 5, adherence: null })),
+    ).toBeNull();
   });
 });

@@ -5,7 +5,9 @@ import {
   addDays,
   localDateTimeToUtc,
   todayIn,
+  weekStartOf,
   type CivilDate,
+  type WeeklyReport,
 } from '@lifexp/shared';
 
 /** Quanto tempo para trás a varredura olha: recupera lembretes de uma queda curta da API. */
@@ -268,4 +270,47 @@ export function planNotifications(input: PlanInput): NotificationCandidate[] {
     (a, b) =>
       a.scheduledFor.getTime() - b.scheduledFor.getTime() || a.dedupeKey.localeCompare(b.dedupeKey),
   );
+}
+
+/** O aviso de relatório semanal a gerar nesta varredura: de QUAL semana (a anterior) e quando ele sai. */
+export interface ReportPlan {
+  /** A segunda-feira da semana que acabou. */
+  weekStart: CivilDate;
+  scheduledFor: Date;
+}
+
+/**
+ * O relatório da semana que acabou (RF47) sai na segunda-feira, na hora do resumo do dia (a mesma `digestTime`), no
+ * fuso da pessoa. Só decide QUANDO: o texto depende dos números da semana, que o serviço lê do banco. Desligado nas
+ * preferências, em qualquer outro dia ou fora da janela da varredura, não há nada a gerar.
+ */
+export function planWeeklyReport(input: {
+  window: ScanWindow;
+  timezone: string;
+  prefs: Pick<NotificationPreferences, 'weeklyReportEnabled' | 'digestTime'>;
+}): ReportPlan | null {
+  if (!input.prefs.weeklyReportEnabled) return null;
+  const today = todayIn(input.timezone, input.window.to);
+  if (weekStartOf(today) !== today) return null; // só às segundas
+  const at = localDateTimeToUtc(today, input.prefs.digestTime, input.timezone);
+  if (!inWindow(at, input.window)) return null;
+  return { weekStart: addDays(today, -7), scheduledFor: at };
+}
+
+/**
+ * O texto do aviso, em tom de boa notícia: o que foi cumprido, sem cobrar o que ficou. Devolve nulo quando a semana
+ * não teve nenhum bloco contado (nada a relatar: não vale um aviso).
+ */
+export function reportNotificationText(
+  report: Pick<WeeklyReport, 'weekStart' | 'blocks' | 'xp'>,
+): { title: string; body: string } | null {
+  const { blocks, xp } = report;
+  if (blocks.planned === 0) return null;
+  const week = `${report.weekStart.slice(8, 10)}/${report.weekStart.slice(5, 7)}`;
+  const adherenceText = blocks.adherence === null ? '' : ` (${blocks.adherence}%)`;
+  const xpText = xp.net > 0 ? ` e +${xp.net} XP` : '';
+  return {
+    title: 'Seu relatório da semana',
+    body: `Semana de ${week}: ${blocks.completed} de ${plural(blocks.planned, 'bloco', 'blocos')}${adherenceText}${xpText}. Veja o relatório completo.`,
+  };
 }
