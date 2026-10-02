@@ -20,6 +20,9 @@ export const envSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
+    // Formato dos logs: JSON (uma linha por registro, para ferramentas de log) ou texto legível. Sem valor: JSON em
+    // produção e texto nos demais ambientes.
+    LOG_FORMAT: z.enum(['json', 'pretty']).optional(),
     // Liga a varredura por minuto que gera lembretes e resumos (RN38). Os testes desligam.
     NOTIFICATIONS_SCHEDULER: booleanString('true'),
     // Liga a criação do snapshot da quest semanal na virada da semana (RN16). Os testes desligam.

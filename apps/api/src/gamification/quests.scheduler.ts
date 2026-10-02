@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { todayIn, weekStartOf } from '@lifexp/shared';
 import { CLOCK, type Clock } from '../clock/clock.js';
 import type { Env } from '../config/env.schema.js';
+import { JobMonitor } from '../observability/job-monitor.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuestService } from './quest.service.js';
 
@@ -29,20 +30,17 @@ export class QuestsScheduler {
     private readonly prisma: PrismaService,
     private readonly quests: QuestService,
     private readonly config: ConfigService<Env, true>,
+    private readonly monitor: JobMonitor,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async tick(): Promise<void> {
     if (!this.config.get('QUESTS_SCHEDULER', { infer: true })) return;
-    try {
+    await this.monitor.track('quests-snapshot', async () => {
       const summary = await this.runOnce(this.clock.now());
-      if (summary && summary.created > 0) {
-        this.logger.log(`${summary.created} quests semanais criadas para ${summary.users} pessoas`);
-      }
-    } catch (error) {
-      this.logger.error('A criação das quests semanais falhou', error);
-    }
+      return summary && { ...summary };
+    });
   }
 
   /** Devolve nulo quando outra instância já estava fazendo o trabalho. */

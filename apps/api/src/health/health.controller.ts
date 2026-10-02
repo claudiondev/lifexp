@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ZodResponse } from 'nestjs-zod';
 import { Public } from '../auth/public.decorator.js';
-import { HealthResponseDto } from './health.dto.js';
+import { HealthResponseDto, JobsHealthDto } from './health.dto.js';
 import { HealthService } from './health.service.js';
 
 @ApiTags('health')
@@ -16,5 +16,15 @@ export class HealthController {
   @ZodResponse({ type: HealthResponseDto })
   check(): HealthResponseDto {
     return this.healthService.check();
+  }
+
+  @Get('jobs')
+  @ApiOperation({
+    summary:
+      'Estado dos jobs agendados (última execução, última vez que deu certo, falhas seguidas)',
+  })
+  @ZodResponse({ type: JobsHealthDto })
+  jobs(): JobsHealthDto {
+    return this.healthService.jobs();
   }
 }

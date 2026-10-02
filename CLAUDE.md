@@ -339,6 +339,16 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Mutante de banco: ao remover uma CHECK para testar, apague as linhas que a violam ANTES de recriá-la (senão o roteiro quebra e deixa o banco de
   teste sem a restrição).
 
+## Observabilidade (decisões)
+
+- `observability/`: `redact` (rede de segurança contra dado sensível em log e erro), `JsonLogger` (convenção do Nest: contexto = último parâmetro
+  texto; objeto no lugar da mensagem vira campos; erro leva stack cortado e redigido), `JobMonitor` (global; `track(nome, fn)` NUNCA lança; `fn`
+  devolve `null` para "pulado"). Todo agendador novo deve rodar dentro do `track`. `main.ts` usa `bufferLogs` e troca para `JsonLogger` conforme
+  `resolveLogFormat`.
+- `GET /api/health/jobs` é público de propósito e NÃO traz o texto do erro (só nomes, instantes e contagens). O erro detalhado fica no log.
+- Dependências: `pnpm audit --audit-level=high` no CI e Dependabot; os `pnpm.overrides` (mysql2, deepmerge-ts) existem para limpar alertas que só
+  vêm do CLI do Prisma. Se `pnpm audit` voltar a acusar algo, ver primeiro se é transitivo de dev/CLI antes de trocar versão direta.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma

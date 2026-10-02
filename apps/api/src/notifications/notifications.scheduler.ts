@@ -1,10 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CLOCK, type Clock } from '../clock/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Env } from '../config/env.schema.js';
 import { DigestEmailService } from './digest-email.service.js';
+import { JobMonitor } from '../observability/job-monitor.js';
 import { PushNotifier } from './push-notifier.service.js';
 import { NotificationGenerator } from './notification-generator.service.js';
 
@@ -13,29 +14,24 @@ export const SCAN_LOCK_KEY = 74_201_001;
 
 @Injectable()
 export class NotificationsScheduler {
-  private readonly logger = new Logger(NotificationsScheduler.name);
-
   constructor(
     private readonly generator: NotificationGenerator,
     private readonly digestEmail: DigestEmailService,
     private readonly push: PushNotifier,
+    private readonly monitor: JobMonitor,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
-  /** Varredura por minuto (RN38: @nestjs/schedule basta no início). */
+  /** Varredura por minuto (RN38: @nestjs/schedule basta no início). O `JobMonitor` registra o resultado (RNF13). */
   @Cron(CronExpression.EVERY_MINUTE)
   async tick(): Promise<void> {
     if (!this.config.get('NOTIFICATIONS_SCHEDULER', { infer: true })) return;
-    try {
+    await this.monitor.track('notifications-scan', async () => {
       const summary = await this.runOnce(this.clock.now());
-      if (summary && summary.created > 0) {
-        this.logger.log(`${summary.created} notificações geradas para ${summary.users} pessoas`);
-      }
-    } catch (error) {
-      this.logger.error('A varredura de notificações falhou', error);
-    }
+      return summary && { ...summary };
+    });
   }
 
   /**

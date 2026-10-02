@@ -15,6 +15,7 @@ import { MailModule } from './mail/mail.module.js';
 import { NotesModule } from './notes/notes.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
+import { ObservabilityModule } from './observability/observability.module.js';
 import { PushModule } from './push/push.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -23,6 +24,7 @@ import { UsersModule } from './users/users.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     ClockModule,
+    ObservabilityModule,
     MailModule,
     PrismaModule,
     PushModule,

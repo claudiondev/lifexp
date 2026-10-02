@@ -154,19 +154,31 @@ describe('Resumo diário por e-mail (e2e)', () => {
     it('uma falha do provedor é repetida no minuto seguinte, até dar certo', async () => {
       const { user } = await setup();
       const digest = await digestOf(user);
-      mailer.failNext = 1;
+      // o provedor falha uma vez, só para esta pessoa (a rodada também envia os resumos de outros testes)
+      const original = mailer.send.bind(mailer);
+      let failures = 0;
+      mailer.send = async (message) => {
+        if (message.to === user.email && failures < 1) {
+          failures += 1;
+          throw new Error('provedor fora do ar');
+        }
+        return original(message);
+      };
+      try {
+        const first = await emails.sendPending(new Date(DIGEST_Z));
+        expect(first.failed).toBeGreaterThanOrEqual(1);
+        let row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
+        expect(row.emailSentAt).toBeNull();
+        expect(row.emailAttempts).toBe(1);
 
-      const first = await emails.sendPending(new Date(DIGEST_Z));
-      expect(first.failed).toBeGreaterThanOrEqual(1);
-      let row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
-      expect(row.emailSentAt).toBeNull();
-      expect(row.emailAttempts).toBe(1);
-
-      await emails.sendPending(new Date('2026-10-07T10:01:20.000Z'));
-      row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
-      expect(row.emailSentAt).not.toBeNull();
-      expect(row.emailAttempts).toBe(2);
-      expect(mailsTo(user)).toHaveLength(1);
+        await emails.sendPending(new Date('2026-10-07T10:01:20.000Z'));
+        row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
+        expect(row.emailSentAt).not.toBeNull();
+        expect(row.emailAttempts).toBe(2);
+        expect(mailsTo(user)).toHaveLength(1);
+      } finally {
+        mailer.send = original;
+      }
     });
 
     it(`desiste depois de ${MAX_EMAIL_ATTEMPTS} tentativas, sem travar os outros`, async () => {

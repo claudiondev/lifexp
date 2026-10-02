@@ -5,6 +5,7 @@ import type { Env } from '../config/env.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { DigestEmailService } from './digest-email.service.js';
 import type { NotificationGenerator, ScanSummary } from './notification-generator.service.js';
+import { JobMonitor } from '../observability/job-monitor.js';
 import type { PushNotifier } from './push-notifier.service.js';
 import { NotificationsScheduler } from './notifications.scheduler.js';
 
@@ -25,8 +26,18 @@ function build(
   } as unknown as PrismaService;
   const config = { get: () => options.enabled ?? true } as unknown as ConfigService<Env, true>;
   const clock: Clock = { now: () => NOW };
+  const monitor = new JobMonitor();
   return {
-    scheduler: new NotificationsScheduler(generator, digestEmail, push, prisma, config, clock),
+    monitor,
+    scheduler: new NotificationsScheduler(
+      generator,
+      digestEmail,
+      push,
+      monitor,
+      prisma,
+      config,
+      clock,
+    ),
     scanAll,
     sendPending,
     sendPush,
@@ -91,5 +102,37 @@ describe('NotificationsScheduler', () => {
       },
     });
     await expect(scheduler.tick()).resolves.toBeUndefined();
+  });
+
+  it('o resultado de cada varredura fica no monitor: ok, falhou (identificado) ou pulada', async () => {
+    const ok = build();
+    await ok.scheduler.tick();
+    expect(ok.monitor.snapshot().jobs[0]).toMatchObject({
+      name: 'notifications-scan',
+      lastStatus: 'ok',
+      consecutiveFailures: 0,
+    });
+
+    const failing = build({
+      scan: async () => {
+        throw new Error('banco fora do ar');
+      },
+    });
+    await failing.scheduler.tick();
+    await failing.scheduler.tick();
+    expect(failing.monitor.snapshot().jobs[0]).toMatchObject({
+      lastStatus: 'failed',
+      consecutiveFailures: 2,
+    });
+
+    const busy = build({ locked: false });
+    await busy.scheduler.tick();
+    expect(busy.monitor.snapshot().jobs[0]).toMatchObject({ lastStatus: 'skipped' });
+  });
+
+  it('desligado por configuração, não aparece nos jobs (não é falha nem execução)', async () => {
+    const { scheduler, monitor } = build({ enabled: false });
+    await scheduler.tick();
+    expect(monitor.snapshot().jobs).toEqual([]);
   });
 });

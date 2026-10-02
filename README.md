@@ -592,6 +592,29 @@ Na grade da **Semana** (desktop), arraste um bloco para outro dia ou horário.
   dia e horário. No celular (abas por dia) e por teclado, o caminho continua sendo "Alterar só esta" no painel.
   Toque não arrasta, para não brigar com a rolagem da grade.
 
+## Observabilidade e dependências (transversais)
+
+### Logs estruturados e jobs (RNF13)
+
+- **Formato:** `LOG_FORMAT=json|pretty`. Sem valor, **JSON em produção** (uma linha por registro: `time`, `level`, `context`, `message`,
+  `stack` e campos extras, fácil de filtrar em Railway/Datadog) e texto legível nos demais ambientes.
+- **Sem dado sensível (RS14):** todo texto passa por `redact` antes de sair: e-mails viram `a***@dominio`, e `Bearer`, JWT, `password=`/`token=`,
+  usuário e senha de URL de banco, caminho do endereço de push e sequências longas de hex/base64url são trocados por `[redigido]`.
+  É uma rede de segurança: o código já evita logar dado de pessoa.
+- **Jobs identificáveis:** a varredura de avisos (`notifications-scan`, a cada minuto) e o snapshot das quests (`quests-snapshot`, a cada 10 min)
+  rodam sob o `JobMonitor`, que registra cada execução como `job_ok`, `job_failed` (com o erro redigido e cortado) ou `job_skipped` (outra
+  instância tinha a trava) e nunca derruba o processo. Execução sem trabalho vai para `debug`, para não gerar ruído.
+- **`GET /api/health/jobs`** (público, só nomes, instantes e contagens): `status` `ok` ou `degraded` (algum job com **3 falhas seguidas**), e,
+  por job, a última execução, a última vez que deu certo e as falhas seguidas. `GET /api/health` segue sendo o "está no ar".
+
+### Dependências verificadas (RS16)
+
+- **CI:** `pnpm audit --audit-level=high` roda antes do lint e **falha com vulnerabilidade alta ou crítica**.
+- **Dependabot** (`.github/dependabot.yml`): npm toda segunda (atualizações menores e de correção agrupadas num PR; as maiores, em PR próprio) e
+  GitHub Actions todo mês.
+- **`pnpm.overrides`** no `package.json` raiz fixa `mysql2` e `deepmerge-ts` em versões corrigidas: eles chegam só pelo CLI do Prisma (que usa
+  `mysql2` no servidor de desenvolvimento dele; o app usa Postgres). Quando o Prisma subir essas versões sozinho, os overrides podem sair.
+
 ## Glossário (para quem vem de Java/Spring)
 
 | Termo                         | O que é                                                                                                                                                                                                                               | Equivalente em Java                          |
