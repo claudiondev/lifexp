@@ -12,6 +12,7 @@ import {
   createTestApp,
   listActivities,
   registerUser,
+  scanWhenFree,
   type TestUser,
 } from './helpers.js';
 
@@ -383,12 +384,11 @@ describe('Geração de notificações (e2e)', () => {
       await createEvent(bia.user, { time: '09:15', remindBeforeMin: 15 });
       void caio; // sem nada: não entra na varredura
 
-      const before = await prisma.user.count({
-        where: { OR: [{ blocks: { some: {} } }, { events: { some: {} } }] },
-      });
       const summary = await generator.scanAll(new Date('2026-10-07T11:45:20.000Z'));
 
-      expect(summary.users).toBe(before);
+      // O banco é compartilhado com as outras suítes em paralelo: o total de pessoas varridas muda a
+      // qualquer momento, então só dá para afirmar o mínimo (Ana e Bia) e conferir conta a conta.
+      expect(summary.users).toBeGreaterThanOrEqual(2);
       expect(summary.failures).toBe(0);
       expect(summary.created).toBeGreaterThanOrEqual(1);
       expect(await prisma.notification.count({ where: { userId: ana.user.userId } })).toBe(1);
@@ -432,25 +432,31 @@ describe('Geração de notificações (e2e)', () => {
       const { user, activity } = await setup();
       await weeklyBlock(user, activity.id);
 
-      const summary = await scheduler.runOnce(new Date('2026-10-07T11:45:20.000Z'));
+      const summary = await scanWhenFree(() =>
+        scheduler.runOnce(new Date('2026-10-07T11:45:20.000Z')),
+      );
 
-      expect(summary).not.toBeNull();
-      expect(summary!.created).toBeGreaterThanOrEqual(1);
+      expect(summary.created).toBeGreaterThanOrEqual(1);
       expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(1);
-    });
+    }, 120_000);
 
     it('se outra instância já está varrendo (trava de banco), pula o minuto sem gerar nada', async () => {
       const { user, activity } = await setup();
       await weeklyBlock(user, activity.id);
 
-      const result = await prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SCAN_LOCK_KEY})`;
-        // a "outra instância" segura a trava; esta varredura usa outra conexão e não consegue
-        return scheduler.runOnce(new Date('2026-10-07T11:45:20.000Z'));
-      });
+      // Pegar a trava pode esperar a varredura de outra suíte terminar: o prazo padrão da transação
+      // (5 s) não basta com o banco compartilhado.
+      const result = await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(${SCAN_LOCK_KEY})`;
+          // a "outra instância" segura a trava; esta varredura usa outra conexão e não consegue
+          return scheduler.runOnce(new Date('2026-10-07T11:45:20.000Z'));
+        },
+        { timeout: 110_000, maxWait: 10_000 },
+      );
 
       expect(result).toBeNull();
       expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(0);
-    });
+    }, 120_000);
   });
 });

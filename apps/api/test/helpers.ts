@@ -131,3 +131,17 @@ export async function expectCachesConsistent(
     expect(original && original.amount + entry.amount).toBe(0);
   }
 }
+
+/**
+ * A trava da varredura de notificações é uma só para o banco inteiro, e as suítes e2e rodam em
+ * paralelo no mesmo banco: quando outra suíte está varrendo, `runOnce` devolve nulo ("pulei o
+ * minuto"). Para o teste isso é só fila: espera e tenta de novo até conseguir varrer.
+ */
+export async function scanWhenFree<T>(run: () => Promise<T | null>): Promise<T> {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
+    const result = await run();
+    if (result !== null) return result;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error('A trava da varredura não ficou livre a tempo');
+}

@@ -15,6 +15,7 @@ import {
   createTestApp,
   listActivities,
   registerUser,
+  scanWhenFree,
   type TestUser,
 } from './helpers.js';
 
@@ -198,11 +199,15 @@ describe('Resumo diário por e-mail (e2e)', () => {
   it('varreduras simultâneas (duas instâncias, sob a trava) não mandam o mesmo e-mail duas vezes', async () => {
     const { user } = await setup();
 
-    await Promise.all(Array.from({ length: 5 }, () => scheduler.runOnce(new Date(DIGEST_Z))));
+    // uma delas insiste até a trava ficar livre (outra suíte pode estar varrendo); as demais disputam
+    await Promise.all([
+      scanWhenFree(() => scheduler.runOnce(new Date(DIGEST_Z))),
+      ...Array.from({ length: 4 }, () => scheduler.runOnce(new Date(DIGEST_Z))),
+    ]);
 
     expect(mailsTo(user)).toHaveLength(1);
     expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(1);
-  });
+  }, 120_000);
 
   it('cada resumo vai para o endereço da própria pessoa', async () => {
     const [ana, bia] = [await setup(), await setup()];
@@ -219,10 +224,10 @@ describe('Resumo diário por e-mail (e2e)', () => {
   it('o agendador gera e envia no mesmo minuto', async () => {
     const { user } = await setup();
 
-    const summary = await scheduler.runOnce(new Date(DIGEST_Z));
+    const summary = await scanWhenFree(() => scheduler.runOnce(new Date(DIGEST_Z)));
 
-    expect(summary!.created).toBeGreaterThanOrEqual(1);
-    expect(summary!.emailed).toBeGreaterThanOrEqual(1);
+    expect(summary.created).toBeGreaterThanOrEqual(1);
+    expect(summary.emailed).toBeGreaterThanOrEqual(1);
     expect(mailsTo(user)).toHaveLength(1);
-  });
+  }, 120_000);
 });
