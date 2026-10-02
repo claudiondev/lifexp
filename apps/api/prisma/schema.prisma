@@ -37,6 +37,7 @@ model User {
   xpTransactions XpTransaction[]
   areaProgress   AreaProgress[]
   goals          Goal[]
+  events         CalendarEvent[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -76,6 +77,7 @@ model Area {
   progress       AreaProgress?
   xpTransactions XpTransaction[]
   goals          Goal[]
+  events         CalendarEvent[]
 
   @@index([userId])
 }
@@ -277,4 +279,27 @@ model Milestone {
   goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([goalId, position])
+}
+
+// Evento do calendário (RF33): algo que acontece numa data. Não gera XP (RN23) nem entra no streak.
+model CalendarEvent {
+  id              String   @id @default(uuid(7))
+  userId          String
+  areaId          String?
+  title           String
+  notes           String?
+  date            DateTime @db.Date // data civil (RN36)
+  time            String? // "HH:mm" no fuso da pessoa (RN37); nulo = dia todo
+  // appointment | birthday | medical | trip | deadline | other (CHECK no banco)
+  category        String
+  // Antecedência do lembrete em minutos (RF36); nulo = sem lembrete. Quem dispara é o Marco 2c.
+  remindBeforeMin Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area Area? @relation(fields: [areaId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+  @@index([areaId])
 }
