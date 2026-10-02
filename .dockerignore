@@ -1,0 +1,17 @@
+# Contexto de build enxuto: só o que a imagem da API precisa. O front vai para a Vercel, não para a imagem.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+**/*.tsbuildinfo
+**/*.log
+.git
+.github
+docs
+apps/web/src
+apps/web/public
+apps/web/scripts
+apps/api/test
+apps/api/src/generated
