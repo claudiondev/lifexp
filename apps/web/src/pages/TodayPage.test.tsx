@@ -52,6 +52,9 @@ function makeItem(blockId: string, overrides: Partial<TodayItem> = {}): TodayIte
 
 interface Options {
   items: TodayItem[];
+  /** Eventos de calendário do dia (a tela Hoje os mostra como informativos). */
+  events?: unknown[];
+  eventsStatus?: number;
   /** Resposta do POST de conclusão; padrão: ganhou 90 XP sem subir de nível. */
   completeResponse?: () => Response;
   streak?: { current: number; best: number; lastFulfilledDate: string | null };
@@ -59,6 +62,8 @@ interface Options {
 
 function setup({
   items,
+  events = [],
+  eventsStatus,
   completeResponse,
   streak = { current: 3, best: 7, lastFulfilledDate: '2026-10-06' },
 }: Options) {
@@ -73,6 +78,10 @@ function setup({
 
       if (url === '/api/today') {
         return json(200, { date: '2026-10-07', items, xpToday: 90, total: level(100, 2) });
+      }
+      if (url.startsWith('/api/events?')) {
+        calls.push({ method, url });
+        return eventsStatus ? json(eventsStatus, { message: 'falhou' }) : json(200, events);
       }
       if (url === '/api/progress')
         return json(200, {
@@ -426,6 +435,109 @@ describe('TodayPage', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  describe('eventos do calendário', () => {
+    const consulta = {
+      id: '0192f1a0-7b3c-7000-8000-00000000e001',
+      areaId: null,
+      title: 'Consulta',
+      notes: null,
+      date: '2026-10-07',
+      time: '14:30',
+      category: 'medical',
+      remindBeforeMin: 60,
+    };
+
+    it('mostra os eventos do dia, como informativos, antes dos blocos', async () => {
+      const { calls } = setup({ items: [makeItem(BLOCK_1)], events: [consulta] });
+
+      const heading = await screen.findByRole('heading', { name: 'Eventos de hoje' });
+      expect(
+        await screen.findByRole('button', { name: 'Evento: Consulta, 14:30' }),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Eventos não rendem XP/)).toBeInTheDocument();
+      expect(calls.map((c) => c.url)).toContain('/api/events?from=2026-10-07&to=2026-10-07');
+      // vem antes de "Blocos de hoje"
+      const blocks = screen.getByRole('heading', { name: 'Blocos de hoje' });
+      expect(
+        heading.compareDocumentPosition(blocks) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      // e nenhum botão de concluir no evento
+      expect(
+        within(screen.getByRole('button', { name: /Evento: Consulta/ })).queryByText(/Concluir/),
+      ).not.toBeInTheDocument();
+    });
+
+    it('ordena: dia todo primeiro, depois por horário (mesmo que a API devolva fora de ordem)', async () => {
+      setup({
+        items: [makeItem(BLOCK_1)],
+        events: [
+          {
+            ...consulta,
+            id: '0192f1a0-7b3c-7000-8000-00000000e002',
+            title: 'Noite',
+            time: '20:00',
+          },
+          { ...consulta, id: '0192f1a0-7b3c-7000-8000-00000000e003', title: 'Cedo', time: '07:00' },
+          {
+            ...consulta,
+            id: '0192f1a0-7b3c-7000-8000-00000000e004',
+            title: 'Dia todo',
+            time: null,
+            remindBeforeMin: 1440,
+          },
+        ],
+      });
+
+      await screen.findByRole('button', { name: /Evento: Cedo/ });
+      const titles = screen
+        .getAllByRole('button', { name: /^Evento: / })
+        .map((button) => button.getAttribute('aria-label')!.split(',')[0]);
+      expect(titles).toEqual(['Evento: Dia todo', 'Evento: Cedo', 'Evento: Noite']);
+    });
+
+    it('não consulta eventos antes de saber a data de hoje', async () => {
+      const { calls } = setup({ items: [makeItem(BLOCK_1)], events: [consulta] });
+      await screen.findByRole('button', { name: /Evento: Consulta/ });
+
+      expect(calls.map((c) => c.url).filter((url) => url.includes('from=&'))).toEqual([]);
+    });
+
+    it('editar um evento fecha o painel de detalhes e abre o formulário com os dados', async () => {
+      setup({ items: [makeItem(BLOCK_1)], events: [consulta] });
+
+      await userEvent.click(await screen.findByRole('button', { name: /Evento: Consulta/ }));
+      await userEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Editar' }),
+      );
+
+      expect(await screen.findByText('Editar evento')).toBeInTheDocument();
+      expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+      expect(within(screen.getByRole('dialog')).getByLabelText('Título')).toHaveValue('Consulta');
+    });
+
+    it('sem eventos, a seção nem aparece', async () => {
+      setup({ items: [makeItem(BLOCK_1)], events: [] });
+      await card('Corrida');
+      expect(screen.queryByRole('heading', { name: 'Eventos de hoje' })).not.toBeInTheDocument();
+    });
+
+    it('se os eventos falharem, as missões continuam funcionando', async () => {
+      setup({ items: [makeItem(BLOCK_1)], eventsStatus: 500 });
+      expect(await card('Corrida')).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Eventos de hoje' })).not.toBeInTheDocument();
+    });
+
+    it('clicar no evento abre os detalhes', async () => {
+      setup({ items: [makeItem(BLOCK_1)], events: [consulta] });
+
+      await userEvent.click(await screen.findByRole('button', { name: /Evento: Consulta/ }));
+
+      expect(
+        within(await screen.findByRole('dialog')).getByRole('heading', { name: 'Consulta' }),
+      ).toBeInTheDocument();
+    });
   });
 
   it('sem blocos, explica e não mostra a seção de ontem', async () => {

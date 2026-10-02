@@ -1,4 +1,4 @@
-import type { TodayItem } from '@lifexp/shared';
+import { sortEvents, type CalendarEvent, type TodayItem } from '@lifexp/shared';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { LevelSigil } from '@/components/game/LevelSigil';
@@ -8,6 +8,10 @@ import { useCharacter } from '@/features/character/useCharacter';
 import { useActivities } from '@/features/activities/useActivities';
 import { useAreas } from '@/features/areas/useAreas';
 import { useBlockMutations } from '@/features/blocks/useBlockMutations';
+import { EventChip } from '@/features/events/EventChip';
+import { EventDialog } from '@/features/events/EventDialog';
+import { EventFormDialog } from '@/features/events/EventFormDialog';
+import { useEvents } from '@/features/events/useEvents';
 import { LevelUpDialog } from '@/features/today/LevelUpDialog';
 import { TodayItemCard, type TodayItemView } from '@/features/today/TodayItemCard';
 import { dayProgress, findNext, itemKey, splitByDay } from '@/features/today/todayModel';
@@ -27,6 +31,13 @@ export function TodayPage() {
   const { setException, restore } = useBlockMutations();
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+
+  // Eventos do dia (informativos: não rendem XP nem se concluem). Se falharem, a tela segue sem eles.
+  const todayDate = today.data?.date ?? '';
+  const dayEvents = useEvents(todayDate, todayDate);
+  const eventsToday = today.data ? sortEvents(dayEvents.data ?? []) : [];
 
   const views = useMemo(() => {
     if (!today.data || !activities.data || !areas.data) return null;
@@ -201,6 +212,22 @@ export function TodayPage() {
               </div>
             )}
 
+            {eventsToday.length > 0 && (
+              <div>
+                <h2 className="font-display text-xl font-bold">Eventos de hoje</h2>
+                <p className="text-sm text-muted-foreground">
+                  Compromissos do dia. Eventos não rendem XP.
+                </p>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {eventsToday.map((event) => (
+                    <li key={event.id}>
+                      <EventChip event={event} onSelect={setSelectedEvent} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div>
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="font-display text-xl font-bold">Blocos de hoje</h2>
@@ -223,6 +250,22 @@ export function TodayPage() {
         )}
       </section>
 
+      <EventDialog
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onEdit={(event) => {
+          setSelectedEvent(null);
+          setEditingEvent(event);
+        }}
+      />
+      <EventFormDialog
+        open={editingEvent !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingEvent(null);
+        }}
+        event={editingEvent}
+        defaultDate={todayDate}
+      />
       <LevelUpDialog level={levelUp} onClose={() => setLevelUp(null)} />
     </main>
   );

@@ -8,6 +8,8 @@ export function useEvents(from: CivilDate, to: CivilDate) {
   return useQuery({
     queryKey: [...eventsKey, from, to],
     queryFn: () => eventsApi.listEvents(from, to),
+    // Sem período definido (ex.: a tela Hoje ainda não sabe a data), não há o que buscar.
+    enabled: from !== '' && to !== '',
   });
 }
 
