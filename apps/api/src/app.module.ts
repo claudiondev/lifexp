@@ -12,6 +12,7 @@ import { GamificationModule } from './gamification/gamification.module.js';
 import { GoalsModule } from './goals/goals.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MailModule } from './mail/mail.module.js';
+import { NotesModule } from './notes/notes.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module.js';
     GamificationModule,
     GoalsModule,
     HealthModule,
+    NotesModule,
     NotificationsModule,
     ReviewsModule,
   ],
