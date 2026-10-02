@@ -5,6 +5,9 @@ import { CompletionsController } from './completions.controller.js';
 import { CompletionsService } from './completions.service.js';
 import { ProgressController } from './progress.controller.js';
 import { ProgressService } from './progress.service.js';
+import { QuestService } from './quest.service.js';
+import { QuestsController } from './quests.controller.js';
+import { QuestsScheduler } from './quests.scheduler.js';
 import { StreakService } from './streak.service.js';
 import { XpLedgerService } from './xp-ledger.service.js';
 import { TodayService } from './today.service.js';
@@ -13,7 +16,7 @@ import { XpHistoryService } from './xp-history.service.js';
 
 @Module({
   imports: [BlocksModule],
-  controllers: [CompletionsController, ProgressController, XpHistoryController],
+  controllers: [CompletionsController, ProgressController, QuestsController, XpHistoryController],
   providers: [
     CompletionsService,
     ProgressService,
@@ -22,7 +25,9 @@ import { XpHistoryService } from './xp-history.service.js';
     CacheRebuildService,
     XpLedgerService,
     XpHistoryService,
+    QuestService,
+    QuestsScheduler,
   ],
-  exports: [CacheRebuildService, XpLedgerService],
+  exports: [CacheRebuildService, XpLedgerService, QuestService, QuestsScheduler],
 })
 export class GamificationModule {}

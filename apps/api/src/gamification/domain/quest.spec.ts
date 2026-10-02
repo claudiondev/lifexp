@@ -50,8 +50,11 @@ describe('bonusFor', () => {
     expect(bonusFor(600)).toBe(120);
     expect(bonusFor(100)).toBe(20);
     expect(bonusFor(7)).toBe(1); // 1,4
+    expect(bonusFor(2)).toBe(1); // 0,4 sobe para o mínimo de 1
+    expect(bonusFor(1)).toBe(1);
     expect(bonusFor(8)).toBe(2); // 1,6
     expect(bonusFor(0)).toBe(0);
+    expect(bonusFor(-50)).toBe(0);
   });
 
   it('nunca passa do teto', () => {

@@ -1,6 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
   calculateXp,
+  weekStartOf,
   levelForXp,
   levelProgress,
   type CivilDate,
@@ -13,6 +14,7 @@ import { occursOn, resolveOccurrence } from '../blocks/domain/week-occurrences.j
 import { CLOCK, type Clock } from '../clock/clock.js';
 import type { Completion as CompletionEntity } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { QuestService } from './quest.service.js';
 import { XpLedgerService, type Tx } from './xp-ledger.service.js';
 import {
   checkCanComplete,
@@ -37,6 +39,7 @@ export class CompletionsService {
     private readonly prisma: PrismaService,
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly ledger: XpLedgerService,
+    private readonly quests: QuestService,
   ) {}
 
   /**
@@ -93,15 +96,18 @@ export class CompletionsService {
         sourceId: completion.id,
         createdAt: now,
       });
+      // A conclusão pode cumprir a quest da semana (RN17): o bônus sai na MESMA transação (RN30), e o nível e o
+      // total devolvidos já contam com ele.
+      const quest = await this.quests.settle(tx, userId, weekStartOf(occurrenceDate), now);
       return {
         completion: toCompletionDto(completion),
         alreadyCompleted: false,
         xpAwarded: xp,
         levelBefore: change.levelBefore,
-        levelAfter: change.levelAfter,
-        total,
+        levelAfter: quest.result?.change.levelAfter ?? change.levelAfter,
+        total: quest.result?.total ?? total,
         area: area!,
-        questBonusXp: 0,
+        questBonusXp: quest.awarded,
       };
     });
   }
@@ -146,7 +152,14 @@ export class CompletionsService {
       // A área vem do lançamento original (que veio da foto da conclusão), NÃO da atividade de hoje:
       // se a série foi editada para outra atividade/área depois de concluir, o XP volta de onde saiu.
       const { total, area } = await this.ledger.reverse(tx, original, now);
-      return { xpReverted: original.amount, total, area, questBonusReverted: 0 };
+      // Se a semana caiu abaixo dos 80%, o bônus da quest volta junto (estorno, como qualquer outro).
+      const quest = await this.quests.settle(tx, userId, weekStartOf(occurrenceDate), now);
+      return {
+        xpReverted: original.amount,
+        total: quest.result?.total ?? total,
+        area,
+        questBonusReverted: quest.reversed,
+      };
     });
   }
 

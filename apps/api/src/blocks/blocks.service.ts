@@ -75,12 +75,17 @@ export class BlocksService {
    * Uma única consulta traz os blocos que podem tocar a semana, com as exceções da semana e a área
    * da atividade (RNF04). As ocorrências são calculadas em memória pela regra de domínio.
    */
-  async getWeek(userId: string, weekStart: string): Promise<WeekResponse> {
+  async getWeek(
+    userId: string,
+    weekStart: string,
+    // Dentro de uma transação, quem chama passa o `tx`: assim a leitura enxerga o que ela já gravou.
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<WeekResponse> {
     const weekEnd = addDays(weekStart, 6);
     const start = fromCivil(weekStart);
     const end = fromCivil(weekEnd);
 
-    const blocks = await this.prisma.block.findMany({
+    const blocks = await db.block.findMany({
       // 'join' resolve as relações no próprio SELECT (uma ida ao banco), em vez de uma query por relação.
       relationLoadStrategy: 'join',
       where: {

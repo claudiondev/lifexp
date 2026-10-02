@@ -21,6 +21,8 @@ export const envSchema = z.object({
     .transform((value) => value === 'true'),
   // Liga a varredura por minuto que gera lembretes e resumos (RN38). Os testes desligam.
   NOTIFICATIONS_SCHEDULER: booleanString('true'),
+  // Liga a criação do snapshot da quest semanal na virada da semana (RN16). Os testes desligam.
+  QUESTS_SCHEDULER: booleanString('true'),
   // E-mail do resumo diário (RF39): sem RESEND_API_KEY o envio só vai para o log (dev e testes).
   RESEND_API_KEY: z.string().min(1).optional(),
   MAIL_FROM: z.string().min(3).default('LifeXP <nao-responda@lifexp.app>'),

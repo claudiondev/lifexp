@@ -19,6 +19,8 @@ export default defineConfig({
       COOKIE_SECURE: 'false',
       // O agendador não pode mexer nos dados no meio dos testes: a varredura é chamada à mão.
       NOTIFICATIONS_SCHEDULER: 'false',
+      // Idem para o snapshot da quest: os testes chamam `runOnce` à mão.
+      QUESTS_SCHEDULER: 'false',
     },
   },
 });

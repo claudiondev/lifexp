@@ -43,9 +43,14 @@ export function requiredCount(eligible: number, percent: number): number {
   return Math.ceil((eligible * percent) / 100);
 }
 
-/** O bônus: 20% do XP previsto dos blocos elegíveis, arredondado e limitado (RN17). */
+/** O bônus: 20% do XP previsto dos blocos elegíveis, arredondado e limitado entre 1 e o teto (RN17). */
 export function bonusFor(eligibleXp: number): number {
-  return Math.min(Math.round((eligibleXp * QUEST_BONUS_PERCENT) / 100), QUEST_BONUS_CAP);
+  if (eligibleXp <= 0) return 0;
+  // Pelo menos 1: o livro-caixa não aceita lançamento de valor zero (e quem cumpriu a quest merece algo).
+  return Math.min(
+    Math.max(Math.round((eligibleXp * QUEST_BONUS_PERCENT) / 100), 1),
+    QUEST_BONUS_CAP,
+  );
 }
 
 /**
