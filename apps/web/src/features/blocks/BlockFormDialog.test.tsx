@@ -321,7 +321,10 @@ describe('BlockFormDialog', () => {
   it('sem atividades ativas, explica e leva para Áreas', async () => {
     setup({ activities: [] });
 
-    expect(await screen.findByText(/Você ainda não tem atividades ativas/)).toBeInTheDocument();
+    // sob carga (suíte inteira em paralelo) o formulário demora mais que 1 s para montar
+    expect(
+      await screen.findByText(/Você ainda não tem atividades ativas/, {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Crie uma em Áreas' })).toHaveAttribute(
       'href',
       '/areas',
