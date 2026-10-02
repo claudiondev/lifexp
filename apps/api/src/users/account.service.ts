@@ -44,6 +44,9 @@ const READERS: Record<ExportedModel, Reader> = {
   // Sem userId próprio: pertence à pessoa pela quest.
   QuestItem: (tx, userId) =>
     tx.questItem.findMany({ where: { quest: { userId } }, orderBy: { id: 'asc' } }),
+  Achievement: (tx, userId) =>
+    tx.achievement.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  Reward: (tx, userId) => tx.reward.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
 };
 
 export interface ExportResult {

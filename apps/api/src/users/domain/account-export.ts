@@ -21,6 +21,8 @@ export const EXPORT_KEYS = {
   Note: 'notes',
   WeeklyQuest: 'weeklyQuests',
   QuestItem: 'questItems',
+  Achievement: 'achievements',
+  Reward: 'rewards',
 } as const;
 
 export type ExportedModel = keyof typeof EXPORT_KEYS;

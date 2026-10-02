@@ -21,3 +21,6 @@ export * from './review.schema.js';
 export * from './note.schema.js';
 export * from './quest.schema.js';
 export * from './balance.schema.js';
+export * from './achievement.schema.js';
+export * from './reward.schema.js';
+export * from './title.js';

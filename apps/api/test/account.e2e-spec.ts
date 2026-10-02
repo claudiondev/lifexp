@@ -188,6 +188,19 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         xp: 60,
       },
     });
+    await prisma.achievement.create({
+      data: { userId: user.userId, key: 'first_step', unlockedAt: clock.now() },
+    });
+    await prisma.reward.create({
+      data: {
+        userId: user.userId,
+        title: 'Jantar fora',
+        description: 'No japonês',
+        trigger: 'LEVEL',
+        threshold: 3,
+        reachedAt: clock.now(),
+      },
+    });
     await prisma.weeklyReview.create({
       data: {
         userId: user.userId,
