@@ -145,15 +145,20 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
       areaId,
     });
     await send('put', user, '/api/notification-preferences', { digestEmailEnabled: true });
-    await prisma.notification.create({
-      data: {
-        userId: user.userId,
-        kind: 'DIGEST',
-        title: 'Seu dia',
-        body: 'Hoje: 1 bloco.',
-        scheduledFor: new Date(NOON),
-        dedupeKey: 'digest:2026-10-07',
-      },
+    // o agendador de outra suíte (rodando em paralelo, no mesmo banco) pode gerar este mesmo resumo
+    // para a conta recém-criada: o que importa aqui é que ele exista, não quem o criou
+    await prisma.notification.createMany({
+      data: [
+        {
+          userId: user.userId,
+          kind: 'DIGEST',
+          title: 'Seu dia',
+          body: 'Hoje: 1 bloco.',
+          scheduledFor: new Date(NOON),
+          dedupeKey: 'digest:2026-10-07',
+        },
+      ],
+      skipDuplicates: true,
     });
     await prisma.note.create({
       data: {
