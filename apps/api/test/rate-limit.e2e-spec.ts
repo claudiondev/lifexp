@@ -42,6 +42,33 @@ describe('Rate limit de auth (e2e)', () => {
     expect(statuses).toEqual([201, 201, 201, 429]);
   });
 
+  it('bloqueia o pedido de recuperação de senha com 429 depois do limite (RS08)', async () => {
+    const attempt = () =>
+      request(app.getHttpServer())
+        .post('/api/auth/forgot-password')
+        .send({ email: `${randomUUID()}@test.dev` });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) statuses.push((await attempt()).status);
+
+    expect(statuses).toEqual([204, 204, 204, 429]);
+  });
+
+  it('bloqueia a redefinição de senha com 429 depois do limite (RS08): ninguém adivinha token em massa', async () => {
+    const attempt = () =>
+      request(app.getHttpServer())
+        .post('/api/auth/reset-password')
+        .send({
+          token: randomUUID().repeat(2).replaceAll('-', ''),
+          password: 'senha-de-teste-123',
+        });
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) statuses.push((await attempt()).status);
+
+    expect(statuses).toEqual([400, 400, 400, 429]);
+  });
+
   it('não limita as rotas públicas de health nem a renovação de sessão por engano', async () => {
     for (let i = 0; i < 6; i++) {
       expect((await request(app.getHttpServer()).get('/api/health')).status).toBe(200);

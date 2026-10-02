@@ -7,6 +7,8 @@ import type { Env } from '../config/env.schema.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
+import { PasswordResetController } from './password-reset.controller.js';
+import { PasswordResetService } from './password-reset.service.js';
 
 @Module({
   imports: [
@@ -16,7 +18,7 @@ import { JwtAuthGuard } from './jwt-auth.guard.js';
         secret: config.get('JWT_ACCESS_SECRET'),
       }),
     }),
-    // Limite por IP. Só é aplicado onde há @UseGuards(ThrottlerGuard) (login e cadastro, RS08).
+    // Limite por IP. Só é aplicado onde há @UseGuards(ThrottlerGuard) (login, cadastro e recuperação de senha, RS08).
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => [
@@ -24,7 +26,7 @@ import { JwtAuthGuard } from './jwt-auth.guard.js';
       ],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
+  controllers: [AuthController, PasswordResetController],
+  providers: [AuthService, PasswordResetService, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AuthModule {}

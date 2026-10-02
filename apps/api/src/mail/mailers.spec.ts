@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { LogMailer, maskEmail } from './log.mailer.js';
 import { ResendMailer } from './resend.mailer.js';
@@ -46,6 +47,37 @@ describe('ResendMailer', () => {
 describe('LogMailer', () => {
   it('não envia nada e não falha', async () => {
     await expect(new LogMailer().send(message)).resolves.toBeUndefined();
+  });
+
+  describe('o que vai para o log (RS14)', () => {
+    const secret = { ...message, text: 'Abra http://x/redefinir-senha#token=SEGREDO' };
+    const logged = async (mailer: LogMailer) => {
+      const lines: string[] = [];
+      const spy = vi
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation((line: unknown) => void lines.push(String(line)));
+      try {
+        await mailer.send(secret);
+      } finally {
+        spy.mockRestore();
+      }
+      return lines.join('\n');
+    };
+
+    it('por padrão registra só o assunto e o endereço mascarado, nunca o corpo', async () => {
+      const output = await logged(new LogMailer());
+      expect(output).toContain('Seu dia no LifeXP');
+      expect(output).toContain('a**@exemplo.com');
+      expect(output).not.toContain('ana@exemplo.com');
+      expect(output).not.toContain('SEGREDO');
+      expect(output).not.toContain('#token=');
+    });
+
+    it('com showBody (só em desenvolvimento) mostra o corpo, para abrir o link sem provedor', async () => {
+      const output = await logged(new LogMailer(true));
+      expect(output).toContain('#token=SEGREDO');
+      expect(output).not.toContain('ana@exemplo.com');
+    });
   });
 
   it('maskEmail esconde o usuário do endereço', () => {

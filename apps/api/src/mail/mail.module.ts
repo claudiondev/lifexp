@@ -16,7 +16,7 @@ import { ResendMailer } from './resend.mailer.js';
         const apiKey = config.get('RESEND_API_KEY', { infer: true });
         return apiKey
           ? new ResendMailer(apiKey, config.get('MAIL_FROM', { infer: true }))
-          : new LogMailer();
+          : new LogMailer(config.get('NODE_ENV', { infer: true }) === 'development');
       },
     },
   ],
