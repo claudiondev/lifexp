@@ -52,3 +52,9 @@ describe('service worker', () => {
     expect(workbox?.navigateFallback).toBe('/index.html');
   });
 });
+
+describe('push (RF41)', () => {
+  it('o service worker carrega os tratadores de push de /push-sw.js', () => {
+    expect(workbox?.importScripts).toEqual(['/push-sw.js']);
+  });
+});

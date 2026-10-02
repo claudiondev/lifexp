@@ -37,4 +37,6 @@ export const workbox: VitePWAOptions['workbox'] = {
     { urlPattern: ({ url }) => url.pathname.startsWith('/api/'), handler: 'NetworkOnly' },
   ],
   cleanupOutdatedCaches: true,
+  // Push no celular (RF41): os tratadores de `push` e `notificationclick` ficam em public/push-sw.js.
+  importScripts: ['/push-sw.js'],
 };

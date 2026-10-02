@@ -30,6 +30,8 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
       const url = String(input);
       if (url === '/api/auth/refresh') return json(200, { user, accessToken: 't' });
       if (url === '/api/auth/sessions') return json(200, []);
+      // o cartão de push consulta o servidor; aqui o push está desligado
+      if (url === '/api/push/config') return json(200, { enabled: false, publicKey: null });
       if (url === '/api/notification-preferences') {
         return json(200, {
           blockRemindersEnabled: true,

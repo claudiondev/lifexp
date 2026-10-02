@@ -14,5 +14,10 @@ export default tseslint.config(
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser } },
   },
+  {
+    // O service worker (push) roda fora da página: tem `self`, `clients` e `registration`, mas não `window`.
+    files: ['apps/web/public/*-sw.js'],
+    languageOptions: { globals: { ...globals.serviceworker } },
+  },
   prettier,
 );

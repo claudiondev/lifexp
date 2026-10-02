@@ -3,6 +3,7 @@ import { DataExportCard } from '@/features/account/DataExportCard';
 import { DeleteAccountCard } from '@/features/account/DeleteAccountCard';
 import { SessionsCard } from '@/features/account/SessionsCard';
 import { NotificationPreferencesCard } from '@/features/notifications/NotificationPreferencesCard';
+import { PushCard } from '@/features/push/PushCard';
 import { InstallAppCard } from '@/features/pwa/InstallAppCard';
 import { ProfileForm } from '@/features/profile/ProfileForm';
 import { PageHeader } from './PageHeader';
@@ -20,6 +21,7 @@ export function SettingsPage() {
       />
       <ProfileForm user={state.user} />
       <NotificationPreferencesCard />
+      <PushCard />
       <SessionsCard />
       <InstallAppCard />
       <DataExportCard />

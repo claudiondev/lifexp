@@ -43,6 +43,16 @@ if (sw !== null) {
   check(sw.includes('denylist') || sw.includes('NavigationRoute'), 'sem fallback de navegação');
 }
 
+// Push (RF41): o service worker precisa carregar o arquivo dos tratadores, e ele precisa estar no build.
+if (sw !== null)
+  check(sw.includes('push-sw.js'), 'o service worker não carrega /push-sw.js (push)');
+const pushSw = read('push-sw.js');
+check(pushSw !== null, 'dist/push-sw.js não foi gerado');
+if (pushSw !== null) {
+  check(pushSw.includes("'push'"), 'push-sw.js sem o tratador de "push"');
+  check(pushSw.includes("'notificationclick'"), 'push-sw.js sem o tratador de "notificationclick"');
+}
+
 const html = read('index.html');
 check(html?.includes('rel="manifest"'), 'index.html não liga o manifesto');
 check(html?.includes('apple-touch-icon'), 'index.html sem apple-touch-icon');
