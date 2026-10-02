@@ -130,6 +130,18 @@ describe('rotas e telas de auth', () => {
     ).toBeInTheDocument();
   });
 
+  it('o menu tem "Notas" no topo e na barra do celular, apontando para /notas', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+      '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
+    });
+    renderAt('/');
+    await screen.findByRole('heading', { name: /Olá, Ana/ });
+    const links = screen.getAllByRole('link', { name: 'Notas' });
+    expect(links).toHaveLength(2);
+    for (const link of links) expect(link).toHaveAttribute('href', '/notas');
+  });
+
   it('o endereço antigo /perfil leva às Configurações', async () => {
     stubApi({
       '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),

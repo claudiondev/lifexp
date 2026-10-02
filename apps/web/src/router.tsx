@@ -11,6 +11,8 @@ import { CalendarPage } from './pages/CalendarPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
 import { GoalsPage } from './pages/GoalsPage';
 import { HomePage } from './pages/HomePage';
+import { NoteEditorPage } from './pages/NoteEditorPage';
+import { NotesPage } from './pages/NotesPage';
 import { TodayPage } from './pages/TodayPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -34,6 +36,9 @@ export function AppRoutes() {
           <Route path="/semana" element={<WeekPage />} />
           <Route path="/calendario" element={<CalendarPage />} />
           <Route path="/revisao" element={<ReviewPage />} />
+          <Route path="/notas" element={<NotesPage />} />
+          <Route path="/notas/nova" element={<NoteEditorPage />} />
+          <Route path="/notas/:noteId" element={<NoteEditorPage />} />
           <Route path="/metas" element={<GoalsPage />} />
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
           <Route path="/historico" element={<XpHistoryPage />} />

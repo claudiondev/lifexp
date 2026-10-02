@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useAreas } from '@/features/areas/useAreas';
 import { AreaBadge } from '@/features/areas/AreaBadge';
 import { GoalCelebration, type GoalCelebrationData } from '@/features/goals/GoalCelebration';
+import { GoalNotes } from '@/features/notes/GoalNotes';
 import { GoalFormDialog } from '@/features/goals/GoalFormDialog';
 import { GoalProgressBar } from '@/features/goals/GoalProgressBar';
 import { MilestoneList } from '@/features/goals/MilestoneList';
@@ -336,6 +337,8 @@ function GoalDetail({ goal, area }: { goal: Goal; area: Area | undefined }) {
           </p>
         )}
       </section>
+
+      <GoalNotes goalId={goal.id} goalTitle={goal.title} />
 
       <GoalFormDialog open={editing} onOpenChange={setEditing} goal={goal} />
 

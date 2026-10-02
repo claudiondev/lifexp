@@ -1,12 +1,14 @@
 import type { CalendarEvent } from '@lifexp/shared';
-import { Pencil, Trash2 } from 'lucide-react';
+import { NotebookPen, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { longDate, weekdayLong } from '@/lib/civilFormat';
 import { cn } from '@/lib/utils';
 import { useAreas } from '../areas/useAreas';
+import { newNoteUrl } from '../notes/noteLinks';
 import { AREA_COLOR_CLASSES } from '../areas/areaAppearance';
 import { EVENT_APPEARANCE } from './eventAppearance';
 import { CATEGORY_LABEL, reminderLabel, timeLabel } from './eventFormat';
@@ -121,7 +123,13 @@ function EventPanel({
           </div>
         </section>
       ) : (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button asChild variant="ghost">
+            <Link to={newNoteUrl('event', event.id, event.title)} onClick={onClose}>
+              <NotebookPen aria-hidden className="size-4" />
+              Anotar
+            </Link>
+          </Button>
           <Button variant="destructive" onClick={() => setConfirming(true)}>
             <Trash2 aria-hidden className="size-4" />
             Excluir

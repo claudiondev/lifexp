@@ -3,13 +3,14 @@ import {
   ArchiveRestore,
   CalendarClock,
   CircleCheck,
+  NotebookPen,
   Pencil,
   SkipForward,
   Trash2,
   Undo2,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -17,6 +18,7 @@ import { longDate, weekdayLong } from '@/lib/civilFormat';
 import { cn } from '@/lib/utils';
 import { useServerError } from '../auth/useAuthForm';
 import { AreaBadge } from '../areas/AreaBadge';
+import { newNoteUrl } from '../notes/noteLinks';
 import { WEEKDAY_OPTIONS, formatDuration } from './blockOptions';
 import { EditSeriesForm } from './EditSeriesForm';
 import type { OccurrenceDisplay } from './OccurrenceCard';
@@ -212,6 +214,7 @@ function Actions({
   onClose: () => void;
 }) {
   const { occurrence, activityName } = display;
+  const navigate = useNavigate();
   const { setException, restore } = useBlockMutations();
   const { undo: undoCompletion } = useCompletionMutations();
   const { serverError, run } = useServerError();
@@ -297,6 +300,15 @@ function Actions({
         </>
       )}
 
+      <ActionButton
+        icon={<NotebookPen className="size-4" />}
+        title="Anotar"
+        hint="Escreve uma nota ligada a este bloco."
+        onClick={() => {
+          onClose();
+          void navigate(newNoteUrl('block', occurrence.blockId, activityName));
+        }}
+      />
       <ActionButton
         icon={<Pencil className="size-4" />}
         title={weekly ? 'Editar esta e as próximas' : 'Editar bloco'}
