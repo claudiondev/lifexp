@@ -16,6 +16,8 @@ export interface BlockTemplate {
   validFrom: CivilDate | null;
   /** Última data em que a regra vale; nulo = sem fim. */
   validUntil: CivilDate | null;
+  /** Meta a que o bloco serve (RF19). Não afeta o cálculo das ocorrências. */
+  goalId?: string | null;
 }
 
 export interface ExceptionRule {

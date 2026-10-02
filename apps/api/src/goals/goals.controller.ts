@@ -21,6 +21,8 @@ import {
   CreateMilestoneDto,
   GoalActionResultDto,
   GoalDto,
+  GoalHistoryItemDto,
+  GoalHistoryQueryDto,
   ListGoalsQueryDto,
   SetGoalStatusDto,
   UpdateGoalDto,
@@ -53,6 +55,17 @@ export class GoalsController {
   @ZodResponse({ type: GoalDto })
   get(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.goals.get(user.id, id);
+  }
+
+  @Get(':id/history')
+  @ApiOperation({ summary: 'Blocos cumpridos que contaram para a meta e o tempo de cada um' })
+  @ZodResponse({ type: [GoalHistoryItemDto] })
+  history(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: GoalHistoryQueryDto,
+  ) {
+    return this.goals.history(user.id, id, query.limit);
   }
 
   @Patch(':id')

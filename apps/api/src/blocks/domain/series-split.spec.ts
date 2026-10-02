@@ -711,3 +711,47 @@ describe('planDelete com conclusões', () => {
     expect(planDelete(series(), '2026-10-07', []).kind).toBe('end-series');
   });
 });
+
+describe('planEdit: vínculo com meta (RF19)', () => {
+  const GOAL = '0192f1a0-7b3c-7000-8000-0000000000c1';
+  const OTHER_GOAL = '0192f1a0-7b3c-7000-8000-0000000000c2';
+  const FROM_DATE = '2026-10-14';
+
+  it('mudar só a meta já conta como mudança', () => {
+    const plan = planEdit(series(), FROM_DATE, { goalId: GOAL }, []);
+    expect(plan.kind).not.toBe('invalid');
+  });
+
+  it('a série nova herda a meta quando só o horário muda', () => {
+    const plan = planEdit(series({ goalId: GOAL }), FROM_DATE, { startTime: '18:00' }, []);
+    expect(plan).toMatchObject({ kind: 'split', newBlock: { goalId: GOAL } });
+  });
+
+  it('trocar a meta vale na série nova; null desvincula; indefinido mantém', () => {
+    const base = series({ goalId: GOAL });
+    expect(planEdit(base, FROM_DATE, { goalId: OTHER_GOAL }, [])).toMatchObject({
+      newBlock: { goalId: OTHER_GOAL },
+    });
+    expect(planEdit(base, FROM_DATE, { goalId: null }, [])).toMatchObject({
+      newBlock: { goalId: null },
+    });
+    expect(planEdit(base, FROM_DATE, { startTime: '10:00' }, [])).toMatchObject({
+      newBlock: { goalId: GOAL },
+    });
+  });
+
+  it('sem passado (edição no lugar), a meta também é atualizada', () => {
+    const plan = planEdit(series({ goalId: GOAL }), '2026-09-02', { goalId: null }, []);
+    expect(plan).toMatchObject({ kind: 'in-place', update: { goalId: null } });
+  });
+
+  it('bloco avulso: a meta entra na atualização no lugar', () => {
+    const plan = planEdit(single(), '2026-10-07', { goalId: GOAL }, []);
+    expect(plan).toMatchObject({ kind: 'in-place', update: { goalId: GOAL } });
+  });
+
+  it('bloco sem meta (campo ausente) vira goalId null na série nova', () => {
+    const plan = planEdit(series(), FROM_DATE, { startTime: '10:00' }, []);
+    expect(plan).toMatchObject({ newBlock: { goalId: null } });
+  });
+});

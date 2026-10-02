@@ -86,6 +86,21 @@ export const goalActionResultSchema = z.object({
   total: levelProgressSchema,
 });
 
+/** Um bloco cumprido que contou para a meta (RF54). */
+export const goalHistoryItemSchema = z.object({
+  blockId: z.uuid(),
+  occurrenceDate: civilDateSchema,
+  completedAt: z.iso.datetime(),
+  durationMin: z.number().int().min(0),
+  xpAmount: z.number().int().min(0),
+  activityId: z.uuid(),
+  activityName: z.string(),
+});
+
+export const goalHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
 export const setGoalStatusSchema = z.strictObject({ status: goalStatusSchema });
 
 export const listGoalsQuerySchema = z.object({ status: goalStatusSchema.optional() });
@@ -98,6 +113,7 @@ export const updateMilestoneSchema = createMilestoneSchema;
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
 export type Milestone = z.infer<typeof milestoneSchema>;
 export type Goal = z.infer<typeof goalSchema>;
+export type GoalHistoryItem = z.infer<typeof goalHistoryItemSchema>;
 export type GoalActionResult = z.infer<typeof goalActionResultSchema>;
 export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;

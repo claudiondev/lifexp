@@ -15,10 +15,11 @@ import {
   type CreateGoalInput,
   type Goal,
   type GoalActionResult,
+  type GoalHistoryItem,
   type GoalStatus,
   type UpdateGoalInput,
 } from '@lifexp/shared';
-import { fromCivil } from '../blocks/blocks.mapper.js';
+import { fromCivil, toCivil } from '../blocks/blocks.mapper.js';
 import { CLOCK, type Clock } from '../clock/clock.js';
 import { XpLedgerService, type LedgerResult, type Tx } from '../gamification/xp-ledger.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -122,10 +123,6 @@ export class GoalsService {
       const goal = await tx.goal.findFirst({ where: { id, userId }, include: WITH_MILESTONES });
       if (!goal) return;
 
-      // Mesma ordem de trava da edição de bloco (bloco primeiro, depois a meta): sem deadlock com
-      // um bloco sendo vinculado a esta meta no mesmo instante.
-      await tx.$queryRaw`SELECT "id" FROM "Block" WHERE "goalId" = ${id} FOR UPDATE`;
-
       const entries = await tx.xpTransaction.findMany({
         where: {
           userId,
@@ -137,6 +134,30 @@ export class GoalsService {
       for (const entry of entries) await this.ledger.reverse(tx, entry, now);
       await tx.goal.delete({ where: { id } });
     });
+  }
+
+  /** Blocos cumpridos que contaram para a meta, do mais recente ao mais antigo (RF54, RN35). */
+  async history(userId: string, id: string, limit: number): Promise<GoalHistoryItem[]> {
+    await this.findOwnedOrThrow(userId, id);
+    const completions = await this.prisma.completion.findMany({
+      where: { userId, undoneAt: null, block: { goalId: id } },
+      orderBy: [{ completedAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+    });
+    const activities = await this.prisma.activity.findMany({
+      where: { userId, id: { in: [...new Set(completions.map((c) => c.activityId))] } },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(activities.map((activity) => [activity.id, activity.name]));
+    return completions.map((completion) => ({
+      blockId: completion.blockId,
+      occurrenceDate: toCivil(completion.occurrenceDate),
+      completedAt: completion.completedAt.toISOString(),
+      durationMin: completion.durationMin,
+      xpAmount: completion.xpAmount,
+      activityId: completion.activityId,
+      activityName: nameById.get(completion.activityId) ?? 'Atividade',
+    }));
   }
 
   async addMilestone(userId: string, goalId: string, title: string): Promise<Goal> {

@@ -36,6 +36,7 @@ import {
   toExceptionRule,
 } from './blocks.mapper.js';
 
+const GOAL_CLOSED = 'A meta está concluída ou abandonada. Reabra a meta para vincular blocos';
 const ACTIVITY_ARCHIVED = 'A atividade está arquivada. Restaure a atividade e a área primeiro';
 const FROM_AFTER_END = 'A série já terminou antes dessa data';
 const CROSSES_MIDNIGHT = 'O bloco não pode atravessar a meia-noite';
@@ -116,26 +117,33 @@ export class BlocksService {
   async create(userId: string, input: CreateBlockInput): Promise<Block> {
     await this.assertActivityUsable(userId, input.activityId);
 
-    const block = await this.prisma.block.create({
-      data:
-        input.recurrence === 'weekly'
-          ? {
-              userId,
-              activityId: input.activityId,
-              recurrence: 'WEEKLY',
-              weekday: input.weekday,
-              startTime: input.startTime,
-              durationMin: input.durationMin,
-              validFrom: fromCivil(input.validFrom),
-            }
-          : {
-              userId,
-              activityId: input.activityId,
-              recurrence: 'ONCE',
-              date: fromCivil(input.date),
-              startTime: input.startTime,
-              durationMin: input.durationMin,
-            },
+    // A meta fica travada (FOR KEY SHARE) até o bloco ser gravado: excluir a meta no meio não deixa
+    // o vínculo apontar para uma meta que sumiu (violação de chave estrangeira, erro 500).
+    const block = await this.prisma.$transaction(async (tx) => {
+      if (input.goalId) await this.lockGoalForLink(tx, userId, input.goalId);
+      return tx.block.create({
+        data:
+          input.recurrence === 'weekly'
+            ? {
+                userId,
+                activityId: input.activityId,
+                goalId: input.goalId ?? null,
+                recurrence: 'WEEKLY',
+                weekday: input.weekday,
+                startTime: input.startTime,
+                durationMin: input.durationMin,
+                validFrom: fromCivil(input.validFrom),
+              }
+            : {
+                userId,
+                activityId: input.activityId,
+                goalId: input.goalId ?? null,
+                recurrence: 'ONCE',
+                date: fromCivil(input.date),
+                startTime: input.startTime,
+                durationMin: input.durationMin,
+              },
+      });
     });
     return toBlockResponse(block);
   }
@@ -177,6 +185,10 @@ export class BlocksService {
 
     return this.prisma.$transaction(async (tx) => {
       const current = await lockAndLoadBlock(tx, userId, id);
+      // Mesma trava do create: a meta não some no meio da gravação do vínculo.
+      if (changes.goalId && changes.goalId !== current.goalId) {
+        await this.lockGoalForLink(tx, userId, changes.goalId);
+      }
       const template = toBlockTemplate(current, current.activity.areaId);
       const plan = planEdit(
         template,
@@ -360,6 +372,25 @@ export class BlocksService {
     if (!activity) throw new NotFoundException('Atividade não encontrada');
     if (activity.archivedAt !== null || activity.area.archivedAt !== null) {
       throw new ConflictException(ACTIVITY_ARCHIVED);
+    }
+  }
+
+  /**
+   * Trava a meta contra exclusão (FOR KEY SHARE) enquanto o vínculo é gravado. A meta precisa ser da
+   * pessoa (404 se não for) e estar em andamento: ativa ou pausada.
+   */
+  private async lockGoalForLink(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    goalId: string,
+  ): Promise<void> {
+    const rows = await tx.$queryRaw<{ status: string }[]>`
+      SELECT "status"::text AS "status" FROM "Goal"
+      WHERE "id" = ${goalId} AND "userId" = ${userId} FOR KEY SHARE`;
+    const goal = rows[0];
+    if (!goal) throw new NotFoundException('Meta não encontrada');
+    if (goal.status === 'COMPLETED' || goal.status === 'ABANDONED') {
+      throw new ConflictException(GOAL_CLOSED);
     }
   }
 }

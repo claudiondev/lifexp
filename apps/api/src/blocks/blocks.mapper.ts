@@ -24,6 +24,7 @@ export function toBlockResponse(block: BlockEntity): Block {
     durationMin: block.durationMin,
     validFrom: toCivilOrNull(block.validFrom),
     validUntil: toCivilOrNull(block.validUntil),
+    goalId: block.goalId,
   };
 }
 

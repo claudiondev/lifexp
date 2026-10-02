@@ -103,6 +103,7 @@ function setup(options: ApiOptions = {}, initialUrl = '/semana') {
           durationMin: body.durationMin,
           validFrom: body.validFrom ?? null,
           validUntil: null,
+          goalId: null,
         });
       }
       if (url.startsWith('/api/blocks/week')) {

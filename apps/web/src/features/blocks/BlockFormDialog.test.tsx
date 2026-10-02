@@ -71,6 +71,7 @@ function setup(options: Options = {}) {
             durationMin: body.durationMin,
             validFrom: body.validFrom ?? null,
             validUntil: null,
+            goalId: null,
           })
         );
       }

@@ -4,6 +4,8 @@ import type { BlockTemplate, ExceptionRule } from './week-occurrences.js';
 /** Campos que a pessoa pode alterar ao editar "a partir de uma data". */
 export interface BlockChanges {
   activityId?: string;
+  /** Nulo desvincula da meta; indefinido mantém o vínculo atual. */
+  goalId?: string | null;
   weekday?: number;
   /** Só para bloco avulso. */
   date?: CivilDate;
@@ -32,6 +34,7 @@ export type PlanInvalidReason =
 /** Campos de um bloco novo (o service acrescenta userId). */
 export interface NewBlockData {
   activityId: string;
+  goalId: string | null;
   recurrence: 'weekly' | 'once';
   weekday: number | null;
   date: CivilDate | null;
@@ -111,6 +114,7 @@ export function planEdit(
 
   const merged = {
     activityId: changes.activityId ?? block.activityId,
+    goalId: changes.goalId !== undefined ? changes.goalId : (block.goalId ?? null),
     startTime: changes.startTime ?? block.startTime,
     durationMin: changes.durationMin ?? block.durationMin,
   };

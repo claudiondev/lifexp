@@ -32,12 +32,15 @@ export const blockSchema = z.object({
   durationMin: z.number().int(),
   validFrom: civilDateSchema.nullable(),
   validUntil: civilDateSchema.nullable(),
+  /** Meta a que o bloco serve (RF19); nulo = sem meta. */
+  goalId: z.uuid().nullable(),
 });
 
 const weeklyBlockSchema = z
   .strictObject({
     recurrence: z.literal('weekly'),
     activityId: z.uuid(),
+    goalId: z.uuid().nullish(),
     weekday: weekdaySchema,
     startTime: timeOfDaySchema,
     durationMin: durationMinSchema,
@@ -53,6 +56,7 @@ const onceBlockSchema = z
   .strictObject({
     recurrence: z.literal('once'),
     activityId: z.uuid(),
+    goalId: z.uuid().nullish(),
     date: civilDateSchema,
     startTime: timeOfDaySchema,
     durationMin: durationMinSchema,
@@ -75,6 +79,8 @@ export const updateBlockSchema = z
   .strictObject({
     from: civilDateSchema,
     activityId: z.uuid().optional(),
+    /** Nulo desvincula o bloco da meta. */
+    goalId: z.uuid().nullable().optional(),
     weekday: weekdaySchema.optional(),
     date: civilDateSchema.optional(),
     startTime: timeOfDaySchema.optional(),

@@ -187,6 +187,7 @@ function setup(
           durationMin: 60,
           validFrom: '2026-10-07',
           validUntil: null,
+          goalId: null,
         });
       }
       return json(404);

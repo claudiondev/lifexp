@@ -3,6 +3,8 @@ import {
   createGoalSchema,
   createMilestoneSchema,
   goalActionResultSchema,
+  goalHistoryItemSchema,
+  goalHistoryQuerySchema,
   goalSchema,
   listGoalsQuerySchema,
   setGoalStatusSchema,
@@ -18,3 +20,5 @@ export class ListGoalsQueryDto extends createZodDto(listGoalsQuerySchema) {}
 export class CreateMilestoneDto extends createZodDto(createMilestoneSchema) {}
 export class UpdateMilestoneDto extends createZodDto(updateMilestoneSchema) {}
 export class GoalActionResultDto extends createZodDto(goalActionResultSchema) {}
+export class GoalHistoryItemDto extends createZodDto(goalHistoryItemSchema) {}
+export class GoalHistoryQueryDto extends createZodDto(goalHistoryQuerySchema) {}
