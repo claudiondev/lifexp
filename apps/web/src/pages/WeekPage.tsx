@@ -25,6 +25,7 @@ import { BlockFormDialog } from '@/features/blocks/BlockFormDialog';
 import { DayView } from '@/features/blocks/DayView';
 import { OccurrenceDialog } from '@/features/blocks/OccurrenceDialog';
 import type { OccurrenceDisplay } from '@/features/blocks/OccurrenceCard';
+import { useMoveOccurrence } from '@/features/blocks/useMoveOccurrence';
 import { useNow } from '@/features/blocks/useNow';
 import { useWeek, weekQueryOptions } from '@/features/blocks/useWeek';
 import { WeekGrid } from '@/features/blocks/WeekGrid';
@@ -65,6 +66,7 @@ export function WeekPage() {
       : defaultDay;
 
   const week = useWeek(weekStart);
+  const moveOccurrence = useMoveOccurrence(weekStart);
   // Eventos da semana (RF35). Se falharem, a grade de blocos continua funcionando sem eles.
   const weekEvents = useEvents(weekStart, addDays(weekStart, 6));
   const eventsByDate = useMemo(() => groupEventsByDate(weekEvents.data ?? []), [weekEvents.data]);
@@ -207,6 +209,7 @@ export function WeekPage() {
                 onSelect={setSelected}
                 events={eventsByDate}
                 onSelectEvent={setSelectedEvent}
+                onMove={(display, target) => void moveOccurrence(display.occurrence, target)}
               />
             ) : (
               <DayView

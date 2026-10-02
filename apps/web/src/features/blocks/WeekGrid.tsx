@@ -1,8 +1,17 @@
-import { timeToMinutes, weekDates, type CalendarEvent, type CivilDate } from '@lifexp/shared';
+import {
+  minutesToTime,
+  timeToMinutes,
+  weekDates,
+  type CalendarEvent,
+  type CivilDate,
+} from '@lifexp/shared';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { cn } from '@/lib/utils';
 import { dayOfMonth, longDate, weekdayLong, weekdayShort } from '@/lib/civilFormat';
 import { EventChip } from '../events/EventChip';
+import { computeDrop, dropOffset, isDrag, type DragInput } from './dragGeometry';
 import { layoutDay, visibleHourRange } from './layoutDay';
+import type { MoveTarget } from './useMoveOccurrence';
 import { OccurrenceCard, timeRange, type OccurrenceDisplay } from './OccurrenceCard';
 
 /** Altura de uma hora na grade, em pixels. */
@@ -19,6 +28,23 @@ interface WeekGridProps {
   /** Eventos da semana por dia (RF35): ficam numa faixa acima das horas. */
   events?: Map<CivilDate, CalendarEvent[]>;
   onSelectEvent?: (event: CalendarEvent) => void;
+  /** Soltar um bloco em outro dia/horário (RF18). Sem isto a grade não aceita arrasto. */
+  onMove?: (display: OccurrenceDisplay, target: MoveTarget) => void;
+}
+
+const keyOf = ({ occurrence }: OccurrenceDisplay) =>
+  `${occurrence.blockId}-${occurrence.occurrenceDate}`;
+
+/** Um arrasto em andamento: de onde saiu e quanto o ponteiro já andou. */
+interface DragState {
+  display: OccurrenceDisplay;
+  originX: number;
+  originY: number;
+  geometry: Omit<DragInput, 'deltaX' | 'deltaY'>;
+  deltaX: number;
+  deltaY: number;
+  /** Passou do limiar: deixou de ser um clique. */
+  active: boolean;
 }
 
 const pad = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
@@ -31,12 +57,98 @@ export function WeekGrid({
   onSelect,
   events,
   onSelectEvent,
+  onMove,
 }: WeekGridProps) {
   const dates = weekDates(weekStart);
   const range = visibleHourRange(items.map(({ occurrence }) => occurrence));
   const hours = Array.from({ length: range.end - range.start }, (_, index) => range.start + index);
   const totalHeight = hours.length * HOUR_PX;
   const rangeStartMin = range.start * 60;
+
+  // O arrasto vive num ref (os ouvintes da janela leem sempre o valor atual) e é espelhado no estado
+  // só para redesenhar o cartão.
+  const dragRef = useRef<DragState | null>(null);
+  const [drag, setDragState] = useState<DragState | null>(null);
+  const setDrag = (next: DragState | null) => {
+    dragRef.current = next;
+    setDragState(next);
+  };
+  // O navegador dispara um clique ao soltar o botão: depois de um arrasto ele não pode abrir o painel.
+  const suppressClick = useRef(false);
+  // `dates` e `onMove` mudam a cada render; os ouvintes usam os mais recentes sem se reinscrever.
+  const latest = useRef({ dates, onMove });
+  useEffect(() => {
+    latest.current = { dates, onMove };
+  });
+  const tracking = drag !== null;
+
+  useEffect(() => {
+    if (!tracking) return;
+    const move = (event: PointerEvent) => {
+      const current = dragRef.current;
+      if (!current) return;
+      const deltaX = event.clientX - current.originX;
+      const deltaY = event.clientY - current.originY;
+      setDrag({ ...current, deltaX, deltaY, active: current.active || isDrag(deltaX, deltaY) });
+    };
+    const finish = (commit: boolean) => {
+      const current = dragRef.current;
+      setDrag(null);
+      if (!current?.active) return;
+      suppressClick.current = true;
+      // o clique (se vier) chega logo depois do pointerup; passado esse instante, libera
+      setTimeout(() => (suppressClick.current = false), 0);
+      if (!commit) return;
+      const target = computeDrop({ ...current.geometry, ...current });
+      latest.current.onMove?.(current.display, {
+        date: latest.current.dates[target.dayIndex]!,
+        startTime: minutesToTime(target.startMinutes),
+      });
+    };
+    const up = () => finish(true);
+    const cancel = () => finish(false);
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') finish(false);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    window.addEventListener('keydown', key);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+      window.removeEventListener('keydown', key);
+    };
+  }, [tracking]);
+
+  /** Concluída ou pulada não se move (o servidor também recusa: 409). Toque fica para rolar a grade. */
+  const startDrag =
+    (display: OccurrenceDisplay, dayIndex: number) =>
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0 || event.pointerType === 'touch') return;
+      const column = event.currentTarget.closest('section');
+      setDrag({
+        display,
+        originX: event.clientX,
+        originY: event.clientY,
+        geometry: {
+          dayIndex,
+          startMinutes: timeToMinutes(display.occurrence.startTime),
+          durationMin: display.occurrence.durationMin,
+          columnWidth: column?.getBoundingClientRect().width ?? 0,
+          hourPx: HOUR_PX,
+          range,
+        },
+        deltaX: 0,
+        deltaY: 0,
+        active: false,
+      });
+    };
+  const select = (display: OccurrenceDisplay) => {
+    if (suppressClick.current) return;
+    onSelect(display);
+  };
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card/60 backdrop-blur">
@@ -107,7 +219,7 @@ export function WeekGrid({
             ))}
           </div>
 
-          {dates.map((date) => {
+          {dates.map((date, dayIndex) => {
             const isToday = date === today;
             const dayItems = items.filter(({ occurrence }) => occurrence.date === date);
             const laid = layoutDay(dayItems.map((item) => ({ ...item, ...item.occurrence })));
@@ -133,17 +245,37 @@ export function WeekGrid({
                   {laid.map(({ item, lane, lanes }) => {
                     const { occurrence, activityName } = item;
                     const start = timeToMinutes(occurrence.startTime);
+                    const movable = onMove && !item.completion && !occurrence.skipped;
+                    const dragging = drag?.active === true && keyOf(drag.display) === keyOf(item);
+                    // Durante o arrasto o cartão já aparece no destino encaixado, com o novo horário.
+                    const target = dragging ? computeDrop({ ...drag.geometry, ...drag }) : null;
+                    const offset = target ? dropOffset(drag!.geometry, target) : null;
                     return (
-                      <li key={`${occurrence.blockId}-${occurrence.occurrenceDate}`}>
+                      <li key={keyOf(item)}>
                         <OccurrenceCard
-                          display={item}
+                          display={
+                            target
+                              ? {
+                                  ...item,
+                                  occurrence: {
+                                    ...occurrence,
+                                    startTime: minutesToTime(target.startMinutes),
+                                  },
+                                }
+                              : item
+                          }
+                          dragging={dragging}
+                          onDragStart={movable ? startDrag(item, dayIndex) : undefined}
                           label={`${activityName}, ${weekdayLong(date)}, ${timeRange(
                             occurrence.startTime,
                             occurrence.durationMin,
                           )}${occurrence.skipped ? ', pulado' : ''}${item.completion ? ', concluído' : ''}`}
                           compact={(occurrence.durationMin / 60) * HOUR_PX < 40}
-                          onSelect={onSelect}
+                          onSelect={() => select(item)}
                           style={{
+                            ...(offset && {
+                              transform: `translate(${offset.x}px, ${offset.y}px)`,
+                            }),
                             top: ((start - rangeStartMin) / 60) * HOUR_PX,
                             height: Math.max((occurrence.durationMin / 60) * HOUR_PX, MIN_CARD_PX),
                             left: `calc(${(lane / lanes) * 100}% + 2px)`,
