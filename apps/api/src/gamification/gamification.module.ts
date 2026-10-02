@@ -53,6 +53,7 @@ import { XpHistoryService } from './xp-history.service.js';
     QuestService,
     QuestsScheduler,
     AchievementsService,
+    OccurrenceHistoryService,
   ],
 })
 export class GamificationModule {}
