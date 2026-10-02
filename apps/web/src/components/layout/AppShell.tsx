@@ -8,6 +8,7 @@ import { XpBar } from '@/components/game/XpBar';
 import { Button } from '@/components/ui/button';
 import { DesktopNav, MobileNav } from './MainNav';
 import { useAuth } from '@/features/auth/useAuth';
+import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { useCharacter } from '@/features/character/useCharacter';
 
 /** Moldura das telas autenticadas: o HUD do personagem fica sempre visível no topo. */
@@ -44,6 +45,7 @@ export function AppShell() {
               </div>
             </div>
             <StreakFlame days={character.streakDays} />
+            <NotificationBell />
             <Button variant="ghost" size="icon" aria-label="Sair" onClick={() => void logout()}>
               <LogOut aria-hidden className="size-4" />
             </Button>
