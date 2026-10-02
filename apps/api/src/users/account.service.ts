@@ -38,6 +38,7 @@ const READERS: Record<ExportedModel, Reader> = {
     tx.notificationPreference.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
   WeeklyReview: (tx, userId) =>
     tx.weeklyReview.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  Note: (tx, userId) => tx.note.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
 };
 
 export interface ExportResult {

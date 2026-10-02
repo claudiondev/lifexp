@@ -155,6 +155,18 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         dedupeKey: 'digest:2026-10-07',
       },
     });
+    await prisma.note.create({
+      data: {
+        userId: user.userId,
+        title: 'Ideias do livro',
+        content: '# Capítulo 1\n- cena inicial',
+        tags: ['livro', 'ideias'],
+        pinned: true,
+        goalId: goal.id,
+        createdAt: clock.now(),
+        updatedAt: clock.now(),
+      },
+    });
     await prisma.weeklyReview.create({
       data: {
         userId: user.userId,
@@ -237,6 +249,7 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
           where: { userId: user.userId },
         }),
         weeklyReviews: await prisma.weeklyReview.count({ where: { userId: user.userId } }),
+        notes: await prisma.note.count({ where: { userId: user.userId } }),
       };
       for (const [key, count] of Object.entries(expected)) {
         expect([key, data[key]!.length]).toEqual([key, count]);
@@ -274,6 +287,13 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         time: '14:30',
       });
       expect(data.notificationPreferences![0]).toMatchObject({ digestEmailEnabled: true });
+      expect(data.notes![0]).toMatchObject({
+        title: 'Ideias do livro',
+        content: '# Capítulo 1\n- cena inicial',
+        tags: ['livro', 'ideias'],
+        pinned: true,
+        goalId: goal.id,
+      });
       expect(data.weeklyReviews![0]).toMatchObject({
         weekStart: '2026-10-05',
         nextPriority: 'Entregar o relatório',

@@ -18,6 +18,7 @@ export const EXPORT_KEYS = {
   Notification: 'notifications',
   NotificationPreference: 'notificationPreferences',
   WeeklyReview: 'weeklyReviews',
+  Note: 'notes',
 } as const;
 
 export type ExportedModel = keyof typeof EXPORT_KEYS;
