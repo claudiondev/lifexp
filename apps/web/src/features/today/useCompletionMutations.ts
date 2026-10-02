@@ -3,6 +3,7 @@ import type { CivilDate } from '@lifexp/shared';
 import { progressKey } from '../character/useProgress';
 import { blocksKey } from '../blocks/useWeek';
 import { completeOccurrence, undoCompletion } from './todayApi';
+import { reviewsKey } from '../reviews/useReviews';
 import { todayKey } from './useToday';
 
 interface OccurrenceRef {
@@ -16,7 +17,7 @@ export function useCompletionMutations() {
   // Concluir/desfazer muda a lista de hoje, o XP/nível (HUD, ficha, áreas) e o ✓ da Semana.
   const refresh = () =>
     Promise.all(
-      [todayKey, progressKey, blocksKey].map((queryKey) =>
+      [todayKey, progressKey, blocksKey, reviewsKey].map((queryKey) =>
         queryClient.invalidateQueries({ queryKey }),
       ),
     );

@@ -423,6 +423,31 @@ describe('WeekPage', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('oferece "Revisar semana" na semana atual e nas passadas, e não nas futuras', async () => {
+    setup();
+    await grid();
+
+    // semana atual: leva à revisão sem parâmetro
+    expect(screen.getByRole('link', { name: 'Revisar semana' })).toHaveAttribute(
+      'href',
+      '/revisao',
+    );
+
+    // semana passada: leva à revisão daquela semana
+    await userEvent.click(screen.getByRole('button', { name: 'Semana anterior' }));
+    await screen.findByText('28 set – 4 out 2026');
+    expect(screen.getByRole('link', { name: 'Revisar semana' })).toHaveAttribute(
+      'href',
+      '/revisao?semana=2026-09-28',
+    );
+
+    // semana futura: não há o que revisar
+    await userEvent.click(screen.getByRole('button', { name: 'Próxima semana' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Próxima semana' }));
+    await screen.findByText('12 – 18 out 2026');
+    expect(screen.queryByRole('link', { name: 'Revisar semana' })).not.toBeInTheDocument();
+  });
+
   it('o título da página identifica o planejador', async () => {
     setup();
     await grid();

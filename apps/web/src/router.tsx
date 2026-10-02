@@ -12,6 +12,7 @@ import { GoalDetailPage } from './pages/GoalDetailPage';
 import { GoalsPage } from './pages/GoalsPage';
 import { HomePage } from './pages/HomePage';
 import { TodayPage } from './pages/TodayPage';
+import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { WeekPage } from './pages/WeekPage';
 import { XpHistoryPage } from './pages/XpHistoryPage';
@@ -32,6 +33,7 @@ export function AppRoutes() {
           <Route path="/hoje" element={<TodayPage />} />
           <Route path="/semana" element={<WeekPage />} />
           <Route path="/calendario" element={<CalendarPage />} />
+          <Route path="/revisao" element={<ReviewPage />} />
           <Route path="/metas" element={<GoalsPage />} />
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
           <Route path="/historico" element={<XpHistoryPage />} />

@@ -9,6 +9,7 @@ import {
   updateBlock,
 } from './blocksApi';
 import { progressKey } from '../character/useProgress';
+import { reviewsKey } from '../reviews/useReviews';
 import { todayKey } from '../today/useToday';
 import { blocksKey } from './useWeek';
 
@@ -27,6 +28,8 @@ export function useBlockMutations() {
       queryClient.invalidateQueries({ queryKey: todayKey }),
       // pular ou editar bloco muda quais dias são planejados, e com isso o streak
       queryClient.invalidateQueries({ queryKey: progressKey }),
+      // o resumo da revisão semanal nasce dos blocos
+      queryClient.invalidateQueries({ queryKey: reviewsKey }),
     ]);
 
   return {

@@ -9,7 +9,14 @@ import {
   weekStartOf,
   type CivilDate,
 } from '@lifexp/shared';
-import { CalendarPlus, CalendarRange, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import {
+  CalendarPlus,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+  Plus,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
@@ -131,6 +138,15 @@ export function WeekPage() {
               <CalendarPlus aria-hidden className="size-4" />
               Novo evento
             </Button>
+            {/* Só dá para revisar a semana atual e as passadas. */}
+            {weekStart <= currentWeek && (
+              <Button asChild variant="secondary">
+                <Link to={`/revisao${weekStart === currentWeek ? '' : `?semana=${weekStart}`}`}>
+                  <ClipboardCheck aria-hidden className="size-4" />
+                  Revisar semana
+                </Link>
+              </Button>
+            )}
             <Button asChild variant="secondary" size="icon" aria-label="Calendário do mês">
               <Link to="/calendario">
                 <CalendarRange aria-hidden className="size-4" />
