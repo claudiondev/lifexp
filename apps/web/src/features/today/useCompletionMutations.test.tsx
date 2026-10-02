@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAccessToken } from '@/lib/apiClient';
 import { blocksKey } from '../blocks/useWeek';
 import { progressKey } from '../character/useProgress';
+import { balanceKey } from '../balance/useBalance';
 import { questKey } from '../quest/useQuest';
 import { useCompletionMutations } from './useCompletionMutations';
 import { todayKey } from './useToday';
@@ -23,7 +24,7 @@ describe('useCompletionMutations', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it.each(['complete', 'undo'] as const)(
-    '%s invalida a lista de hoje, o progresso, a quest e as semanas em cache',
+    '%s invalida a lista de hoje, o progresso, a quest, o radar e as semanas em cache',
     async (action) => {
       vi.stubGlobal(
         'fetch',
@@ -47,7 +48,13 @@ describe('useCompletionMutations', () => {
         ),
       );
       const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-      const keys = [todayKey, progressKey, questKey, [...blocksKey, 'week', '2026-10-05']] as const;
+      const keys = [
+        todayKey,
+        progressKey,
+        questKey,
+        balanceKey,
+        [...blocksKey, 'week', '2026-10-05'],
+      ] as const;
       keys.forEach((key) => client.setQueryData(key, { stale: false }));
       const wrapper = ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={client}>{children}</QueryClientProvider>

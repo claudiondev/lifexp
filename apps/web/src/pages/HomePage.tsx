@@ -2,6 +2,7 @@ import { ArrowRight, History, Scroll } from 'lucide-react';
 import { Link } from 'react-router';
 import { CharacterCard } from '@/components/game/CharacterCard';
 import { Button } from '@/components/ui/button';
+import { BalanceSection } from '@/features/balance/BalanceSection';
 import { useAuth } from '@/features/auth/useAuth';
 import { useCharacter } from '@/features/character/useCharacter';
 import { HealthStatus } from '@/features/health/HealthStatus';
@@ -67,6 +68,8 @@ export function HomePage() {
           </Button>
         </section>
       </div>
+
+      <BalanceSection />
 
       <div className="mt-10">
         <HealthStatus />

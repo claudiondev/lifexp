@@ -9,6 +9,7 @@ import {
   updateBlock,
 } from './blocksApi';
 import { progressKey } from '../character/useProgress';
+import { balanceKey } from '../balance/useBalance';
 import { questKey } from '../quest/useQuest';
 import { reviewsKey } from '../reviews/useReviews';
 import { todayKey } from '../today/useToday';
@@ -33,6 +34,8 @@ export function useBlockMutations() {
       queryClient.invalidateQueries({ queryKey: reviewsKey }),
       // pular um bloco o tira da conta da quest
       queryClient.invalidateQueries({ queryKey: questKey }),
+      // e das notas de aderência do radar
+      queryClient.invalidateQueries({ queryKey: balanceKey }),
     ]);
 
   return {
