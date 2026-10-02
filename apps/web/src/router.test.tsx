@@ -107,7 +107,7 @@ describe('rotas e telas de auth', () => {
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/auth/register')).toBe(false);
   });
 
-  it('navega entre Painel, Áreas e Perfil pelo menu', async () => {
+  it('navega entre Painel, Áreas e Ajustes pelo menu', async () => {
     stubApi({
       '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
       '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
@@ -120,8 +120,20 @@ describe('rotas e telas de auth', () => {
     await userEvent.click(screen.getAllByRole('link', { name: 'Áreas' })[0]!);
     expect(await screen.findByRole('heading', { name: 'Áreas da vida' })).toBeInTheDocument();
 
-    await userEvent.click(screen.getAllByRole('link', { name: 'Perfil' })[1]!);
-    expect(await screen.findByRole('heading', { name: 'Seu perfil' })).toBeInTheDocument();
+    // o menu aponta direto para o endereço novo (senão a aba ativa nunca ficaria destacada)
+    for (const link of screen.getAllByRole('link', { name: 'Ajustes' })) {
+      expect(link).toHaveAttribute('href', '/configuracoes');
+    }
+    await userEvent.click(screen.getAllByRole('link', { name: 'Ajustes' })[1]!);
+    expect(await screen.findByRole('heading', { name: 'Configurações' })).toBeInTheDocument();
+  });
+
+  it('o endereço antigo /perfil leva às Configurações', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+    });
+    renderAt('/perfil');
+    expect(await screen.findByRole('heading', { name: 'Configurações' })).toBeInTheDocument();
   });
 
   it('manda visitante que abre /areas direto para o login e volta depois', async () => {

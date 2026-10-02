@@ -23,7 +23,7 @@ const ITEMS: NavItem[] = [
   { to: '/semana', label: 'Semana', icon: CalendarDays },
   { to: '/metas', label: 'Metas', icon: Trophy },
   { to: '/areas', label: 'Áreas', icon: Shapes },
-  { to: '/perfil', label: 'Perfil', icon: UserRound },
+  { to: '/configuracoes', label: 'Ajustes', icon: UserRound },
 ];
 
 /** Abas no topo, para telas a partir de `sm`. */

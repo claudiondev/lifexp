@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { setAccessToken } from '@/lib/apiClient';
-import { ProfilePage } from './ProfilePage';
+import { SettingsPage } from './SettingsPage';
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast, Toaster: () => null }));
@@ -29,6 +29,7 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
     vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
       if (url === '/api/auth/refresh') return json(200, { user, accessToken: 't' });
+      if (url === '/api/auth/sessions') return json(200, []);
       if (url === '/api/notification-preferences') {
         return json(200, {
           blockRemindersEnabled: true,
@@ -53,7 +54,7 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
   render(
     <QueryClientProvider client={client}>
       <AuthProvider>
-        <ProfilePage />
+        <SettingsPage />
       </AuthProvider>
     </QueryClientProvider>,
   );
@@ -62,12 +63,26 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
 
 const saveButton = () => screen.getByRole('button', { name: 'Salvar alterações' });
 
-describe('ProfilePage', () => {
+describe('SettingsPage', () => {
   beforeEach(() => {
     setAccessToken(null);
     toast.success.mockClear();
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it('reúne perfil, notificações, dispositivos, dados e exclusão da conta', async () => {
+    setup();
+    await screen.findByRole('heading', { name: 'Configurações' });
+
+    expect(await screen.findByRole('heading', { name: 'Notificações' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Dispositivos conectados' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Seus dados' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Excluir a conta' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Baixar meus dados' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Excluir minha conta' })).toBeInTheDocument();
+  });
 
   it('mostra os dados atuais, com o e-mail somente leitura', async () => {
     setup();

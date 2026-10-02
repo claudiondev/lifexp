@@ -12,7 +12,7 @@ import { GoalDetailPage } from './pages/GoalDetailPage';
 import { GoalsPage } from './pages/GoalsPage';
 import { HomePage } from './pages/HomePage';
 import { TodayPage } from './pages/TodayPage';
-import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 import { WeekPage } from './pages/WeekPage';
 import { XpHistoryPage } from './pages/XpHistoryPage';
 
@@ -36,7 +36,9 @@ export function AppRoutes() {
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
           <Route path="/historico" element={<XpHistoryPage />} />
           <Route path="/areas" element={<AreasPage />} />
-          <Route path="/perfil" element={<ProfilePage />} />
+          <Route path="/configuracoes" element={<SettingsPage />} />
+          {/* o endereço antigo continua funcionando (favoritos, PWA instalado) */}
+          <Route path="/perfil" element={<Navigate to="/configuracoes" replace />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
