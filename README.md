@@ -3,8 +3,8 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 1f (PWA instalável)** concluído, fechando o **Marco 1**, sobre streak (1e), Hoje/XP (1d),
-> blocos/Semana (1c), perfil/áreas (1b), autenticação (1a) e a fundação (0). Próximo: Marco 2.
+> Status: **Marco 2a (Metas)** concluído, sobre o **Marco 1** completo (PWA, streak, Hoje/XP, blocos/Semana,
+> perfil/áreas, autenticação, fundação). Próximos: 2b (eventos), 2c (notificações) e 2d (extras da fase 2).
 
 ## Stack
 
@@ -187,6 +187,47 @@ O LifeXP é instalável como app (RNF03), sem push (push é da fase 4).
   ou a regra "API fora do cache" estiverem errados (o CI pega por aqui).
 - **Em produção (Vercel):** o rewrite `/api` → Railway precisa continuar na mesma origem, e `sw.js` deve ser
   servido sem cache longo (o Vite já o emite com hash só nos assets, não no `sw.js`).
+
+## Metas e marcos (Marco 2a)
+
+Uma **meta** junta marcos e blocos de tempo em torno de algo que você quer alcançar.
+
+- **Campos:** título, descrição, área, prazo (data civil), status (ativa, concluída, pausada, abandonada) e uma
+  **métrica opcional** (valor-alvo, valor atual e unidade). Valor atual e unidade só existem com um valor-alvo.
+- **Progresso (RN19):** com métrica, valor atual ÷ alvo (passou do alvo = 100%); sem métrica, marcos concluídos ÷
+  total. A métrica vence quando as duas existem. Sem métrica e sem marcos o progresso é **indefinido** (não 0%).
+- **A meta nunca conclui sozinha (RN20):** ao chegar a 100% ela só aparece como "pronta para concluir"; quem
+  conclui é você. Meta sem métrica e sem marcos também pode ser concluída manualmente.
+- **Atrasada (RN22)** é **derivada**, não gravada: prazo vencido e meta ativa ou pausada, no dia local da
+  pessoa. No dia do prazo ainda não está atrasada, e atrasar nunca tira XP.
+- **XP (RN21):** marco concluído **+100 XP**, meta concluída **+500 XP** (constantes em `packages/shared/src/xp.ts`,
+  sujeitas a calibração). São lançamentos imutáveis no mesmo livro-caixa (`MILESTONE` e `GOAL`); desfazer o marco,
+  reabrir/pausar/abandonar a meta concluída ou **excluir** meta/marco concluído gera estorno. O XP vai para a
+  área da meta (sem área, só para o total). Concluir e desfazer são idempotentes.
+- **Marcos só mudam em metas ativas ou pausadas** (concluir/desfazer em meta concluída ou abandonada dá 409).
+- **Blocos ligados à meta (RF19):** o bloco guarda `goalId` (criar e editar "esta e as próximas"; o bloco novo da
+  série herda a meta). Só metas ativas ou pausadas aceitam blocos novos.
+- **Tempo investido (RN35, RF32, RF54):** soma da duração (a "foto" da conclusão) das conclusões **ativas** dos
+  blocos ligados à meta, calculada na leitura. O histórico lista os blocos cumpridos, do mais recente ao mais antigo.
+
+| Método | Rota                                                | O que faz                                         |
+| ------ | --------------------------------------------------- | ------------------------------------------------- |
+| GET    | `/api/goals?status=`                                | Lista as metas (filtro opcional por status)       |
+| POST   | `/api/goals`                                        | Cria a meta                                       |
+| GET    | `/api/goals/:id`                                    | Detalhe: marcos, progresso, atraso e horas        |
+| PATCH  | `/api/goals/:id`                                    | Edita título, descrição, área, prazo e métrica    |
+| DELETE | `/api/goals/:id`                                    | Exclui (devolve o XP; idempotente)                |
+| PUT    | `/api/goals/:id/status`                             | Muda o status (concluir +500 XP; reabrir estorna) |
+| GET    | `/api/goals/:id/history`                            | Blocos cumpridos que contaram para a meta         |
+| POST   | `/api/goals/:id/milestones`                         | Adiciona um marco                                 |
+| PATCH  | `/api/goals/:id/milestones/:milestoneId`            | Renomeia o marco                                  |
+| DELETE | `/api/goals/:id/milestones/:milestoneId`            | Remove o marco (estorna se concluído)             |
+| POST   | `/api/goals/:id/milestones/:milestoneId/completion` | Conclui o marco (+100 XP, idempotente)            |
+| DELETE | `/api/goals/:id/milestones/:milestoneId/completion` | Desfaz a conclusão do marco (estorno)             |
+
+Telas: **Metas** (`/metas`: filtro por status, progresso, selo "Atrasada", horas) e o detalhe (`/metas/:id`:
+marcos com check, valor atual, status, tempo investido e histórico, comemoração ao concluir). O formulário de
+bloco ganhou o campo "Meta (opcional)" e o painel da ocorrência mostra a meta.
 
 ## Glossário (para quem vem de Java/Spring)
 

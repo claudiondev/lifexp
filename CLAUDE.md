@@ -116,6 +116,26 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: `UpdatePrompt` (aviso de versão nova, em `App`), `InstallAppCard` (Perfil, via `beforeinstallprompt`).
   Push do PWA é fase 4. Registro do SW só foi verificado por testes e pelo build; vale testar num Chrome real.
 
+## Metas (decisões do 2a)
+
+- Modelos `Goal` e `Milestone` (migration `goals` + `xp_ledger_goal_types`; o `ADD VALUE` do enum e o CHECK que usa
+  os valores novos ficam em migrations separadas, senão o Postgres recusa o uso na mesma transação). Status no banco
+  em maiúsculas (`ACTIVE`...) e na API em minúsculas. `Block.goalId` (SetNull ao excluir a meta).
+- Regras puras em `goals/domain/goal-rules.ts` (`goalProgress`, `isOverdue`, `statusXpEffect`, `isReadyToComplete`).
+  "Atrasada" é derivada (nunca gravada). A meta nunca conclui sozinha.
+- XP: `XpLedgerService` (gamification) é o único escritor do livro-caixa e dos caches (`credit`, `reverse`,
+  `lockUser`); conclusão de bloco, marco e meta passam por ele. Tipos `COMPLETION`/`MILESTONE`/`GOAL`/`REVERSAL`;
+  `sourceId` aponta para Completion, Milestone ou Goal. Meta sem área credita só o total. Excluir meta/marco
+  concluído estorna o XP (senão criar e apagar renderia XP de graça).
+- Concorrência: pessoa travada com `FOR NO KEY UPDATE` em toda operação de XP. Vincular bloco a meta usa
+  `FOR KEY SHARE` na meta (`lockGoalForLink`) para a exclusão da meta não deixar o vínculo apontar para o vazio
+  (erro 500 por chave estrangeira); o teste de estresse em `goals-blocks.e2e-spec.ts` cobre.
+- Tempo investido é calculado na leitura (SQL com `SUM(durationMin)` das conclusões ativas); `Occurrence` e `Block`
+  carregam `goalId`; `planEdit` herda a meta na série nova e aceita trocar/desvincular.
+- Front: `features/goals` (`goalsApi`, `useGoals`, `GoalCard`, `GoalFormDialog`, `MilestoneList`,
+  `GoalCelebration`, `GoalSelect`); mutações invalidam `goals` + `progress` + `today`. Subida de nível espera a
+  comemoração da meta fechar. `test-setup.ts` agora simula `ResizeObserver` (Radix Switch em formulário).
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -168,7 +188,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. Próximo: Marco 2 (a planejar).
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)** feito; próximos: 2b (eventos), 2c (notificações), 2d (extras).
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
