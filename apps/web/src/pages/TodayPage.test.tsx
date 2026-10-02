@@ -59,6 +59,10 @@ interface Options {
   /** Resposta do POST de conclusão; padrão: ganhou 90 XP sem subir de nível. */
   completeResponse?: () => Response;
   streak?: { current: number; best: number; lastFulfilledDate: string | null };
+  /** Resposta de GET /api/quest; sem ela a rota falha (404) e a tela segue sem o cartão. */
+  quest?: unknown;
+  /** Resposta do DELETE de conclusão; padrão: 90 XP devolvidos, sem mexer na quest. */
+  undoResponse?: () => Response;
 }
 
 function setup({
@@ -66,6 +70,8 @@ function setup({
   events = [],
   eventsStatus,
   completeResponse,
+  quest,
+  undoResponse,
   streak = { current: 3, best: 7, lastFulfilledDate: '2026-10-06' },
 }: Options) {
   const calls: { method: string; url: string; body?: unknown }[] = [];
@@ -84,6 +90,7 @@ function setup({
         calls.push({ method, url });
         return eventsStatus ? json(eventsStatus, { message: 'falhou' }) : json(200, events);
       }
+      if (url === '/api/quest') return quest ? json(200, quest) : json(404);
       if (url === '/api/progress')
         return json(200, {
           total: level(totalXp, 2),
@@ -129,7 +136,7 @@ function setup({
         );
       }
       if (url.endsWith('/completion') && method === 'DELETE') {
-        return json(200, { xpReverted: 90, total: level(100, 2), area: null });
+        return undoResponse?.() ?? json(200, { xpReverted: 90, total: level(100, 2), area: null });
       }
       if (url.includes('/exceptions/')) {
         if (method === 'DELETE') return new Response(null, { status: 204 });
@@ -162,6 +169,22 @@ function HudProbe() {
   const character = useCharacter();
   return <p data-testid="hud">{character.xp} XP</p>;
 }
+
+const activeQuest = {
+  weekStart: '2026-10-05',
+  status: 'active',
+  eligible: 5,
+  completed: 1,
+  target: 4,
+  ratio: 0.2,
+  bonusXp: 120,
+  tiers: [
+    { percent: 80, requiredCount: 4, reached: false },
+    { percent: 90, requiredCount: 5, reached: false },
+    { percent: 100, requiredCount: 5, reached: false },
+  ],
+  completedAt: null,
+};
 
 const card = (name: string) => screen.findByRole('article', { name: new RegExp(`^${name}`) });
 
@@ -252,6 +275,145 @@ describe('TodayPage', () => {
     });
     // o HUD (aqui, a sonda) passa a mostrar o XP novo
     expect(await screen.findByTestId('hud')).toHaveTextContent('190 XP');
+  });
+
+  describe('quest da semana', () => {
+    it('mostra o cartão com o que falta e o bônus', async () => {
+      setup({ items: [makeItem(BLOCK_1)], quest: activeQuest });
+
+      const section = await screen.findByRole('region', { name: 'Quest da semana' });
+      expect(within(section).getByText(/Faltam 3 blocos para o bônus de 120 XP/)).toBeVisible();
+      expect(within(section).getByText('+120 XP')).toBeVisible();
+    });
+
+    it('sem quest na semana (ou com a rota falhando), a tela segue sem o cartão', async () => {
+      setup({ items: [makeItem(BLOCK_1)], quest: { ...activeQuest, status: 'none' } });
+      await card('Corrida');
+      expect(screen.queryByRole('region', { name: 'Quest da semana' })).not.toBeInTheDocument();
+    });
+
+    it('a rota falhando não derruba a tela nem mostra erro', async () => {
+      setup({ items: [makeItem(BLOCK_1)] });
+      await card('Corrida');
+      expect(screen.queryByRole('region', { name: 'Quest da semana' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('concluir o bloco que cumpre a quest comemora o bônus e atualiza o cartão', async () => {
+      const { calls } = setup({
+        items: [makeItem(BLOCK_1)],
+        quest: activeQuest,
+        completeResponse: () =>
+          json(200, {
+            completion: {
+              blockId: BLOCK_1,
+              occurrenceDate: '2026-10-07',
+              completedAt: '2026-10-07T13:00:00.000Z',
+              xpAmount: 90,
+            },
+            alreadyCompleted: false,
+            xpAwarded: 90,
+            questBonusXp: 120,
+            levelBefore: 2,
+            levelAfter: 2,
+            total: level(310, 2),
+            area: { areaId: AREA, ...level(310, 2) },
+          }),
+      });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Concluir/ }),
+      );
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('Quest da semana cumprida! +120 XP de bônus'),
+      );
+      await waitFor(() => {
+        const gets = calls.filter((c) => c.method === 'GET' && c.url === '/api/quest');
+        expect(gets.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    it('concluir sem cumprir a quest não mostra aviso de bônus', async () => {
+      setup({ items: [makeItem(BLOCK_1)], quest: activeQuest });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Concluir/ }),
+      );
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('+90 XP', {
+          description: '“Corrida” concluído.',
+        }),
+      );
+      expect(toast.success).toHaveBeenCalledTimes(1);
+    });
+
+    it('desfazer que derruba a quest avisa do bônus devolvido, sem culpa', async () => {
+      setup({
+        items: [
+          makeItem(BLOCK_1, {
+            status: 'completed',
+            completion: {
+              blockId: BLOCK_1,
+              occurrenceDate: '2026-10-07',
+              completedAt: '2026-10-07T13:00:00.000Z',
+              xpAmount: 90,
+            },
+          }),
+        ],
+        quest: activeQuest,
+        undoResponse: () =>
+          json(200, {
+            xpReverted: 90,
+            questBonusReverted: 120,
+            total: level(100, 2),
+            area: null,
+          }),
+      });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Desfazer/ }),
+      );
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith(
+          'A quest da semana voltou a ficar em andamento',
+          {
+            description: '120 XP de bônus devolvidos. Conclua de novo para recuperar.',
+          },
+        ),
+      );
+    });
+
+    it('pular um bloco busca a quest de novo (sai da conta)', async () => {
+      const { calls } = setup({ items: [makeItem(BLOCK_1)], quest: activeQuest });
+      await userEvent.click(within(await card('Corrida')).getByRole('button', { name: /Pular/ }));
+
+      await waitFor(() => {
+        const gets = calls.filter((c) => c.method === 'GET' && c.url === '/api/quest');
+        expect(gets.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    it('desfazer sem mexer na quest não fala dela', async () => {
+      setup({
+        items: [
+          makeItem(BLOCK_1, {
+            status: 'completed',
+            completion: {
+              blockId: BLOCK_1,
+              occurrenceDate: '2026-10-07',
+              completedAt: '2026-10-07T13:00:00.000Z',
+              xpAmount: 90,
+            },
+          }),
+        ],
+        quest: activeQuest,
+      });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Desfazer/ }),
+      );
+
+      await waitFor(() => expect(toast.success).toHaveBeenCalledTimes(1));
+    });
   });
 
   it('o botão Concluir mostra quanto XP rende', async () => {

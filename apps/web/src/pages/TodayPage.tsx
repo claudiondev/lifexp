@@ -12,6 +12,9 @@ import { EventChip } from '@/features/events/EventChip';
 import { EventDialog } from '@/features/events/EventDialog';
 import { EventFormDialog } from '@/features/events/EventFormDialog';
 import { useEvents } from '@/features/events/useEvents';
+import { QuestCard } from '@/features/quest/QuestCard';
+import { hasQuest } from '@/features/quest/questModel';
+import { useQuest } from '@/features/quest/useQuest';
 import { LevelUpDialog } from '@/features/today/LevelUpDialog';
 import { TodayItemCard, type TodayItemView } from '@/features/today/TodayItemCard';
 import { dayProgress, findNext, itemKey, splitByDay } from '@/features/today/todayModel';
@@ -27,6 +30,8 @@ export function TodayPage() {
   const character = useCharacter();
   const activities = useActivities(true);
   const areas = useAreas(true);
+  // A quest é um extra: se falhar, a tela segue sem o cartão.
+  const quest = useQuest();
   const { complete, undo } = useCompletionMutations();
   const { setException, restore } = useBlockMutations();
   const [levelUp, setLevelUp] = useState<number | null>(null);
@@ -83,6 +88,9 @@ export function TodayPage() {
       const result = await complete.mutateAsync(ref(item));
       if (result.alreadyCompleted) return;
       toast.success(`+${result.xpAwarded} XP`, { description: `“${name}” concluído.` });
+      if (result.questBonusXp > 0) {
+        toast.success(`Quest da semana cumprida! +${result.questBonusXp} XP de bônus`);
+      }
       if (result.levelAfter > result.levelBefore) setLevelUp(result.levelAfter);
     });
 
@@ -92,6 +100,11 @@ export function TodayPage() {
       toast.success(`Conclusão de “${name}” desfeita`, {
         description: `${result.xpReverted} XP devolvidos.`,
       });
+      if (result.questBonusReverted > 0) {
+        toast.success('A quest da semana voltou a ficar em andamento', {
+          description: `${result.questBonusReverted} XP de bônus devolvidos. Conclua de novo para recuperar.`,
+        });
+      }
     });
 
   const handleSkip = (item: TodayItem, name: string) =>
@@ -171,6 +184,12 @@ export function TodayPage() {
             </p>
           </div>
         </section>
+      )}
+
+      {hasQuest(quest.data) && (
+        <div className="mt-6">
+          <QuestCard quest={quest.data} />
+        </div>
       )}
 
       <section aria-label="Blocos de hoje" className="mt-6">

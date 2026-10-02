@@ -9,6 +9,7 @@ import {
   updateBlock,
 } from './blocksApi';
 import { progressKey } from '../character/useProgress';
+import { questKey } from '../quest/useQuest';
 import { reviewsKey } from '../reviews/useReviews';
 import { todayKey } from '../today/useToday';
 import { blocksKey } from './useWeek';
@@ -30,6 +31,8 @@ export function useBlockMutations() {
       queryClient.invalidateQueries({ queryKey: progressKey }),
       // o resumo da revisão semanal nasce dos blocos
       queryClient.invalidateQueries({ queryKey: reviewsKey }),
+      // pular um bloco o tira da conta da quest
+      queryClient.invalidateQueries({ queryKey: questKey }),
     ]);
 
   return {
