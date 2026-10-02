@@ -291,6 +291,16 @@ Variáveis novas (`apps/api/.env.example`): `NOTIFICATIONS_SCHEDULER` (liga a va
 `MAIL_FROM` e `APP_URL` (link do e-mail). Em produção com Resend você precisa de conta, chave e domínio verificado; para
 rodar e testar localmente, nada disso é necessário.
 
+**Testar o e-mail de verdade (grátis):** o plano gratuito do Resend basta (na data em que escrevi: ~3.000 e-mails por mês e
+100 por dia; confira em resend.com/pricing). Sem domínio verificado só dá para enviar do remetente de teste
+`onboarding@resend.dev` para o e-mail da **sua própria conta**, que é exatamente o que um teste precisa. Passos:
+
+1. Crie a conta em resend.com e uma chave de API (Settings > API Keys).
+2. Em `apps/api/.env` (não versionado) coloque `RESEND_API_KEY=...` e `MAIL_FROM="LifeXP <onboarding@resend.dev>"`.
+3. `pnpm --filter @lifexp/api build && pnpm --filter @lifexp/api mail:test seu@email.com`.
+
+Para mandar a outras pessoas (produção) é preciso verificar um domínio no Resend.
+
 Telas: **sino** no HUD com contador e a central (lista paginada, marcar como lida, "marcar todas") e as preferências em
 **Perfil > Notificações**, salvas a cada mudança. O contador atualiza a cada minuto (sem WebSocket).
 

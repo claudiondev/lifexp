@@ -10,7 +10,8 @@
     "test:unit": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.config.e2e.ts",
     "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "mail:test": "node --env-file=.env scripts/send-test-email.mjs"
   },
   "dependencies": {
     "@lifexp/shared": "workspace:^",
