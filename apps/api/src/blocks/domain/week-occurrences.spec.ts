@@ -407,3 +407,17 @@ describe('resolveOccurrence: os valores efetivos de uma ocorrência', () => {
     });
   });
 });
+
+describe('computeWeekOccurrences: meta do bloco (RF19)', () => {
+  it('cada ocorrência carrega o goalId do seu bloco; bloco sem meta dá nulo', () => {
+    const linked = weekly({ goalId: 'goal-1' });
+    const plain = weekly({ startTime: '10:00' });
+
+    const result = computeWeekOccurrences('2026-10-05', [linked, plain], []);
+
+    expect(result.map((o) => [o.blockId, o.goalId])).toEqual([
+      [linked.id, 'goal-1'],
+      [plain.id, null],
+    ]);
+  });
+});

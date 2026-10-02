@@ -127,6 +127,20 @@ describe('Blocos vinculados a metas e horas investidas (e2e)', () => {
       }
     });
 
+    it('a semana traz o goalId de cada ocorrência (e nulo nas sem meta)', async () => {
+      const { user, activity } = await setup();
+      const goal = await newGoal(user);
+      const linked = (await onceBlock(user, activity.id, { goalId: goal.id })).body;
+      const plain = (await onceBlock(user, activity.id, { startTime: '11:00' })).body;
+
+      const week = await send('get', user, '/api/blocks/week?weekStart=2026-10-05');
+
+      const goalOf = (blockId: string) =>
+        week.body.occurrences.find((o: { blockId: string }) => o.blockId === blockId).goalId;
+      expect(goalOf(linked.id)).toBe(goal.id);
+      expect(goalOf(plain.id)).toBeNull();
+    });
+
     it('rejeita goalId que não é uuid', async () => {
       const { user, activity } = await setup();
       expect((await onceBlock(user, activity.id, { goalId: 'abc' })).status).toBe(400);

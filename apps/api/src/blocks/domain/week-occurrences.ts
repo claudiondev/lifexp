@@ -111,6 +111,7 @@ export function computeWeekOccurrences(
         durationMin: resolved.durationMin,
         activityId: block.activityId,
         areaId: block.areaId,
+        goalId: block.goalId ?? null,
         recurrence: block.recurrence,
         skipped: resolved.skipped,
         modified: resolved.modified,

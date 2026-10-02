@@ -22,6 +22,7 @@ const display = (
     durationMin: 60,
     activityId: ACTIVITY,
     areaId: AREA,
+    goalId: null,
     recurrence: 'weekly',
     skipped: false,
     modified: false,

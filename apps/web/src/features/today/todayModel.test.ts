@@ -13,6 +13,7 @@ function item(overrides: Partial<TodayItem> = {}): TodayItem {
     durationMin: 60,
     activityId: '0192f1a0-7b3c-7000-8000-0000000000a1',
     areaId: '0192f1a0-7b3c-7000-8000-0000000000b1',
+    goalId: null,
     recurrence: 'weekly',
     skipped: false,
     modified: false,

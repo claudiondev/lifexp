@@ -122,6 +122,7 @@ const occurrence = (overrides: Partial<Occurrence>): Occurrence => ({
   durationMin: 60,
   activityId: 'a1',
   areaId: 'r1',
+  goalId: null,
   recurrence: 'weekly',
   skipped: false,
   modified: false,

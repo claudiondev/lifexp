@@ -9,6 +9,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -21,6 +22,7 @@ import { EditSeriesForm } from './EditSeriesForm';
 import type { OccurrenceDisplay } from './OccurrenceCard';
 import { timeRange } from './OccurrenceCard';
 import { OverrideForm } from './OverrideForm';
+import { useGoalList } from '../goals/useGoals';
 import { useCompletionMutations } from '../today/useCompletionMutations';
 import { useBlockMutations } from './useBlockMutations';
 
@@ -64,6 +66,10 @@ function OccurrencePanel({
   const [mode, setMode] = useState<Mode>('details');
   const { occurrence, activityName, areaName, areaColor, areaIcon } = display;
   const weekly = occurrence.recurrence === 'weekly';
+  const goals = useGoalList();
+  const goal = occurrence.goalId
+    ? goals.data?.find((item) => item.id === occurrence.goalId)
+    : undefined;
 
   const back = () => setMode('details');
 
@@ -95,6 +101,16 @@ function OccurrencePanel({
           <dt className="text-muted-foreground">Repetição</dt>
           <dd className="text-right font-medium">{recurrenceText(display)}</dd>
         </div>
+        {goal && (
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Meta</dt>
+            <dd className="text-right font-medium">
+              <Link to={`/metas/${goal.id}`} className="text-xp hover:underline">
+                {goal.title}
+              </Link>
+            </dd>
+          </div>
+        )}
         {display.completion && (
           <p className="mt-1 flex items-center gap-1.5 font-medium text-xp">
             <CircleCheck aria-hidden className="size-4" />

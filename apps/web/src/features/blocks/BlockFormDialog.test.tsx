@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setAccessToken } from '@/lib/apiClient';
+import { makeGoal } from '../goals/testing';
 import { BlockFormDialog } from './BlockFormDialog';
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -18,6 +19,7 @@ const json = (status: number, body: unknown = {}) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 interface Options {
+  goals?: unknown[];
   activities?: unknown[];
   postResponse?: () => Response;
 }
@@ -33,6 +35,7 @@ function setup(options: Options = {}) {
     'fetch',
     vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
+      if (url === '/api/goals') return json(200, options.goals ?? []);
       if (url.startsWith('/api/activities'))
         return json(200, options.activities ?? defaultActivities);
       if (url.startsWith('/api/areas')) {
@@ -123,6 +126,67 @@ describe('BlockFormDialog', () => {
     expect(screen.getByTestId('block-summary')).toHaveTextContent(
       'Toda quarta-feira, das 09:00 às 10:00. Começa em 7 de outubro de 2026.',
     );
+  });
+
+  describe('meta do bloco (RF19)', () => {
+    const GOAL_ID = '0192f1a0-7b3c-7000-8000-0000000000c1';
+    const goals = [
+      makeGoal({ id: GOAL_ID, title: 'Ler 12 livros' }),
+      makeGoal({
+        id: '0192f1a0-7b3c-7000-8000-0000000000c2',
+        title: 'Meta pausada',
+        status: 'paused',
+      }),
+      makeGoal({
+        id: '0192f1a0-7b3c-7000-8000-0000000000c3',
+        title: 'Meta concluída',
+        status: 'completed',
+      }),
+      makeGoal({
+        id: '0192f1a0-7b3c-7000-8000-0000000000c4',
+        title: 'Meta abandonada',
+        status: 'abandoned',
+      }),
+    ];
+
+    it('sem nenhuma meta, o campo nem aparece', async () => {
+      setup({ goals: [] });
+      await activitiesLoaded();
+      expect(screen.queryByLabelText('Meta (opcional)')).not.toBeInTheDocument();
+    });
+
+    it('oferece só metas ativas e pausadas, mais "Sem meta"', async () => {
+      setup({ goals });
+      const select = await screen.findByLabelText('Meta (opcional)');
+
+      const labels = within(select)
+        .getAllByRole('option')
+        .map((option) => option.textContent);
+      expect(labels).toEqual(['Sem meta', 'Ler 12 livros', 'Meta pausada']);
+    });
+
+    it('cria o bloco ligado à meta escolhida', async () => {
+      const { posts } = setup({ goals });
+      await choose('Reunião');
+      await userEvent.selectOptions(
+        await screen.findByLabelText('Meta (opcional)'),
+        'Ler 12 livros',
+      );
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ activityId: ACT_MEETING, goalId: GOAL_ID });
+    });
+
+    it('sem escolher meta, não envia goalId', async () => {
+      const { posts } = setup({ goals });
+      await choose('Reunião');
+      await screen.findByLabelText('Meta (opcional)');
+      await submit();
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).not.toHaveProperty('goalId');
+    });
   });
 
   it('agrupa as atividades pela área', async () => {

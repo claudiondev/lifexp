@@ -136,6 +136,8 @@ export const occurrenceSchema = z.object({
   durationMin: z.number().int(),
   activityId: z.uuid(),
   areaId: z.uuid(),
+  /** Meta a que o bloco serve (RF19); nulo = sem meta. */
+  goalId: z.uuid().nullable(),
   recurrence: z.enum(['weekly', 'once']),
   skipped: z.boolean(),
   modified: z.boolean(),

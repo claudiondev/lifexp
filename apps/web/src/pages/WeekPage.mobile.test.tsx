@@ -23,6 +23,7 @@ const occurrence = (overrides: Partial<Occurrence> = {}): Occurrence => ({
   durationMin: 60,
   activityId: ACTIVITY_ID,
   areaId: AREA_ID,
+  goalId: null,
   recurrence: 'weekly',
   skipped: false,
   modified: false,

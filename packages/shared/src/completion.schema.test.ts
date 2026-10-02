@@ -27,6 +27,7 @@ const occurrence = {
   durationMin: 60,
   activityId: id(2),
   areaId: id(3),
+  goalId: null,
   recurrence: 'weekly' as const,
   skipped: false,
   modified: false,

@@ -21,6 +21,8 @@ import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { longDate } from '@/lib/civilFormat';
 import { useActivities } from '../activities/useActivities';
+import { GoalSelect } from '../goals/GoalSelect';
+import { useGoalList } from '../goals/useGoals';
 import { useServerError } from '../auth/useAuthForm';
 import { useAreas } from '../areas/useAreas';
 import { DURATION_OPTIONS, WEEKDAY_OPTIONS } from './blockOptions';
@@ -28,6 +30,8 @@ import { useBlockMutations } from './useBlockMutations';
 
 interface FormValues {
   activityId: string;
+  /** Vazio = bloco sem meta. */
+  goalId: string;
   recurrence: 'weekly' | 'once';
   weekday: number;
   validFrom: CivilDate;
@@ -64,6 +68,8 @@ export function BlockFormDialog({ open, onOpenChange, weekStart, today }: BlockF
 function toPayload(values: FormValues) {
   const common = {
     activityId: values.activityId,
+    // Só envia a meta quando há uma escolhida: a API não precisa de campo vazio.
+    ...(values.goalId ? { goalId: values.goalId } : {}),
     startTime: values.startTime,
     durationMin: Number(values.durationMin),
   };
@@ -79,6 +85,7 @@ function toPayload(values: FormValues) {
 
 const FIELD_NAMES: readonly string[] = [
   'activityId',
+  'goalId',
   'weekday',
   'validFrom',
   'date',
@@ -99,6 +106,10 @@ function BlockForm({
   const { serverError, run } = useServerError();
   const activities = useActivities(false);
   const areas = useAreas(false);
+  const goals = useGoalList();
+  const hasGoals = (goals.data ?? []).some(
+    (goal) => goal.status === 'active' || goal.status === 'paused',
+  );
 
   // O dia que a pessoa está olhando: hoje, se a semana da tela for a atual; senão a segunda.
   const baseDate = today >= weekStart && today <= addDays(weekStart, 6) ? today : weekStart;
@@ -114,6 +125,7 @@ function BlockForm({
   } = useForm<FormValues>({
     defaultValues: {
       activityId: '',
+      goalId: '',
       recurrence: 'weekly',
       weekday: baseWeekday,
       validFrom: baseDate,
@@ -225,6 +237,13 @@ function BlockForm({
           {errors.activityId && (
             <span className="text-sm text-destructive">{errors.activityId.message}</span>
           )}
+        </div>
+      )}
+
+      {hasGoals && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="block-goal">Meta (opcional)</Label>
+          <GoalSelect id="block-goal" {...register('goalId')} />
         </div>
       )}
 

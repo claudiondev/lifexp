@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Completion, Occurrence } from '@lifexp/shared';
+import { makeGoal } from '../goals/testing';
 import { AuthProvider } from '@/features/auth/AuthProvider';
 import { setAccessToken } from '@/lib/apiClient';
 import { WeekPage } from '@/pages/WeekPage';
@@ -28,6 +29,7 @@ const weeklyOccurrence = (overrides: Partial<Occurrence> = {}): Occurrence => ({
   durationMin: 60,
   activityId: ACTIVITY_ID,
   areaId: AREA_ID,
+  goalId: null,
   recurrence: 'weekly',
   skipped: false,
   modified: false,
@@ -52,7 +54,7 @@ interface Call {
 
 function setup(
   initial: Occurrence[],
-  options: { failWith?: number; completions?: Completion[] } = {},
+  options: { failWith?: number; completions?: Completion[]; goals?: unknown[] } = {},
 ) {
   let occurrences = initial.map((o) => ({ ...o }));
   let completions = [...(options.completions ?? [])];
@@ -91,6 +93,7 @@ function setup(
           },
         ]);
       }
+      if (url === '/api/goals') return json(200, options.goals ?? []);
       if (url.startsWith('/api/areas')) {
         return json(200, [
           {
@@ -498,6 +501,110 @@ describe('ações por ocorrência', () => {
         within(await dialog()).getByRole('button', { name: /Pular só esta/ }),
       ).toBeInTheDocument();
       expect(calls).toHaveLength(0);
+    });
+  });
+
+  describe('meta do bloco (RF19)', () => {
+    const GOAL = '0192f1a0-7b3c-7000-8000-0000000000c9';
+    const OTHER_GOAL = '0192f1a0-7b3c-7000-8000-0000000000c8';
+    const goals = [
+      makeGoal({ id: GOAL, title: 'Ler 12 livros' }),
+      makeGoal({ id: OTHER_GOAL, title: 'Correr 100 km' }),
+    ];
+    const openEdit = async () => {
+      await userEvent.click(await card(/Reunião/));
+      await userEvent.click(
+        within(await dialog()).getByRole('button', { name: /Editar esta e as próximas/ }),
+      );
+    };
+
+    it('o painel mostra a meta do bloco, com link para ela', async () => {
+      setup([weeklyOccurrence({ goalId: GOAL })], { goals });
+      await userEvent.click(await card(/Reunião/));
+
+      const link = await within(await dialog()).findByRole('link', { name: 'Ler 12 livros' });
+      expect(link).toHaveAttribute('href', `/metas/${GOAL}`);
+    });
+
+    it('bloco sem meta não mostra a linha de meta', async () => {
+      setup([weeklyOccurrence()], { goals });
+      await userEvent.click(await card(/Reunião/));
+
+      const panel = within(await dialog());
+      expect(panel.getByText('Repetição')).toBeInTheDocument();
+      expect(panel.queryByText('Meta')).not.toBeInTheDocument();
+    });
+
+    it('a edição já vem com a meta atual selecionada e salvar fica desabilitado', async () => {
+      setup([weeklyOccurrence({ goalId: GOAL })], { goals });
+      await openEdit();
+
+      expect(await screen.findByLabelText('Meta')).toHaveValue(GOAL);
+      expect(screen.getByRole('button', { name: 'Salvar esta e as próximas' })).toBeDisabled();
+    });
+
+    it('trocar a meta envia só o goalId novo', async () => {
+      const { calls } = setup([weeklyOccurrence({ goalId: GOAL })], { goals });
+      await openEdit();
+
+      await userEvent.selectOptions(await screen.findByLabelText('Meta'), 'Correr 100 km');
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar esta e as próximas' }));
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]).toEqual({
+        method: 'PATCH',
+        url: `/api/blocks/${WEEKLY_ID}`,
+        body: { from: '2026-10-07', goalId: OTHER_GOAL },
+      });
+    });
+
+    it('escolher "Sem meta" desvincula (goalId nulo)', async () => {
+      const { calls } = setup([weeklyOccurrence({ goalId: GOAL })], { goals });
+      await openEdit();
+
+      await userEvent.selectOptions(await screen.findByLabelText('Meta'), 'Sem meta');
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar esta e as próximas' }));
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.body).toEqual({ from: '2026-10-07', goalId: null });
+    });
+
+    it('vincular um bloco que não tinha meta', async () => {
+      const { calls } = setup([weeklyOccurrence()], { goals });
+      await openEdit();
+
+      await userEvent.selectOptions(await screen.findByLabelText('Meta'), 'Ler 12 livros');
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar esta e as próximas' }));
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.body).toEqual({ from: '2026-10-07', goalId: GOAL });
+    });
+
+    it('mudar outro campo não mexe na meta', async () => {
+      const { calls } = setup([weeklyOccurrence({ goalId: GOAL })], { goals });
+      await openEdit();
+
+      fireEvent.change(screen.getByLabelText('Início'), { target: { value: '18:00' } });
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar esta e as próximas' }));
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.body).toEqual({ from: '2026-10-07', startTime: '18:00' });
+    });
+
+    it('bloco ligado a uma meta já concluída ainda mostra o campo (para poder desvincular)', async () => {
+      const done = makeGoal({ id: GOAL, title: 'Ler 12 livros', status: 'completed' });
+      setup([weeklyOccurrence({ goalId: GOAL })], { goals: [done] });
+      await openEdit();
+
+      expect(await screen.findByLabelText('Meta')).toHaveValue(GOAL);
+    });
+
+    it('sem nenhuma meta (e bloco sem meta), o campo não aparece', async () => {
+      setup([weeklyOccurrence()], { goals: [] });
+      await openEdit();
+
+      await screen.findByLabelText('Início');
+      expect(screen.queryByLabelText('Meta')).not.toBeInTheDocument();
     });
   });
 

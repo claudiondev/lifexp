@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { longDate } from '@/lib/civilFormat';
 import { useActivities } from '../activities/useActivities';
+import { GoalSelect } from '../goals/GoalSelect';
+import { useGoalList } from '../goals/useGoals';
 import { useAreas } from '../areas/useAreas';
 import { useServerError } from '../auth/useAuthForm';
 import { DURATION_OPTIONS, WEEKDAY_OPTIONS } from './blockOptions';
@@ -22,6 +24,8 @@ import { useBlockMutations } from './useBlockMutations';
 
 interface FormValues {
   activityId: string;
+  /** Vazio = sem meta. */
+  goalId: string;
   weekday: number;
   date: CivilDate;
   startTime: string;
@@ -46,8 +50,14 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
   const activities = useActivities(false);
   const areas = useAreas(false);
 
+  const goals = useGoalList();
+  const hasGoals =
+    occurrence.goalId !== null ||
+    (goals.data ?? []).some((goal) => goal.status === 'active' || goal.status === 'paused');
+
   const initial: FormValues = {
     activityId: occurrence.activityId,
+    goalId: occurrence.goalId ?? '',
     weekday: weekdayOf(occurrence.occurrenceDate),
     date: occurrence.occurrenceDate,
     startTime: occurrence.startTime,
@@ -69,6 +79,7 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
   // Só o que mudou em relação ao que a pessoa estava vendo (o PATCH fica mínimo).
   const changes: Omit<UpdateBlockInput, 'from'> = {};
   if (values.activityId !== initial.activityId) changes.activityId = values.activityId;
+  if (values.goalId !== initial.goalId) changes.goalId = values.goalId || null;
   if (weekly && Number(values.weekday) !== initial.weekday)
     changes.weekday = Number(values.weekday);
   if (!weekly && values.date !== initial.date) changes.date = values.date;
@@ -134,6 +145,13 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
           ))}
         </Select>
       </div>
+
+      {hasGoals && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="series-goal">Meta</Label>
+          <GoalSelect id="series-goal" currentGoalId={occurrence.goalId} {...register('goalId')} />
+        </div>
+      )}
 
       {weekly ? (
         <div className="flex flex-col gap-1.5">
