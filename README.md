@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 4a (quest semanal)**, **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -74,6 +74,30 @@ produção (mesma origem, cookie `SameSite=Strict`).
   Reuso de um token já rotacionado revoga a família inteira da sessão.
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
+
+### Quest semanal (Marco 4a)
+
+Na tela **Hoje**, um cartão mostra a **quest da semana**: cumprir **80%** dos blocos planejados rende um **bônus de 20%** do XP dessa semana.
+
+| Método | Rota         | O que faz                                                                           |
+| ------ | ------------ | ----------------------------------------------------------------------------------- |
+| GET    | `/api/quest` | A quest da semana atual (ou de `?weekStart=` uma segunda-feira): progresso e faixas |
+
+- **Snapshot (RN18):** na primeira consulta da semana (ou pelo agendador, a cada 10 minutos) a API congela **quais blocos** entram na
+  quest. Bloco criado depois **não entra** (não dá para "turbinar" a quest no meio da semana). Só há quest se a semana tinha algo
+  planejado. O snapshot é idempotente, mesmo com consultas simultâneas.
+- **Pular não pune:** bloco pulado (ou cuja série terminou) **sai da conta**: a meta de 80% se recalcula sobre os que restam. Se todos
+  forem pulados, a quest só fica sem cobrança.
+- **Faixas 80/90/100% (RN34):** só feedback visual positivo, sem XP extra e sem punição. O XP vem do bônus único de 20%.
+- **Bônus no mesmo ledger (RN30):** ao concluir o bloco que cumpre a meta, o lançamento do bônus (`type QUEST`, sem área) entra **na
+  mesma transação** da conclusão, e o resultado traz `questBonusXp`. Ao **desfazer** e a quest deixar de estar cumprida, o bônus é
+  **estornado** (`questBonusReverted`) e a quest volta a "em andamento". O bônus **fica congelado** no valor dado: pular um bloco
+  depois de cumprir não o muda.
+- **Histórico e exportação:** o bônus aparece no histórico de XP (filtro "Quests") e a quest entra na exportação de dados da conta.
+- **Limitações conhecidas:** (1) editar "esta e as próximas" no meio da semana troca o `blockId` das ocorrências seguintes, que saem
+  da quest; (2) semanas passadas anteriores ao recurso **não ganham** quest retroativa; (3) o bônus é liquidado ao concluir/desfazer e
+  ao consultar a **semana atual**; pular/restaurar sozinhos só o acertam na próxima consulta ou no agendador.
+- Configuração: `QUESTS_SCHEDULER` (liga/desliga o agendador; desligado nos testes e2e).
 
 ### Notas (Marco 3b)
 

@@ -258,6 +258,24 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Testes de tela: `features/notes/testing.ts` tem a API falsa em memória (`makeFakeNotes`). `vite.config.ts` do web agora usa
   `testTimeout` de 15 s e `test-setup.ts` põe `asyncUtilTimeout` de 5 s (a suíte inteira roda em paralelo com a API e2e).
 
+## Quest semanal (decisões do 4a)
+
+- `WeeklyQuest` (uma por pessoa e semana, `status ACTIVE|COMPLETED`) + `QuestItem` (snapshot dos blocos: `blockId`, data, `xp`,
+  duração). CHECKs: semana começa na segunda, `COMPLETED ⇔ completedAt`, duração 15..720, xp 0..300. O ledger ganhou o tipo `QUEST`
+  (1..5000, sem área); o valor novo do enum fica em migration SEPARADA da que o usa.
+- Regra pura em `gamification/domain/quest.ts` (`evaluateQuest`, `requiredCount = ceil(eligible*80/100)`, `bonusFor` mín. 1, máx. 1000).
+  Elegível = item do snapshot que continua planejado (não pulado, ainda dentro da série); concluído = tem `Completion`.
+- `QuestService`: `ensureQuest` (snapshot só se há itens; idempotente), `settle(tx, ...)` chamado por `CompletionsService` na MESMA
+  transação de concluir/desfazer (dá o bônus com `ledger.credit` e `sourceId = quest.id`; estorna com `ledger.reverse`), `view` (na
+  semana atual também liquida se a conta mudou). Toda escrita trava a linha da pessoa (`ledger.lockUser`).
+- **Bônus congelado:** o valor é o do momento em que a quest foi cumprida; depois só muda por estorno. `QuestsScheduler`
+  (`QUESTS_SCHEDULER`, trava de advisory lock `74_201_002`, a cada 10 min) cria o snapshot de quem tem plano, por fuso.
+- Limitações aceitas: "esta e as próximas" tira da quest as ocorrências que mudaram de `blockId`; sem quest retroativa; pular/restaurar
+  não liquida sozinho (acerta na consulta da semana atual ou no agendador).
+- Front: `features/quest` (`useQuest`, `QuestCard`, `questModel`). `questKey` é invalidada por concluir/desfazer
+  (`useCompletionMutations`) e por TODA mutação de bloco (`useBlockMutations`). O cartão some se a rota falha ou a quest é `none`
+  (extra, não pode derrubar a Hoje). Avisos de bônus/estorno são toasts, sempre em tom positivo.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -311,8 +329,8 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**; próximos:
-  fase 4 e, por último, o deploy.
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)** feito; próximos:
+  4b (radar de equilíbrio e coringa de streak), 4c (conquistas), 4d (push e relatório) e, por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
