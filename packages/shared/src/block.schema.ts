@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { endsSameDay, isWeekStart, type CivilDate } from './civil-date.js';
+import {
+  addDays,
+  endsSameDay,
+  firstOccurrenceOnOrAfter,
+  isValidCivilDate,
+  isWeekStart,
+  type CivilDate,
+} from './civil-date.js';
 import { completionSchema } from './completion.schema.js';
 import {
   civilDateSchema,
@@ -19,6 +26,47 @@ export {
 } from './primitives.js';
 
 const SAME_DAY_MESSAGE = 'O bloco não pode atravessar a meia-noite';
+const UNTIL_BEFORE_START_MESSAGE = 'O fim não pode ser antes do primeiro dia do bloco';
+const UNTIL_MISSES_DAYS_MESSAGE =
+  'O período termina antes da primeira ocorrência de algum dia marcado';
+
+/** Teto do "por N semanas" (dois anos): evita um fim absurdo por engano. */
+export const MAX_SERIES_WEEKS = 104;
+export const WEEKDAYS_PER_WEEK = 7;
+
+/**
+ * Último dia de uma série que dura `weeks` semanas a partir de `validFrom`. São `weeks * 7` dias
+ * corridos, então CADA dia da semana ocorre exatamente `weeks` vezes, qualquer que seja o dia de
+ * início (por isso "por 8 semanas" rende 8 ocorrências de cada dia marcado).
+ */
+export function validUntilForWeeks(validFrom: CivilDate, weeks: number): CivilDate {
+  return addDays(validFrom, weeks * 7 - 1);
+}
+
+/**
+ * Confere o fim de uma série semanal: não pode ser antes do início, e todo dia da semana marcado
+ * precisa ocorrer ao menos uma vez no período (senão nasceria um bloco que nunca aparece).
+ * Devolve a mensagem de erro, ou nulo se estiver tudo certo. Datas inválidas ficam para os campos
+ * (refinamentos do Zod rodam mesmo com campo inválido, e `addDays` lançaria erro).
+ */
+export function checkSeriesEnd(
+  weekdays: readonly number[],
+  validFrom: string,
+  validUntil: string | undefined,
+): string | null {
+  if (validUntil === undefined || !isValidCivilDate(validFrom) || !isValidCivilDate(validUntil)) {
+    return null;
+  }
+  if (validUntil < validFrom) return UNTIL_BEFORE_START_MESSAGE;
+  const misses = weekdays.some(
+    (weekday) =>
+      Number.isInteger(weekday) &&
+      weekday >= 1 &&
+      weekday <= 7 &&
+      firstOccurrenceOnOrAfter(validFrom, weekday) > validUntil,
+  );
+  return misses ? UNTIL_MISSES_DAYS_MESSAGE : null;
+}
 const NO_CHANGE_MESSAGE = 'Informe ao menos um campo para alterar';
 
 /** Template de bloco (RN31): a recorrência é uma regra, não uma lista de datas. */
@@ -46,10 +94,19 @@ const weeklyBlockSchema = z
     durationMin: durationMinSchema,
     // A primeira ocorrência é o primeiro `weekday` em ou depois desta data.
     validFrom: civilDateSchema,
+    /** Última data em que a regra vale; ausente = sem fim. */
+    validUntil: civilDateSchema.optional(),
   })
   .refine((block) => endsSameDay(block.startTime, block.durationMin), {
     message: SAME_DAY_MESSAGE,
     path: ['durationMin'],
+  })
+  .check((ctx) => {
+    const { weekday, validFrom, validUntil } = ctx.value;
+    const message = checkSeriesEnd([weekday], validFrom, validUntil);
+    if (message) {
+      ctx.issues.push({ code: 'custom', message, path: ['validUntil'], input: ctx.value });
+    }
   });
 
 const onceBlockSchema = z
@@ -64,6 +121,37 @@ const onceBlockSchema = z
   .refine((block) => endsSameDay(block.startTime, block.durationMin), {
     message: SAME_DAY_MESSAGE,
     path: ['durationMin'],
+  });
+
+/**
+ * Vários dias da semana de uma vez (mesmo horário e duração): vira um bloco semanal por dia.
+ * Os dias ficam sem repetição e em ordem (segunda a domingo).
+ */
+export const createWeeklyBlocksSchema = z
+  .strictObject({
+    activityId: z.uuid(),
+    goalId: z.uuid().nullish(),
+    weekdays: z
+      .array(weekdaySchema)
+      .min(1, 'Escolha ao menos um dia da semana')
+      .max(WEEKDAYS_PER_WEEK)
+      .refine((days) => new Set(days).size === days.length, 'Dias da semana repetidos')
+      .transform((days) => [...days].sort((a, b) => a - b)),
+    startTime: timeOfDaySchema,
+    durationMin: durationMinSchema,
+    validFrom: civilDateSchema,
+    validUntil: civilDateSchema.optional(),
+  })
+  .refine((block) => endsSameDay(block.startTime, block.durationMin), {
+    message: SAME_DAY_MESSAGE,
+    path: ['durationMin'],
+  })
+  .check((ctx) => {
+    const { weekdays, validFrom, validUntil } = ctx.value;
+    const message = checkSeriesEnd(weekdays, validFrom, validUntil);
+    if (message) {
+      ctx.issues.push({ code: 'custom', message, path: ['validUntil'], input: ctx.value });
+    }
   });
 
 export const createBlockSchema = z.discriminatedUnion('recurrence', [
@@ -153,6 +241,7 @@ export const weekResponseSchema = z.object({
 
 export type Block = z.infer<typeof blockSchema>;
 export type CreateBlockInput = z.infer<typeof createBlockSchema>;
+export type CreateWeeklyBlocksInput = z.infer<typeof createWeeklyBlocksSchema>;
 export type UpdateBlockInput = z.infer<typeof updateBlockSchema>;
 export type PutExceptionInput = z.infer<typeof putExceptionSchema>;
 export type BlockException = z.infer<typeof blockExceptionSchema>;
