@@ -167,6 +167,25 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: `features/notifications` (`NotificationBell` no `AppShell`, `NotificationPreferencesCard` no Perfil); contador
   consultado a cada 60 s, lista só com o painel aberto. `StreakFlame` não quebra linha (o sino apertou o HUD).
 
+## Extras da fase 2 (decisões do 2d)
+
+- Histórico de XP (RF53): `GET /xp/history` (`XpHistoryService`, regra pura em `gamification/domain/xp-history.ts`), cursor
+  pelo id como nas notificações. `sourceId` não tem FK: nomes resolvidos em lote, uma consulta por tipo, sempre com o dono
+  no filtro. Origem excluída = `sourceLabel` nulo. Front: `features/xp-history`; a chave do histórico fica DENTRO de
+  `progressKey` (`['progress','history']`), então tudo que invalida o progresso invalida o histórico.
+- Recuperar senha (RF05): `PasswordResetToken` (só SHA-256, CHECK de hash e de validade <= 1 h), regra pura em
+  `auth/domain/password-reset.ts` (30 min, intervalo de 2 min por conta), `PasswordResetService`. O pedido trava a pessoa
+  (`FOR NO KEY UPDATE`), responde 204 sempre e NÃO espera o `mailer.send`. Redefinir = claim atômico (`updateMany` com
+  `usedAt: null`), troca o hash, revoga todas as sessões e encerra os outros tokens. Token no FRAGMENTO do link. O access
+  JWT já emitido vale até expirar (limitação aceita). `LogMailer(showBody)` só mostra o corpo com `NODE_ENV=development`.
+- Arrastar e soltar (RF18): só front. `dragGeometry.ts` (puro: encaixe de 15 min, limites da semana e das horas visíveis),
+  ouvintes de Pointer Events na `window` dentro do `WeekGrid` (estado num ref espelhado em state), `useMoveOccurrence`
+  (otimista, desfaz no erro). O PUT da exceção SUBSTITUI a exceção: sempre mandar data, horário e duração juntos.
+  Toque e botão direito não arrastam; concluída/pulada também não. Teste: `WeekPage.drag.test.tsx` (mocka
+  `getBoundingClientRect`, porque o jsdom não calcula layout).
+- Lição de teste: a trava da varredura de notificações é global ao banco de teste; suítes em paralelo disputam por ela.
+  Use `scanWhenFree` (helpers) e nunca compare com contagens globais.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -219,7 +238,8 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   **sem marca d'água/atribuição** de IA. Um commit por task.
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
-  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)** e **2c (Notificações)** feitos; próximo: 2d (extras).
+  **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
+  recuperar senha)** feitos: **Marco 2 completo**. Próximo: fase 3 (a combinar).
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em

@@ -3,8 +3,9 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 2c (Notificações)** concluído, sobre 2b (eventos), 2a (metas) e o **Marco 1** completo (PWA, streak,
-> Hoje/XP, blocos/Semana, perfil/áreas, autenticação, fundação). Próximo: 2d (extras da fase 2).
+> Status: **Marco 2d (extras)** concluído: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
+> blocos/Semana, perfil/áreas, autenticação, fundação).
 
 ## Stack
 
@@ -303,6 +304,58 @@ Para mandar a outras pessoas (produção) é preciso verificar um domínio no Re
 
 Telas: **sino** no HUD com contador e a central (lista paginada, marcar como lida, "marcar todas") e as preferências em
 **Perfil > Notificações**, salvas a cada mudança. O contador atualiza a cada minuto (sem WebSocket).
+
+## Extras da fase 2 (Marco 2d)
+
+### Histórico de XP por origem (RF53)
+
+O livro-caixa de XP ficou legível: `/historico` mostra cada lançamento com **origem** (bloco, marco, meta ou estorno),
+nome da origem, área, hora local e valor, agrupado por dia com o saldo do dia.
+
+- `GET /api/xp/history?type=&limit=&before=`: do mais novo ao mais antigo, 20 por página (máximo 50), com cursor pelo
+  id (UUID v7), como na central de notificações (RNF08). `type` filtra por `completion`, `milestone`, `goal` ou `reversal`.
+- **Nome da origem sem N+1:** o lançamento guarda só o `sourceId` (sem chave estrangeira, porque aponta para tabelas
+  diferentes conforme o tipo). Os nomes são buscados em lote, uma consulta por tipo; há teste que conta as consultas.
+- **Origem excluída** (meta ou marco apagado): o lançamento continua no histórico, com "Meta excluída"/"Marco excluído".
+- **Estorno** aparece como lançamento próprio, negativo, dizendo o que foi estornado ("Estorno de marco"), em tom neutro.
+- "Quest" (citada no RF53) é da fase 4; o tipo entra no histórico quando existir.
+
+### Recuperar a senha por e-mail (RF05)
+
+| Método | Rota                        | Acesso  | O que faz                                                    |
+| ------ | --------------------------- | ------- | ------------------------------------------------------------ |
+| POST   | `/api/auth/forgot-password` | público | Envia o link de recuperação (responde 204 sempre)            |
+| POST   | `/api/auth/reset-password`  | público | Troca a senha com o token do link e encerra todas as sessões |
+
+- **Não revela se a conta existe (RS13):** o pedido responde 204 igual para qualquer e-mail, e **não espera o envio**
+  (o tempo do provedor de e-mail denunciaria a conta).
+- **Token (RS12):** 32 bytes aleatórios, **uso único**, válido por **30 minutos**. No banco fica só o SHA-256 (um CHECK
+  recusa qualquer coisa que não seja um hash). Um pedido novo invalida o link anterior. Dois usos simultâneos do mesmo
+  link: só um passa (`updateMany` condicional, o mesmo "compare-and-set" do refresh token).
+- **Link com o token no fragmento** (`/redefinir-senha#token=...`): o navegador não envia o fragmento ao servidor, então o
+  token não fica em log de acesso nem no `Referer`. A tela lê o token e o tira da barra de endereço.
+- **Rate limit (RS08):** por IP nas duas rotas (`AUTH_RATE_LIMIT_PER_MINUTE`) e, por conta, no máximo um e-mail a cada
+  2 minutos (ninguém enche a caixa de outra pessoa).
+- **Ao redefinir:** todas as sessões da pessoa são revogadas e ela entra de novo com a senha nova (sem login automático).
+  **Limitação conhecida:** um access token já emitido continua valendo até expirar (15 min), porque o guard não consulta
+  o banco a cada requisição.
+- **Logs (RS14):** nem token, nem link, nem e-mail completo. Sem `RESEND_API_KEY`, o mailer de log mostra o corpo do
+  e-mail **apenas com `NODE_ENV=development`** (é assim que se abre o link em desenvolvimento); em produção, nunca.
+
+Telas: "Esqueci minha senha" no login, `/esqueci-senha` e `/redefinir-senha`.
+
+### Arrastar e soltar na grade (RF18)
+
+Na grade da **Semana** (desktop), arraste um bloco para outro dia ou horário.
+
+- Soltar é o mesmo que **"alterar só esta ocorrência"** (`PUT /api/blocks/:id/exceptions/:date` com `override`): a série
+  não muda, e valem as regras do servidor (mesma semana; ocorrência concluída não se move).
+- O horário encaixa de **15 em 15 minutos**; o bloco não sai da semana, das horas visíveis nem atravessa a meia-noite.
+- Movimento menor que 5 px ainda é clique (abre o painel). **Esc** cancela. Concluídas e puladas não se arrastam.
+- A grade muda na hora e **volta ao lugar** se o servidor recusar, mostrando o motivo.
+- Sem biblioteca: Pointer Events e uma função pura (`features/blocks/dragGeometry.ts`) que converte o deslocamento em
+  dia e horário. No celular (abas por dia) e por teclado, o caminho continua sendo "Alterar só esta" no painel.
+  Toque não arrasta, para não brigar com a rolagem da grade.
 
 ## Glossário (para quem vem de Java/Spring)
 
