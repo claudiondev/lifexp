@@ -41,6 +41,8 @@ model User {
 
   notifications          Notification[]
   notificationPreference NotificationPreference?
+
+  passwordResetTokens PasswordResetToken[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -357,4 +359,21 @@ model NotificationPreference {
   updatedAt             DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Token de recuperação de senha (RF05, RS12): uso único e validade curta. Como no refresh token, o
+// banco guarda só o SHA-256; o token em si vai uma única vez no link do e-mail.
+// createdAt e expiresAt vêm do relógio da aplicação (Clock), não do banco.
+model PasswordResetToken {
+  id        String    @id @default(uuid(7))
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime
+  expiresAt DateTime
+  // Preenchido ao redefinir a senha, ou quando um pedido mais novo invalida este.
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
