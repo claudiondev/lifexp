@@ -5,6 +5,7 @@ import type { Env } from '../config/env.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { DigestEmailService } from './digest-email.service.js';
 import type { NotificationGenerator, ScanSummary } from './notification-generator.service.js';
+import type { PushNotifier } from './push-notifier.service.js';
 import { NotificationsScheduler } from './notifications.scheduler.js';
 
 const NOW = new Date('2026-10-07T11:45:20.000Z');
@@ -16,6 +17,8 @@ function build(
   const generator = { scanAll } as unknown as NotificationGenerator;
   const sendPending = vi.fn(async () => ({ sent: 1, failed: 0 }));
   const digestEmail = { sendPending } as unknown as DigestEmailService;
+  const sendPush = vi.fn(async () => ({ sent: 2, failed: 0, removed: 0 }));
+  const push = { sendPending: sendPush } as unknown as PushNotifier;
   const queryRaw = vi.fn(async () => [{ locked: options.locked ?? true }]);
   const prisma = {
     $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({ $queryRaw: queryRaw }),
@@ -23,14 +26,23 @@ function build(
   const config = { get: () => options.enabled ?? true } as unknown as ConfigService<Env, true>;
   const clock: Clock = { now: () => NOW };
   return {
-    scheduler: new NotificationsScheduler(generator, digestEmail, prisma, config, clock),
+    scheduler: new NotificationsScheduler(generator, digestEmail, push, prisma, config, clock),
     scanAll,
     sendPending,
+    sendPush,
     queryRaw,
   };
 }
 
 describe('NotificationsScheduler', () => {
+  it('depois de varrer, envia e-mails e push e devolve os números dos dois', async () => {
+    const { scheduler, sendPending, sendPush } = build();
+    const summary = await scheduler.runOnce(NOW);
+    expect(sendPending).toHaveBeenCalledWith(NOW);
+    expect(sendPush).toHaveBeenCalledWith(NOW);
+    expect(summary).toMatchObject({ emailed: 1, pushed: 2, pushFailures: 0 });
+  });
+
   it('a cada minuto varre com a hora do relógio injetado', async () => {
     const { scheduler, scanAll } = build();
     await scheduler.tick();
@@ -45,9 +57,10 @@ describe('NotificationsScheduler', () => {
     expect(queryRaw).not.toHaveBeenCalled();
   });
 
-  it('com a trava ocupada por outra instância, pula a varredura e o envio de e-mails', async () => {
-    const { scheduler, scanAll, sendPending } = build({ locked: false });
+  it('com a trava ocupada por outra instância, pula a varredura, o envio de e-mails e o de push', async () => {
+    const { scheduler, scanAll, sendPending, sendPush } = build({ locked: false });
     expect(await scheduler.runOnce(NOW)).toBeNull();
+    expect(sendPush).not.toHaveBeenCalled();
     expect(scanAll).not.toHaveBeenCalled();
     expect(sendPending).not.toHaveBeenCalled();
   });
@@ -66,6 +79,8 @@ describe('NotificationsScheduler', () => {
       failures: 0,
       emailed: 1,
       emailFailures: 0,
+      pushed: 2,
+      pushFailures: 0,
     });
   });
 

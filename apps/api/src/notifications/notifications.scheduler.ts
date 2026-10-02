@@ -5,6 +5,7 @@ import { CLOCK, type Clock } from '../clock/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Env } from '../config/env.schema.js';
 import { DigestEmailService } from './digest-email.service.js';
+import { PushNotifier } from './push-notifier.service.js';
 import { NotificationGenerator } from './notification-generator.service.js';
 
 /** Chave da trava de varredura (qualquer inteiro fixo serve; só as instâncias da LifeXP a usam). */
@@ -17,6 +18,7 @@ export class NotificationsScheduler {
   constructor(
     private readonly generator: NotificationGenerator,
     private readonly digestEmail: DigestEmailService,
+    private readonly push: PushNotifier,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     @Inject(CLOCK) private readonly clock: Clock,
@@ -50,7 +52,14 @@ export class NotificationsScheduler {
         if (!rows[0]?.locked) return null;
         const scan = await this.generator.scanAll(now);
         const email = await this.digestEmail.sendPending(now);
-        return { ...scan, emailed: email.sent, emailFailures: email.failed };
+        const push = await this.push.sendPending(now);
+        return {
+          ...scan,
+          emailed: email.sent,
+          emailFailures: email.failed,
+          pushed: push.sent,
+          pushFailures: push.failed,
+        };
       },
       { timeout: 55_000, maxWait: 5_000 },
     );

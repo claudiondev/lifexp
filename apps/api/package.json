@@ -11,7 +11,8 @@
     "test:e2e": "vitest run --config vitest.config.e2e.ts",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
-    "mail:test": "node --env-file=.env scripts/send-test-email.mjs"
+    "mail:test": "node --env-file=.env scripts/send-test-email.mjs",
+    "push:keys": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
     "@lifexp/shared": "workspace:^",
@@ -33,6 +34,7 @@
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "web-push": "^3.6.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -44,6 +46,7 @@
     "@types/node": "^26.6.3",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^5.0.3",
     "prisma": "7",
     "supertest": "^7.3.0",

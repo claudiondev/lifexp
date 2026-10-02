@@ -35,6 +35,37 @@ describe('validateEnv', () => {
     );
   });
 
+  it('push (RF41): desligado por padrão, e as duas chaves VAPID vêm juntas ou nenhuma', () => {
+    const env = validateEnv(base);
+    expect(env.VAPID_PUBLIC_KEY).toBeUndefined();
+    expect(env.VAPID_PRIVATE_KEY).toBeUndefined();
+    expect(env.VAPID_SUBJECT).toBe('mailto:contato@lifexp.app');
+
+    const keys = { VAPID_PUBLIC_KEY: 'P'.repeat(60), VAPID_PRIVATE_KEY: 'k'.repeat(30) };
+    expect(validateEnv({ ...base, ...keys }).VAPID_PUBLIC_KEY).toBe(keys.VAPID_PUBLIC_KEY);
+    expect(() => validateEnv({ ...base, VAPID_PUBLIC_KEY: keys.VAPID_PUBLIC_KEY })).toThrow(
+      /VAPID/,
+    );
+    expect(() => validateEnv({ ...base, VAPID_PRIVATE_KEY: keys.VAPID_PRIVATE_KEY })).toThrow(
+      /VAPID/,
+    );
+  });
+
+  it('o subject do push é mailto: ou https:', () => {
+    const keys = { VAPID_PUBLIC_KEY: 'P'.repeat(60), VAPID_PRIVATE_KEY: 'k'.repeat(30) };
+    expect(
+      validateEnv({ ...base, ...keys, VAPID_SUBJECT: 'mailto:eu@exemplo.com' }).VAPID_SUBJECT,
+    ).toBe('mailto:eu@exemplo.com');
+    expect(
+      validateEnv({ ...base, ...keys, VAPID_SUBJECT: 'https://exemplo.com' }).VAPID_SUBJECT,
+    ).toBe('https://exemplo.com');
+    for (const bad of ['eu@exemplo.com', 'http://exemplo.com', 'mailto:', 'ftp://x.com']) {
+      expect(() => validateEnv({ ...base, ...keys, VAPID_SUBJECT: bad }), bad).toThrow(
+        /VAPID_SUBJECT/,
+      );
+    }
+  });
+
   it('falha quando DATABASE_URL está ausente', () => {
     expect(() => validateEnv({ JWT_ACCESS_SECRET: base.JWT_ACCESS_SECRET })).toThrow(
       /DATABASE_URL/,

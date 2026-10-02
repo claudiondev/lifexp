@@ -3,6 +3,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BlocksModule } from '../blocks/blocks.module.js';
 import { ReviewsModule } from '../reviews/reviews.module.js';
 import { DigestEmailService } from './digest-email.service.js';
+import { PushNotifier } from './push-notifier.service.js';
 import { NotificationGenerator } from './notification-generator.service.js';
 import { NotificationPreferencesService } from './notification-preferences.service.js';
 import { NotificationsController } from './notifications.controller.js';
@@ -17,6 +18,7 @@ import { NotificationsService } from './notifications.service.js';
     NotificationGenerator,
     NotificationPreferencesService,
     NotificationsScheduler,
+    PushNotifier,
     NotificationsService,
   ],
   exports: [NotificationGenerator, NotificationPreferencesService, NotificationsScheduler],

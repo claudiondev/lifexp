@@ -5,7 +5,38 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { CLOCK, type Clock } from '../src/clock/clock.js';
 import { MAILER, type MailMessage, type Mailer } from '../src/mail/mailer.js';
+import {
+  PUSH_SENDER,
+  type PushOutcome,
+  type PushPayload,
+  type PushSender,
+  type PushTarget,
+} from '../src/push/push-sender.js';
 import { setupApp } from '../src/setup-app.js';
+
+/** Push de mentira: guarda o que seria enviado e responde o que o teste mandar (enviado, cancelado ou falha). */
+export class FakePushSender implements PushSender {
+  enabled = true;
+  readonly publicKey = 'BTestVapidPublicKey-0123456789012345678901234567890123456789';
+  readonly sent: { target: PushTarget; payload: PushPayload }[] = [];
+  /** O que responder por endereço (padrão: "sent"). */
+  outcomes = new Map<string, PushOutcome>();
+  /** Resposta padrão para os endereços sem regra própria. */
+  defaultOutcome: PushOutcome = 'sent';
+
+  async send(target: PushTarget, payload: PushPayload): Promise<PushOutcome> {
+    const outcome = this.outcomes.get(target.endpoint) ?? this.defaultOutcome;
+    if (outcome === 'sent') this.sent.push({ target, payload });
+    return outcome;
+  }
+
+  reset(): void {
+    this.sent.length = 0;
+    this.outcomes.clear();
+    this.defaultOutcome = 'sent';
+    this.enabled = true;
+  }
+}
 
 /** E-mail de mentira: guarda o que seria enviado e pode falhar quando o teste quiser. */
 export class FakeMailer implements Mailer {
@@ -40,11 +71,12 @@ export class FakeClock implements Clock {
 }
 
 export async function createTestApp(
-  options: { clock?: Clock; mailer?: Mailer } = {},
+  options: { clock?: Clock; mailer?: Mailer; pushSender?: PushSender } = {},
 ): Promise<INestApplication> {
   const builder = Test.createTestingModule({ imports: [AppModule] });
   if (options.clock) builder.overrideProvider(CLOCK).useValue(options.clock);
   if (options.mailer) builder.overrideProvider(MAILER).useValue(options.mailer);
+  if (options.pushSender) builder.overrideProvider(PUSH_SENDER).useValue(options.pushSender);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   setupApp(app);
