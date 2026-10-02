@@ -221,6 +221,23 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Lição de teste: arquivos que fixam variáveis de ambiente (`AUTH_RATE_LIMIT_PER_MINUTE`) precisam de IMPORT DINÂMICO dos
   helpers, senão o `AppModule` já foi carregado com o env antigo. O roteiro de mutantes confere o estado base de cada comando.
 
+## Revisão semanal (decisões do 3c)
+
+- `WeeklyReview` (`@@unique([userId, weekStart])`, `weekStart` DATE, CHECKs de segunda-feira, 2000 caracteres e `updatedAt >=
+createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: `ReviewsService.getDetail` junta `BlocksService.getWeek`
+  (ocorrências + conclusões), as áreas, o `SUM` do ledger na janela da semana e as duas revisões (da semana e da anterior) numa
+  rodada de consultas fixa (teste conta queries).
+- Regra pura em `reviews/domain/week-summary.ts` (`computeWeekSummary`, `weekRangeUtc`, `isFutureWeek`): pulada não é planejada; a
+  conclusão liga pela data ORIGINAL (`blockId:occurrenceDate`); minutos cumpridos usam a medida da própria ocorrência (aderência em
+  minutos nunca passa de 100%); aderência nula sem planejado. A janela do XP é `[segunda 00:00 local, próxima segunda 00:00 local)`.
+- Só semana atual e passadas (400 no futuro, GET e PUT). `PUT` substitui os três campos (todos obrigatórios, podem ser vazios, `trim`).
+- **`weekStartSchema` em `@lifexp/shared/primitives.ts`** é o schema de "segunda-feira": o refinamento só olha o dia quando a data é
+  válida (o `isWeekStart` LANÇA com data inexistente e `safeParse` explodiria). Use-o em vez de `civilDateSchema.refine(isWeekStart)`.
+- A varredura de notificações ignora conta excluída no meio dela (não é falha).
+- Front: `features/reviews` (`ReviewSummary`, `ReviewForm`, `reviewFormat`), `ReviewPage` em `/revisao?semana=AAAA-MM-DD` (resolve
+  qualquer data para a segunda-feira, nunca depois da semana atual do fuso da pessoa). Concluir/desfazer e editar blocos invalidam
+  `reviewsKey`. O `ReviewForm` tem `key={weekStart}`: sem ele, voltar a uma semana em cache manteria o rascunho da outra.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -274,7 +291,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)** feito; próximos: 3c (revisão semanal), 3b (notas), fase 4 e,
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)** e **3c (revisão semanal)** feitos; próximos: 3b (notas), fase 4 e,
   por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.

@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -74,6 +74,28 @@ produção (mesma origem, cookie `SameSite=Strict`).
   Reuso de um token já rotacionado revoga a família inteira da sessão.
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
+
+### Revisão semanal (Marco 3c)
+
+Tela **Revisão** (`/revisao`, botão "Revisar semana" na Semana): fecha o ciclo planejar → executar → revisar.
+
+| Método | Rota                          | O que faz                                                                  |
+| ------ | ----------------------------- | -------------------------------------------------------------------------- |
+| GET    | `/api/reviews/:weekStart`     | Resumo de aderência da semana, a reflexão escrita e a prioridade combinada |
+| PUT    | `/api/reviews/:weekStart`     | Salva a reflexão da semana (substitui; idempotente)                        |
+| GET    | `/api/reviews?limit=&before=` | Revisões já escritas, da mais recente à mais antiga (cursor = a semana)    |
+
+- **Resumo de aderência (calculado na leitura, nunca gravado):** blocos **planejados × cumpridos**, tempo e **XP líquido da semana**,
+  no total e por área, a partir das ocorrências da semana e das conclusões ativas. **Pular não é "planejado"** (RN11): o pulado
+  aparece só como informativo e nunca derruba a aderência. Aderência é `cumpridos ÷ planejados`, ou **nula** (traço) quando nada foi
+  planejado: não existe "0%" de nada. O texto da tela nunca culpa.
+- **A semana é a do fuso da pessoa** (segunda a domingo; a janela do XP vai da meia-noite local de segunda à da seguinte, inclusive
+  em semanas de horário de verão). Só dá para revisar a **semana atual e as passadas**; semana futura é 400.
+- **Reflexão guiada (RF46):** "O que deu certo?", "O que travou?" e "Qual a prioridade da próxima semana?", até 2000 caracteres
+  cada (texto puro). Uma revisão por pessoa e semana (única no banco, com CHECK de segunda-feira e de tamanho).
+- **A prioridade volta:** na revisão de uma semana aparece, em destaque, a prioridade que você escreveu na revisão da semana
+  anterior para ela. Revisão sem nenhum texto não entra no histórico. O histórico é paginado (RNF08).
+- Entra na **exportação de dados** (3a) e some junto com a conta.
 
 ### Sessões e conta (Marco 3a)
 
