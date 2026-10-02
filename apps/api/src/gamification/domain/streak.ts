@@ -30,6 +30,12 @@ export function buildStreakDays(
 }
 
 /**
+ * O último dia cuja janela de conclusão já fechou (23:59 do dia seguinte): em `today`, é anteontem.
+ * Um dia planejado sem conclusão só "conta como perdido" até aqui; depois disso ainda dá tempo.
+ */
+export const settledThrough = (today: CivilDate): CivilDate => addDays(today, -2);
+
+/**
  * Streak (RN12 a RN15, RN33): só dias com bloco planejado contam; dia sem bloco é neutro (não
  * avança nem quebra). Em dia planejado, cumprir ao menos um bloco avança.
  *
@@ -43,7 +49,7 @@ export function buildStreakDays(
  * dá dois na seguinte. O estado devolvido é o da semana de `today`.
  */
 export function computeStreak(days: readonly StreakDay[], today: CivilDate): Streak {
-  const lastSettled = addDays(today, -2);
+  const lastSettled = settledThrough(today);
   const ordered = [...days]
     .filter((day) => day.planned > 0 && day.date <= today)
     .sort((a, b) => a.date.localeCompare(b.date));

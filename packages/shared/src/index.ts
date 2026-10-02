@@ -20,3 +20,4 @@ export * from './session.schema.js';
 export * from './review.schema.js';
 export * from './note.schema.js';
 export * from './quest.schema.js';
+export * from './balance.schema.js';

@@ -1,15 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { addDays, todayIn, weekStartOf, type CivilDate, type Streak } from '@lifexp/shared';
-import { toBlockTemplate, toCivil, toExceptionRule } from '../blocks/blocks.mapper.js';
-import { computeWeekOccurrences } from '../blocks/domain/week-occurrences.js';
+import { todayIn, type Streak } from '@lifexp/shared';
 import { CLOCK, type Clock } from '../clock/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildStreakDays, computeStreak } from './domain/streak.js';
+import { OccurrenceHistoryService } from './occurrence-history.service.js';
 
 @Injectable()
 export class StreakService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly history: OccurrenceHistoryService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -25,37 +25,7 @@ export class StreakService {
       select: { timezone: true },
     });
     const today = todayIn(user.timezone, this.clock.now());
-
-    const blocks = await this.prisma.block.findMany({
-      where: { userId },
-      include: {
-        activity: { select: { areaId: true } },
-        exceptions: true,
-        completions: { where: { undoneAt: null }, select: { occurrenceDate: true } },
-      },
-    });
-    if (blocks.length === 0) return computeStreak([], today);
-
-    const templates = blocks.map((block) => toBlockTemplate(block, block.activity.areaId));
-    const exceptions = blocks.flatMap((block) => block.exceptions.map(toExceptionRule));
-    const completedKeys = new Set(
-      blocks.flatMap((block) =>
-        block.completions.map((completion) => `${block.id}|${toCivil(completion.occurrenceDate)}`),
-      ),
-    );
-
-    const first = templates
-      .map((block) => block.validFrom ?? block.date)
-      .filter(isDate)
-      .sort()[0];
-    if (!first) return computeStreak([], today);
-
-    const occurrences = [];
-    for (let week = weekStartOf(first); week <= today; week = addDays(week, 7)) {
-      occurrences.push(...computeWeekOccurrences(week, templates, exceptions));
-    }
+    const { occurrences, completedKeys } = await this.history.load(userId, today);
     return computeStreak(buildStreakDays(occurrences, completedKeys), today);
   }
 }
-
-const isDate = (value: CivilDate | null): value is CivilDate => value !== null;

@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { BlocksModule } from '../blocks/blocks.module.js';
+import { BalanceController } from './balance.controller.js';
+import { BalanceService } from './balance.service.js';
 import { CacheRebuildService } from './cache-rebuild.service.js';
 import { CompletionsController } from './completions.controller.js';
 import { CompletionsService } from './completions.service.js';
+import { OccurrenceHistoryService } from './occurrence-history.service.js';
 import { ProgressController } from './progress.controller.js';
 import { ProgressService } from './progress.service.js';
 import { QuestService } from './quest.service.js';
@@ -16,11 +19,19 @@ import { XpHistoryService } from './xp-history.service.js';
 
 @Module({
   imports: [BlocksModule],
-  controllers: [CompletionsController, ProgressController, QuestsController, XpHistoryController],
+  controllers: [
+    BalanceController,
+    CompletionsController,
+    ProgressController,
+    QuestsController,
+    XpHistoryController,
+  ],
   providers: [
     CompletionsService,
     ProgressService,
     StreakService,
+    OccurrenceHistoryService,
+    BalanceService,
     TodayService,
     CacheRebuildService,
     XpLedgerService,
