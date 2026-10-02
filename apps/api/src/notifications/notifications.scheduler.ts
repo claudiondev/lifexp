@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { CLOCK, type Clock } from '../clock/clock.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { Env } from '../config/env.schema.js';
+import { DigestEmailService } from './digest-email.service.js';
 import { NotificationGenerator } from './notification-generator.service.js';
 
 /** Chave da trava de varredura (qualquer inteiro fixo serve; só as instâncias da LifeXP a usam). */
@@ -15,6 +16,7 @@ export class NotificationsScheduler {
 
   constructor(
     private readonly generator: NotificationGenerator,
+    private readonly digestEmail: DigestEmailService,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     @Inject(CLOCK) private readonly clock: Clock,
@@ -46,7 +48,9 @@ export class NotificationsScheduler {
         const rows = await tx.$queryRaw<{ locked: boolean }[]>`
           SELECT pg_try_advisory_xact_lock(${SCAN_LOCK_KEY}) AS locked`;
         if (!rows[0]?.locked) return null;
-        return this.generator.scanAll(now);
+        const scan = await this.generator.scanAll(now);
+        const email = await this.digestEmail.sendPending(now);
+        return { ...scan, emailed: email.sent, emailFailures: email.failed };
       },
       { timeout: 55_000, maxWait: 5_000 },
     );

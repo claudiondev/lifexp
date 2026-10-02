@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BlocksModule } from '../blocks/blocks.module.js';
+import { DigestEmailService } from './digest-email.service.js';
 import { NotificationGenerator } from './notification-generator.service.js';
 import { NotificationPreferencesService } from './notification-preferences.service.js';
 import { NotificationsController } from './notifications.controller.js';
@@ -11,6 +12,7 @@ import { NotificationsService } from './notifications.service.js';
   imports: [ScheduleModule.forRoot(), BlocksModule],
   controllers: [NotificationsController],
   providers: [
+    DigestEmailService,
     NotificationGenerator,
     NotificationPreferencesService,
     NotificationsScheduler,

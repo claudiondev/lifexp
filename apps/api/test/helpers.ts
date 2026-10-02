@@ -4,7 +4,23 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { CLOCK, type Clock } from '../src/clock/clock.js';
+import { MAILER, type MailMessage, type Mailer } from '../src/mail/mailer.js';
 import { setupApp } from '../src/setup-app.js';
+
+/** E-mail de mentira: guarda o que seria enviado e pode falhar quando o teste quiser. */
+export class FakeMailer implements Mailer {
+  readonly sent: MailMessage[] = [];
+  /** Quantas das próximas chamadas devem falhar (simula o provedor fora do ar). */
+  failNext = 0;
+
+  async send(message: MailMessage): Promise<void> {
+    if (this.failNext > 0) {
+      this.failNext -= 1;
+      throw new Error('provedor fora do ar');
+    }
+    this.sent.push(message);
+  }
+}
 
 /** Relógio que os testes movem à vontade (a janela de conclusão depende do "agora"). */
 export class FakeClock implements Clock {
@@ -23,9 +39,12 @@ export class FakeClock implements Clock {
   }
 }
 
-export async function createTestApp(options: { clock?: Clock } = {}): Promise<INestApplication> {
+export async function createTestApp(
+  options: { clock?: Clock; mailer?: Mailer } = {},
+): Promise<INestApplication> {
   const builder = Test.createTestingModule({ imports: [AppModule] });
   if (options.clock) builder.overrideProvider(CLOCK).useValue(options.clock);
+  if (options.mailer) builder.overrideProvider(MAILER).useValue(options.mailer);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   setupApp(app);
