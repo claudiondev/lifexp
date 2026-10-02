@@ -7,6 +7,7 @@ import { AreasModule } from './areas/areas.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ClockModule } from './clock/clock.module.js';
 import { BlocksModule } from './blocks/blocks.module.js';
+import { EventsModule } from './events/events.module.js';
 import { GamificationModule } from './gamification/gamification.module.js';
 import { GoalsModule } from './goals/goals.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     AreasModule,
     BlocksModule,
+    EventsModule,
     GamificationModule,
     GoalsModule,
     HealthModule,
