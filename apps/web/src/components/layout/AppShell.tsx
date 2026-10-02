@@ -32,7 +32,7 @@ export function AppShell() {
               style={{ opacity: character.ready ? 1 : 0.5 }}
             >
               <LevelSigil level={character.level} size={34} />
-              <div className="hidden w-36 flex-col gap-1 sm:flex">
+              <div className="hidden w-36 flex-col gap-1 lg:flex">
                 <XpBar
                   progress={character.levelProgress}
                   segments={10}
@@ -52,7 +52,7 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <div className="relative pb-20 sm:pb-0">
+      <div className="relative pb-20 md:pb-0">
         <Outlet />
       </div>
       <MobileNav />

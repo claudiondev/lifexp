@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -158,6 +158,25 @@ describe('rotas e telas de auth', () => {
     first.unmount();
     renderAt('/recompensas');
     expect(await screen.findByRole('heading', { name: 'Recompensas' })).toBeInTheDocument();
+  });
+
+  it('no menu do topo só a aba ativa mostra o nome (cabe no cabeçalho); as outras o mantêm para leitor de tela e dica', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+      '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
+    });
+    renderAt('/');
+    await screen.findByRole('heading', { name: /Olá, Ana/ });
+
+    const nav = screen.getByRole('navigation', { name: 'Principal' });
+    const labelOf = (name: string) =>
+      within(nav).getByRole('link', { name }).querySelector('span') as HTMLElement;
+    // a ativa (Painel) mostra o texto; as demais têm o nome só para leitor de tela
+    expect(labelOf('Painel')).not.toHaveClass('sr-only');
+    for (const name of ['Hoje', 'Semana', 'Metas', 'Notas', 'Áreas', 'Ajustes']) {
+      expect(labelOf(name)).toHaveClass('sr-only');
+      expect(within(nav).getByRole('link', { name })).toHaveAttribute('title', name);
+    }
   });
 
   it('o menu tem "Notas" no topo e na barra do celular, apontando para /notas', async () => {

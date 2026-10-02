@@ -20,6 +20,8 @@ export function App() {
       {/* Cores vêm dos tokens, então o aviso acompanha o tema claro/escuro. */}
       <Toaster
         position="bottom-right"
+        // A descrição do aviso vinha quase invisível sobre o fundo escuro: usa o mesmo cinza do texto de apoio do app.
+        toastOptions={{ classNames: { description: 'text-muted-foreground!' } }}
         style={
           {
             '--normal-bg': 'var(--card)',

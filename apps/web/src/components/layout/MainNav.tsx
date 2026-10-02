@@ -28,15 +28,20 @@ const ITEMS: NavItem[] = [
   { to: '/configuracoes', label: 'Ajustes', icon: UserRound },
 ];
 
-/** Abas no topo, para telas a partir de `sm`. */
+/**
+ * Abas no topo, para telas a partir de `md`. Só a aba ativa mostra o nome: com 7 abas e o HUD, nomes em todas não cabem
+ * no cabeçalho (o streak, o sino e o botão de sair ficavam cortados). Nas demais o nome continua para leitor de tela
+ * (`sr-only`) e aparece como dica ao passar o mouse.
+ */
 export function DesktopNav() {
   return (
-    <nav aria-label="Principal" className="hidden items-center gap-1 sm:flex">
+    <nav aria-label="Principal" className="hidden items-center gap-1 md:flex">
       {ITEMS.map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
           end={end}
+          title={label}
           className={({ isActive }) =>
             cn(
               'inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors',
@@ -46,20 +51,24 @@ export function DesktopNav() {
             )
           }
         >
-          <Icon aria-hidden className="size-4" />
-          {label}
+          {({ isActive }) => (
+            <>
+              <Icon aria-hidden className="size-4" />
+              <span className={isActive ? undefined : 'sr-only'}>{label}</span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
   );
 }
 
-/** Barra fixa embaixo, só no celular. */
+/** Barra fixa embaixo, no celular e no tablet (até `md`). */
 export function MobileNav() {
   return (
     <nav
       aria-label="Principal (celular)"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-border bg-background/90 backdrop-blur-md sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-border bg-background/90 backdrop-blur-md md:hidden"
     >
       {ITEMS.map(({ to, label, icon: Icon, end }) => (
         <NavLink
