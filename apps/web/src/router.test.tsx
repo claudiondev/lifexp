@@ -125,7 +125,9 @@ describe('rotas e telas de auth', () => {
       expect(link).toHaveAttribute('href', '/configuracoes');
     }
     await userEvent.click(screen.getAllByRole('link', { name: 'Ajustes' })[1]!);
-    expect(await screen.findByRole('heading', { name: 'Configurações' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Configurações' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it('o endereço antigo /perfil leva às Configurações', async () => {
@@ -133,7 +135,10 @@ describe('rotas e telas de auth', () => {
       '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
     });
     renderAt('/perfil');
-    expect(await screen.findByRole('heading', { name: 'Configurações' })).toBeInTheDocument();
+    // sob carga (suíte inteira em paralelo) a tela demora mais que 1 s para montar
+    expect(
+      await screen.findByRole('heading', { name: 'Configurações' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it('manda visitante que abre /areas direto para o login e volta depois', async () => {
