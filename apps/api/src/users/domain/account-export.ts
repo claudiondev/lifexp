@@ -17,6 +17,7 @@ export const EXPORT_KEYS = {
   CalendarEvent: 'calendarEvents',
   Notification: 'notifications',
   NotificationPreference: 'notificationPreferences',
+  WeeklyReview: 'weeklyReviews',
 } as const;
 
 export type ExportedModel = keyof typeof EXPORT_KEYS;
@@ -35,6 +36,7 @@ export const CIVIL_DATE_FIELDS: ReadonlySet<string> = new Set([
   'occurrenceDate',
   'newDate',
   'deadline',
+  'weekStart',
 ]);
 
 /** Linha do banco como vai para o JSON: datas civis em "AAAA-MM-DD", instantes em ISO 8601 (UTC). */

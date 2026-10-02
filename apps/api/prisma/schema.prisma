@@ -43,6 +43,7 @@ model User {
   notificationPreference NotificationPreference?
 
   passwordResetTokens PasswordResetToken[]
+  weeklyReviews       WeeklyReview[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -376,4 +377,22 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// Revisão semanal guiada (RF46): a reflexão da semana. Uma por pessoa e semana (a segunda-feira, DATE civil).
+// O resumo de aderência NÃO é gravado: é calculado na leitura a partir de blocos e conclusões, então nunca fica velho.
+// createdAt e updatedAt vêm do relógio da aplicação (Clock), como no resto do app.
+model WeeklyReview {
+  id           String   @id @default(uuid(7))
+  userId       String
+  weekStart    DateTime @db.Date
+  wins         String   @default("")
+  blockers     String   @default("")
+  nextPriority String   @default("")
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
 }

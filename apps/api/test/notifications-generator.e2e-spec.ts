@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { Logger, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { NotificationGenerator } from '../src/notifications/notification-generator.service.js';
@@ -395,6 +395,33 @@ describe('Geração de notificações (e2e)', () => {
       expect(await prisma.notification.count({ where: { userId: caio.user.userId } })).toBe(0);
     });
 
+    it('uma conta excluída no meio da varredura não conta como falha (RS15)', async () => {
+      const [ana, bia] = [await setup(), await setup()];
+      await weeklyBlock(ana.user, ana.activity.id);
+      await weeklyBlock(bia.user, bia.activity.id);
+
+      const original = generator.scanUser.bind(generator);
+      const spy = vi.spyOn(generator, 'scanUser').mockImplementation(async (userId, now) => {
+        if (userId === ana.user.userId) {
+          // a pessoa pede a exclusão da conta justamente entre ser listada e ser varrida
+          await prisma.user.delete({ where: { id: userId } });
+          throw new Error('a pessoa não existe mais');
+        }
+        return original(userId, now);
+      });
+      const errors = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      try {
+        await generator.scanAll(new Date('2026-10-07T11:45:20.000Z'));
+        const logged = errors.mock.calls.map((call) => String(call[0]));
+        expect(logged.some((line) => line.includes(ana.user.userId))).toBe(false);
+      } finally {
+        spy.mockRestore();
+        errors.mockRestore();
+      }
+
+      expect(await prisma.notification.count({ where: { userId: bia.user.userId } })).toBe(1);
+    });
+
     it('a falha de uma pessoa não impede as outras', async () => {
       const [ana, bia] = [await setup(), await setup()];
       await weeklyBlock(ana.user, ana.activity.id);
@@ -409,13 +436,18 @@ describe('Geração de notificações (e2e)', () => {
         }
         return original(userId, now);
       });
+      const errors = vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
       try {
         const summary = await generator.scanAll(new Date('2026-10-07T11:45:20.000Z'));
+        // a falha real é registrada, identificando a pessoa (RNF13)
+        const logged = errors.mock.calls.map((call) => String(call[0]));
+        expect(logged.some((line) => line.includes(ana.user.userId))).toBe(true);
         // O banco é compartilhado com outras suítes em paralelo (uma delas exclui contas no meio da
         // varredura), então o total de falhas não é só a nossa: confere a injetada e o mínimo.
         expect(injected).toBe(1);
         expect(summary.failures).toBeGreaterThanOrEqual(1);
       } finally {
+        errors.mockRestore();
         spy.mockRestore();
       }
 

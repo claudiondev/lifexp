@@ -12,6 +12,7 @@ describe('serializeRow', () => {
       date: new Date('2026-10-07T00:00:00.000Z'),
       validFrom: new Date('2026-10-05T00:00:00.000Z'),
       validUntil: new Date('2026-12-31T00:00:00.000Z'),
+      weekStart: new Date('2026-10-05T00:00:00.000Z'),
       occurrenceDate: new Date('2026-10-07T00:00:00.000Z'),
       newDate: new Date('2026-10-08T00:00:00.000Z'),
       deadline: new Date('2027-01-01T00:00:00.000Z'),
@@ -20,6 +21,7 @@ describe('serializeRow', () => {
       date: '2026-10-07',
       validFrom: '2026-10-05',
       validUntil: '2026-12-31',
+      weekStart: '2026-10-05',
       occurrenceDate: '2026-10-07',
       newDate: '2026-10-08',
       deadline: '2027-01-01',
@@ -71,6 +73,7 @@ describe('modelos exportados', () => {
       'occurrenceDate',
       'validFrom',
       'validUntil',
+      'weekStart',
     ]);
   });
 });

@@ -155,6 +155,17 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         dedupeKey: 'digest:2026-10-07',
       },
     });
+    await prisma.weeklyReview.create({
+      data: {
+        userId: user.userId,
+        weekStart: new Date('2026-10-05T00:00:00.000Z'),
+        wins: 'Cumpri a rotina',
+        blockers: 'Chuva',
+        nextPriority: 'Entregar o relatório',
+        createdAt: clock.now(),
+        updatedAt: clock.now(),
+      },
+    });
     await prisma.passwordResetToken.create({
       data: {
         userId: user.userId,
@@ -225,6 +236,7 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         notificationPreferences: await prisma.notificationPreference.count({
           where: { userId: user.userId },
         }),
+        weeklyReviews: await prisma.weeklyReview.count({ where: { userId: user.userId } }),
       };
       for (const [key, count] of Object.entries(expected)) {
         expect([key, data[key]!.length]).toEqual([key, count]);
@@ -262,6 +274,10 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         time: '14:30',
       });
       expect(data.notificationPreferences![0]).toMatchObject({ digestEmailEnabled: true });
+      expect(data.weeklyReviews![0]).toMatchObject({
+        weekStart: '2026-10-05',
+        nextPriority: 'Entregar o relatório',
+      });
     });
 
     it('datas civis saem como AAAA-MM-DD e instantes como ISO UTC', async () => {

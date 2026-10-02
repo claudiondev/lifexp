@@ -38,6 +38,12 @@ export class NotificationGenerator {
       try {
         summary.created += await this.scanUser(id, now);
       } catch (error) {
+        // Conta excluída no meio da varredura (RS15): não há mais para quem avisar, e isso não é falha.
+        const stillExists = await this.prisma.user.findUnique({
+          where: { id },
+          select: { id: true },
+        });
+        if (!stillExists) continue;
         summary.failures += 1;
         this.logger.error(`Falha ao gerar notificações da pessoa ${id}`, error);
       }
