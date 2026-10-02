@@ -3,6 +3,7 @@ import {
   blockExceptionSchema,
   blockSchema,
   createBlockSchema,
+  createWeeklyBlocksSchema,
   deleteBlockQuerySchema,
   putExceptionSchema,
   updateBlockSchema,
@@ -17,6 +18,7 @@ export class BlockDto extends createZodDto(blockSchema) {}
  * explícito no controller (`new ZodValidationPipe(schema)`).
  */
 export const CreateBlockDto = createZodDto(createBlockSchema);
+export class CreateWeeklyBlocksDto extends createZodDto(createWeeklyBlocksSchema) {}
 export class UpdateBlockDto extends createZodDto(updateBlockSchema) {}
 export class DeleteBlockQueryDto extends createZodDto(deleteBlockQuerySchema) {}
 export const PutExceptionDto = createZodDto(putExceptionSchema);

@@ -28,6 +28,7 @@ import {
   BlockDto,
   BlockExceptionDto,
   CreateBlockDto,
+  CreateWeeklyBlocksDto,
   DeleteBlockQueryDto,
   PutExceptionDto,
   UpdateBlockDto,
@@ -58,6 +59,18 @@ export class BlocksController {
     @Body(new ZodValidationPipe(createBlockSchema)) body: CreateBlockInput,
   ) {
     return this.blocksService.create(user.id, body);
+  }
+
+  @Post('weekly')
+  @ApiOperation({
+    summary: 'Cria um bloco semanal para cada dia da semana escolhido (tudo ou nada)',
+    description:
+      'Mesmo horário, duração, início e fim para todos os dias. `validUntil` ausente = sem fim. ' +
+      'Devolve um bloco por dia, de segunda a domingo; depois de criados são blocos independentes.',
+  })
+  @ZodResponse({ status: HttpStatus.CREATED, type: [BlockDto] })
+  createWeekly(@CurrentUser() user: AuthenticatedUser, @Body() body: CreateWeeklyBlocksDto) {
+    return this.blocksService.createWeekly(user.id, body);
   }
 
   @Patch(':id')

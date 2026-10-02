@@ -12,6 +12,7 @@ import {
   type BlockException,
   type CivilDate,
   type CreateBlockInput,
+  type CreateWeeklyBlocksInput,
   type PutExceptionInput,
   type UpdateBlockInput,
   type WeekResponse,
@@ -133,6 +134,7 @@ export class BlocksService {
                 startTime: input.startTime,
                 durationMin: input.durationMin,
                 validFrom: fromCivil(input.validFrom),
+                validUntil: input.validUntil ? fromCivil(input.validUntil) : null,
               }
             : {
                 userId,
@@ -146,6 +148,40 @@ export class BlocksService {
       });
     });
     return toBlockResponse(block);
+  }
+
+  /**
+   * Cria um bloco semanal para CADA dia da semana escolhido, com o mesmo horário, duração, início e
+   * fim. É tudo ou nada: se um dos blocos falhar, nenhum nasce. Depois de criados os dias são blocos
+   * independentes (cada um se edita, pula, conclui e exclui sozinho).
+   */
+  async createWeekly(userId: string, input: CreateWeeklyBlocksInput): Promise<Block[]> {
+    await this.assertActivityUsable(userId, input.activityId);
+
+    const blocks = await this.prisma.$transaction(async (tx) => {
+      if (input.goalId) await this.lockGoalForLink(tx, userId, input.goalId);
+      const created = [];
+      // Um a um e em ordem (segunda a domingo): os ids UUID v7 saem na mesma ordem dos dias.
+      for (const weekday of input.weekdays) {
+        created.push(
+          await tx.block.create({
+            data: {
+              userId,
+              activityId: input.activityId,
+              goalId: input.goalId ?? null,
+              recurrence: 'WEEKLY',
+              weekday,
+              startTime: input.startTime,
+              durationMin: input.durationMin,
+              validFrom: fromCivil(input.validFrom),
+              validUntil: input.validUntil ? fromCivil(input.validUntil) : null,
+            },
+          }),
+        );
+      }
+      return created;
+    });
+    return blocks.map(toBlockResponse);
   }
 
   /**
