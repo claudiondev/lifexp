@@ -101,6 +101,7 @@ export class CompletionsService {
         levelAfter: change.levelAfter,
         total,
         area: area!,
+        questBonusXp: 0,
       };
     });
   }
@@ -120,7 +121,12 @@ export class CompletionsService {
       });
       if (!completion || completion.undoneAt !== null) {
         const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-        return { xpReverted: 0, total: levelProgress(user.cachedTotalXp), area: null };
+        return {
+          xpReverted: 0,
+          total: levelProgress(user.cachedTotalXp),
+          area: null,
+          questBonusReverted: 0,
+        };
       }
 
       const verdict = checkCanUndo({ now, window: this.windowOf(resolved, timezone) });
@@ -140,7 +146,7 @@ export class CompletionsService {
       // A área vem do lançamento original (que veio da foto da conclusão), NÃO da atividade de hoje:
       // se a série foi editada para outra atividade/área depois de concluir, o XP volta de onde saiu.
       const { total, area } = await this.ledger.reverse(tx, original, now);
-      return { xpReverted: original.amount, total, area };
+      return { xpReverted: original.amount, total, area, questBonusReverted: 0 };
     });
   }
 
@@ -179,6 +185,7 @@ export class CompletionsService {
       levelAfter: level,
       total: levelProgress(user.cachedTotalXp),
       area: { areaId: completion.areaId, ...levelProgress(progress?.cachedXp ?? 0) },
+      questBonusXp: 0,
     };
   }
 }

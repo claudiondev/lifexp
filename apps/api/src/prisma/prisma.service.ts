@@ -13,6 +13,9 @@ export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(config: ConfigService<Env, true>) {
     super({
       adapter: new PrismaPg({ connectionString: config.get('DATABASE_URL') }),
+      // Padrão do Prisma: 2 s para ACHAR uma conexão livre e 5 s para a transação inteira. Com picos de
+      // pedidos simultâneos (ou o pool cheio) isso vira "Unable to start a transaction" sem nada estar errado.
+      transactionOptions: { maxWait: 10_000, timeout: 15_000 },
       // Só emite eventos (sem imprimir): permite contar queries nos testes de desempenho (RNF04).
       log: [{ emit: 'event', level: 'query' }],
     });

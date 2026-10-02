@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Origens de um lançamento do livro-caixa de XP (RF53). `reversal` é o estorno de qualquer uma das
- * outras. "Quest" entra aqui quando existir (fase 4).
+ * outras. "Quest" entra aqui junto com o ledger da quest semanal (fase 4).
  */
 export const XP_ENTRY_TYPES = ['completion', 'milestone', 'goal', 'reversal'] as const;
 export const xpEntryTypeSchema = z.enum(XP_ENTRY_TYPES);

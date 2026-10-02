@@ -146,7 +146,7 @@ describe('NotesPage', () => {
           .filter((url) => url.includes('q=')),
       ).toHaveLength(1);
       await waitFor(() => expect(titles()).toEqual(['Relatório mensal']));
-      expect(where()).toBe('/notas?q=relat');
+      await waitFor(() => expect(where()).toBe('/notas?q=relat'));
     });
 
     it('começa já com a busca da URL', async () => {

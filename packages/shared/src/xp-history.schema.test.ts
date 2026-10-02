@@ -44,7 +44,7 @@ describe('xpHistoryEntrySchema', () => {
   });
 
   it('recusa origem desconhecida e valor zero', () => {
-    expect(ok(xpHistoryEntrySchema, { ...entry, type: 'quest' })).toBe(false);
+    expect(ok(xpHistoryEntrySchema, { ...entry, type: 'conquista' })).toBe(false);
     expect(ok(xpHistoryEntrySchema, { ...entry, amount: 0 })).toBe(false);
     expect(ok(xpHistoryEntrySchema, { ...entry, amount: 1.5 })).toBe(false);
   });
@@ -77,7 +77,7 @@ describe('xpHistoryQuerySchema', () => {
     expect(ok(xpHistoryQuerySchema, { limit: String(MAX_XP_HISTORY_PAGE + 1) })).toBe(false);
     expect(ok(xpHistoryQuerySchema, { limit: String(MAX_XP_HISTORY_PAGE) })).toBe(true);
     expect(ok(xpHistoryQuerySchema, { limit: 'abc' })).toBe(false);
-    expect(ok(xpHistoryQuerySchema, { type: 'quest' })).toBe(false);
+    expect(ok(xpHistoryQuerySchema, { type: 'conquista' })).toBe(false);
     expect(ok(xpHistoryQuerySchema, { before: '123' })).toBe(false);
   });
 });

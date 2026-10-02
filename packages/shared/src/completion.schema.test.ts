@@ -115,6 +115,19 @@ describe('completionResultSchema / undoResultSchema', () => {
     ).toBe(true);
   });
 
+  it('o bônus da quest é opcional na entrada (padrão 0) e nunca negativo', () => {
+    expect(completionResultSchema.parse(result).questBonusXp).toBe(0);
+    expect(completionResultSchema.parse({ ...result, questBonusXp: 120 }).questBonusXp).toBe(120);
+    expect(completionResultSchema.safeParse({ ...result, questBonusXp: -1 }).success).toBe(false);
+    expect(completionResultSchema.safeParse({ ...result, questBonusXp: 1.5 }).success).toBe(false);
+    const undo = { xpReverted: 60, total: levelProgress(0), area: null };
+    expect(undoResultSchema.parse(undo).questBonusReverted).toBe(0);
+    expect(undoResultSchema.parse({ ...undo, questBonusReverted: 120 }).questBonusReverted).toBe(
+      120,
+    );
+    expect(undoResultSchema.safeParse({ ...undo, questBonusReverted: -5 }).success).toBe(false);
+  });
+
   it('rejeita resultado sem os campos que a tela usa para comemorar o nível', () => {
     const { levelAfter: _ignored, ...withoutLevelAfter } = result;
     void _ignored;

@@ -51,6 +51,8 @@ export const completionResultSchema = z.object({
   levelAfter: z.number().int().min(1),
   total: levelProgressSchema,
   area: areaProgressSchema,
+  /** Bônus da quest semanal que ESTA conclusão destravou (RN17); 0 quando não houve. Já está em `total`. */
+  questBonusXp: nonNegativeInt.default(0),
 });
 
 export const undoResultSchema = z.object({
@@ -58,6 +60,8 @@ export const undoResultSchema = z.object({
   xpReverted: nonNegativeInt,
   total: levelProgressSchema,
   area: areaProgressSchema.nullable(),
+  /** Bônus da quest estornado porque desfazer deixou a semana abaixo dos 80%; 0 quando não houve. */
+  questBonusReverted: nonNegativeInt.default(0),
 });
 
 export type LevelProgressDto = z.infer<typeof levelProgressSchema>;
