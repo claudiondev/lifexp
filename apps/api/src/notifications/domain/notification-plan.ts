@@ -1,18 +1,23 @@
-import { addDays, localDateTimeToUtc, todayIn, type CivilDate } from '@lifexp/shared';
-
-/** Antecedências de lembrete de bloco aceitas (RN24: o padrão é 15 min). */
-export const BLOCK_LEAD_OPTIONS = [5, 10, 15, 30, 60] as const;
-export const DEFAULT_BLOCK_LEAD_MIN = 15;
-export const DEFAULT_DIGEST_TIME = '07:00';
+import {
+  BLOCK_LEAD_OPTIONS,
+  DEFAULT_BLOCK_LEAD_MIN,
+  DEFAULT_DIGEST_TIME,
+  addDays,
+  localDateTimeToUtc,
+  todayIn,
+  type CivilDate,
+} from '@lifexp/shared';
 
 /** Quanto tempo para trás a varredura olha: recupera lembretes de uma queda curta da API. */
 export const SCAN_LOOKBACK_MIN = 60;
 /** Um lembrete cujo alvo já passou há mais que isso é velho demais para avisar. */
 export const STALE_GRACE_MIN = 5;
 
+export type BlockLead = (typeof BLOCK_LEAD_OPTIONS)[number];
+
 export interface NotificationPreferences {
   blockRemindersEnabled: boolean;
-  blockLeadMin: number;
+  blockLeadMin: BlockLead;
   eventRemindersEnabled: boolean;
   digestEnabled: boolean;
   /** Hora de relógio (no fuso da pessoa) em que o resumo do dia sai. */

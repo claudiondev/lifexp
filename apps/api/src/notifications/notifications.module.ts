@@ -3,11 +3,19 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BlocksModule } from '../blocks/blocks.module.js';
 import { NotificationGenerator } from './notification-generator.service.js';
 import { NotificationPreferencesService } from './notification-preferences.service.js';
+import { NotificationsController } from './notifications.controller.js';
 import { NotificationsScheduler } from './notifications.scheduler.js';
+import { NotificationsService } from './notifications.service.js';
 
 @Module({
   imports: [ScheduleModule.forRoot(), BlocksModule],
-  providers: [NotificationGenerator, NotificationPreferencesService, NotificationsScheduler],
+  controllers: [NotificationsController],
+  providers: [
+    NotificationGenerator,
+    NotificationPreferencesService,
+    NotificationsScheduler,
+    NotificationsService,
+  ],
   exports: [NotificationGenerator, NotificationPreferencesService, NotificationsScheduler],
 })
 export class NotificationsModule {}
