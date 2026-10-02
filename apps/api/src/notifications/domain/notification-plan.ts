@@ -23,6 +23,10 @@ export interface NotificationPreferences {
   /** Hora de relógio (no fuso da pessoa) em que o resumo do dia sai. */
   digestTime: string;
   digestEmailEnabled: boolean;
+  /** Aviso de relatório semanal pronto (RF47). */
+  weeklyReportEnabled: boolean;
+  /** Push no celular (RF41). */
+  pushEnabled: boolean;
 }
 
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
@@ -32,6 +36,8 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   digestEnabled: true,
   digestTime: DEFAULT_DIGEST_TIME,
   digestEmailEnabled: false,
+  weeklyReportEnabled: true,
+  pushEnabled: false,
 };
 
 /** Uma ocorrência de bloco já resolvida (exceções aplicadas), pronta para virar lembrete. */
@@ -56,7 +62,7 @@ export interface PlannedEvent {
   remindBeforeMin: number | null;
 }
 
-export type NotificationKind = 'BLOCK' | 'EVENT' | 'DIGEST';
+export type NotificationKind = 'BLOCK' | 'EVENT' | 'DIGEST' | 'REPORT';
 
 export interface NotificationCandidate {
   kind: NotificationKind;

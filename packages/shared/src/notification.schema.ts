@@ -7,7 +7,7 @@ export const BLOCK_LEAD_OPTIONS = [5, 10, 15, 30, 60] as const;
 export const DEFAULT_BLOCK_LEAD_MIN = 15;
 export const DEFAULT_DIGEST_TIME = '07:00';
 
-export const NOTIFICATION_KINDS = ['block', 'event', 'digest'] as const;
+export const NOTIFICATION_KINDS = ['block', 'event', 'digest', 'report'] as const;
 export const notificationKindSchema = z.enum(NOTIFICATION_KINDS);
 
 const blockLeadSchema = z.union([
@@ -66,6 +66,10 @@ export const notificationPreferencesSchema = z.object({
   /** Hora de relógio, no fuso da pessoa, em que o resumo do dia sai. */
   digestTime: timeOfDaySchema,
   digestEmailEnabled: z.boolean(),
+  /** Aviso "seu relatório da semana está pronto", às segundas, na hora do resumo do dia (RF47). */
+  weeklyReportEnabled: z.boolean(),
+  /** Receber os avisos também como push no celular (RF41); precisa de um aparelho inscrito. */
+  pushEnabled: z.boolean(),
 });
 
 // strictObject: campos desconhecidos viram erro 400 (RS07).
@@ -77,6 +81,8 @@ export const updateNotificationPreferencesSchema = z
     digestEnabled: z.boolean(),
     digestTime: timeOfDaySchema,
     digestEmailEnabled: z.boolean(),
+    weeklyReportEnabled: z.boolean(),
+    pushEnabled: z.boolean(),
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para alterar');

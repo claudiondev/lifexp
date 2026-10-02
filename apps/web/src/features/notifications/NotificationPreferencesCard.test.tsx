@@ -19,6 +19,8 @@ const DEFAULTS: NotificationPreferencesDto = {
   digestEnabled: true,
   digestTime: '07:00',
   digestEmailEnabled: false,
+  weeklyReportEnabled: true,
+  pushEnabled: false,
 };
 
 function setup(

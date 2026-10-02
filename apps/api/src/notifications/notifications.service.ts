@@ -7,7 +7,12 @@ import { PrismaService } from '../prisma/prisma.service.js';
 
 const NOT_FOUND = 'Notificação não encontrada';
 
-const KIND_TO_API = { BLOCK: 'block', EVENT: 'event', DIGEST: 'digest' } as const;
+const KIND_TO_API = {
+  BLOCK: 'block',
+  EVENT: 'event',
+  DIGEST: 'digest',
+  REPORT: 'report',
+} as const;
 
 export function toNotificationResponse(row: NotificationEntity): AppNotification {
   return {

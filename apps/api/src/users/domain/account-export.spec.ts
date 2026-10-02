@@ -61,8 +61,12 @@ describe('modelos exportados', () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('as credenciais nunca são exportadas', () => {
-    expect(Object.keys(EXCLUDED_FROM_EXPORT).sort()).toEqual(['PasswordResetToken', 'Session']);
+  it('as credenciais nunca são exportadas (inclusive as chaves de push do aparelho)', () => {
+    expect(Object.keys(EXCLUDED_FROM_EXPORT).sort()).toEqual([
+      'PasswordResetToken',
+      'PushSubscription',
+      'Session',
+    ]);
   });
 
   it('as colunas de data civil são exatamente as conhecidas', () => {

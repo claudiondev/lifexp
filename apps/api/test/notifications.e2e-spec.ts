@@ -258,6 +258,8 @@ describe('Central de notificações e preferências (e2e)', () => {
         digestEnabled: true,
         digestTime: '07:00',
         digestEmailEnabled: false,
+        weeklyReportEnabled: true,
+        pushEnabled: false,
       });
       expect(await prisma.notificationPreference.count({ where: { userId: user.userId } })).toBe(0);
     });

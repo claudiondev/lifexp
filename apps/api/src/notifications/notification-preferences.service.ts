@@ -23,6 +23,8 @@ export class NotificationPreferencesService {
       digestEnabled: row.digestEnabled,
       digestTime: row.digestTime,
       digestEmailEnabled: row.digestEmailEnabled,
+      weeklyReportEnabled: row.weeklyReportEnabled,
+      pushEnabled: row.pushEnabled,
     };
   }
 

@@ -1,11 +1,12 @@
 import type { AppNotification } from '@lifexp/shared';
 
-/** Para onde um aviso leva: o bloco na semana certa, o calendário ou o dia de hoje. */
+/** Para onde um aviso leva: o bloco na semana certa, o calendário, a revisão (relatório) ou o dia de hoje. */
 export function notificationTarget(notification: AppNotification): string {
   if (notification.kind === 'block' && notification.occurrenceDate) {
     return `/semana?inicio=${notification.occurrenceDate}`;
   }
   if (notification.kind === 'event') return '/calendario';
+  if (notification.kind === 'report') return '/revisao';
   return '/hoje';
 }
 

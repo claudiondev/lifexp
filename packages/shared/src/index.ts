@@ -24,3 +24,5 @@ export * from './balance.schema.js';
 export * from './achievement.schema.js';
 export * from './reward.schema.js';
 export * from './title.js';
+export * from './push.schema.js';
+export * from './report.schema.js';

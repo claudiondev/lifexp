@@ -48,6 +48,39 @@ describe('Restrições do banco para notificações e preferências (defesa em p
       ).resolves.toBeDefined();
     });
 
+    it('o aviso de relatório semanal não aponta para bloco nem evento (como o resumo)', async () => {
+      const ctx = await setup();
+      await expect(
+        notification(ctx, { kind: 'REPORT', dedupeKey: 'report:2026-09-28' }),
+      ).resolves.toBeDefined();
+      for (const origin of [
+        { blockId: 'b', occurrenceDate: utc('2026-10-07') },
+        { eventId: 'e' },
+      ]) {
+        await expect(
+          notification(ctx, {
+            kind: 'REPORT',
+            dedupeKey: `report:${JSON.stringify(origin)}`,
+            ...origin,
+          }),
+        ).rejects.toThrow();
+      }
+    });
+
+    it('as tentativas de push ficam entre 0 e 5, como as de e-mail', async () => {
+      const ctx = await setup();
+      for (const pushAttempts of [-1, 6]) {
+        await expect(
+          notification(ctx, { dedupeKey: `p:${pushAttempts}`, pushAttempts }),
+        ).rejects.toThrow();
+      }
+      for (const pushAttempts of [0, 5]) {
+        await expect(
+          notification(ctx, { dedupeKey: `p:${pushAttempts}`, pushAttempts }),
+        ).resolves.toBeDefined();
+      }
+    });
+
     it('a mesma chave não gera dois avisos para a mesma pessoa (RF55, RN25)', async () => {
       const ctx = await setup();
       await notification(ctx);
@@ -144,6 +177,8 @@ describe('Restrições do banco para notificações e preferências (defesa em p
         digestEnabled: true,
         digestTime: '07:00',
         digestEmailEnabled: false,
+        weeklyReportEnabled: true,
+        pushEnabled: false,
       });
     });
 
@@ -168,6 +203,64 @@ describe('Restrições do banco para notificações e preferências (defesa em p
       const ctx = await setup();
       await pref(ctx);
       await expect(pref(ctx)).rejects.toThrow();
+    });
+  });
+
+  describe('PushSubscription', () => {
+    const VALID = {
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+      p256dh:
+        'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM',
+      auth: 'tBHItJI5svbpez7KI4CCXg',
+    };
+    let seq = 0;
+    const subscription = (ctx: Ctx, overrides: object = {}) =>
+      prisma.pushSubscription.create({
+        data: { userId: ctx.userId, ...VALID, endpoint: `${VALID.endpoint}${seq++}`, ...overrides },
+      });
+
+    it('aceita uma inscrição válida', async () => {
+      await expect(subscription(await setup())).resolves.toBeDefined();
+    });
+
+    it('o endereço é único no sistema todo (um aparelho pertence a uma conta por vez)', async () => {
+      const [a, b] = [await setup(), await setup()];
+      const endpoint = `${VALID.endpoint}-unico-${seq++}`;
+      await subscription(a, { endpoint });
+      await expect(subscription(b, { endpoint })).rejects.toThrow();
+      await expect(subscription(a, { endpoint })).rejects.toThrow();
+    });
+
+    it('só https e de tamanho limitado', async () => {
+      const ctx = await setup();
+      await expect(
+        subscription(ctx, { endpoint: 'http://fcm.googleapis.com/x' }),
+      ).rejects.toThrow();
+      await expect(subscription(ctx, { endpoint: 'ftp://fcm.googleapis.com/x' })).rejects.toThrow();
+      await expect(
+        subscription(ctx, { endpoint: `https://fcm.googleapis.com/${'a'.repeat(2100)}` }),
+      ).rejects.toThrow();
+    });
+
+    it('as chaves são base64url de tamanho razoável', async () => {
+      const ctx = await setup();
+      for (const overrides of [
+        { p256dh: 'tem espaço e !!' + 'a'.repeat(20) },
+        { p256dh: 'curta' },
+        { p256dh: 'a'.repeat(201) },
+        { auth: 'tem espaço!' },
+        { auth: 'curta' },
+        { auth: 'a'.repeat(101) },
+      ]) {
+        await expect(subscription(ctx, overrides)).rejects.toThrow();
+      }
+    });
+
+    it('some junto com a conta (cascata)', async () => {
+      const ctx = await setup();
+      await subscription(ctx);
+      await prisma.user.delete({ where: { id: ctx.userId } });
+      expect(await prisma.pushSubscription.count({ where: { userId: ctx.userId } })).toBe(0);
     });
   });
 });

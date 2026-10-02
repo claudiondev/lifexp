@@ -29,6 +29,10 @@ describe('notificationTarget', () => {
     expect(notificationTarget(base)).toBe('/hoje');
   });
 
+  it('o aviso do relatório semanal leva à Revisão', () => {
+    expect(notificationTarget({ ...base, kind: 'report' })).toBe('/revisao');
+  });
+
   it('bloco sem data (dado incompleto) cai em Hoje, nunca num link quebrado', () => {
     expect(notificationTarget({ ...base, kind: 'block', blockId: base.id })).toBe('/hoje');
   });

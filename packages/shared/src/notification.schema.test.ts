@@ -106,10 +106,16 @@ describe('preferências', () => {
     digestEnabled: true,
     digestTime: '07:00',
     digestEmailEnabled: false,
+    weeklyReportEnabled: true,
+    pushEnabled: false,
   };
 
   it('aceita o conjunto completo e só antecedências da lista', () => {
     expect(ok(notificationPreferencesSchema, prefs)).toBe(true);
+    expect(ok(notificationPreferencesSchema, { ...prefs, pushEnabled: undefined })).toBe(false);
+    expect(ok(notificationPreferencesSchema, { ...prefs, weeklyReportEnabled: undefined })).toBe(
+      false,
+    );
     for (const blockLeadMin of BLOCK_LEAD_OPTIONS) {
       expect(ok(notificationPreferencesSchema, { ...prefs, blockLeadMin })).toBe(true);
     }
@@ -127,6 +133,9 @@ describe('preferências', () => {
   it('a atualização é parcial: exige ao menos um campo e recusa campo desconhecido', () => {
     expect(ok(updateNotificationPreferencesSchema, {})).toBe(false);
     expect(ok(updateNotificationPreferencesSchema, { digestEmailEnabled: true })).toBe(true);
+    expect(ok(updateNotificationPreferencesSchema, { pushEnabled: true })).toBe(true);
+    expect(ok(updateNotificationPreferencesSchema, { weeklyReportEnabled: false })).toBe(true);
+    expect(ok(updateNotificationPreferencesSchema, { pushEnabled: 'sim' })).toBe(false);
     expect(ok(updateNotificationPreferencesSchema, { blockLeadMin: 30, digestTime: '06:30' })).toBe(
       true,
     );

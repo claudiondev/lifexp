@@ -48,6 +48,7 @@ model User {
   weeklyQuests        WeeklyQuest[]
   achievements        Achievement[]
   rewards             Reward[]
+  pushSubscriptions   PushSubscription[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -323,6 +324,7 @@ enum NotificationKind {
   BLOCK // lembrete de bloco
   EVENT // lembrete de evento
   DIGEST // resumo do dia
+  REPORT // relatório semanal pronto
 }
 
 // Central de avisos (RF37, RF38). Uma linha por aviso gerado pela varredura.
@@ -345,6 +347,9 @@ model Notification {
   // Só o resumo (DIGEST) vai por e-mail (RF39): quando foi enviado e quantas tentativas houve.
   emailSentAt    DateTime?
   emailAttempts  Int              @default(0)
+  // Push no celular (RF41): quando saiu para os aparelhos e quantas tentativas houve (como no e-mail).
+  pushSentAt     DateTime?
+  pushAttempts   Int              @default(0)
   createdAt      DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -366,6 +371,9 @@ model NotificationPreference {
   // Hora de relógio, no fuso da pessoa, em que o resumo do dia sai.
   digestTime            String   @default("07:00")
   digestEmailEnabled    Boolean  @default(false)
+  // Aviso de relatório semanal pronto (RF47) e push no celular (RF41, desligado até a pessoa pedir).
+  weeklyReportEnabled   Boolean  @default(true)
+  pushEnabled           Boolean  @default(false)
   updatedAt             DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -514,6 +522,22 @@ model Reward {
   redeemedAt     DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Aparelho inscrito para receber push (RF41). O `endpoint` identifica o navegador/aparelho e é único: o mesmo aparelho
+// que entra em outra conta passa a pertencer a ela. As chaves criptografam a mensagem e são segredo do aparelho.
+// Inscrição que o serviço de push recusa (404/410) é apagada.
+model PushSubscription {
+  id        String   @id @default(uuid(7))
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

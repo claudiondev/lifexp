@@ -38,6 +38,8 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
           digestEnabled: true,
           digestTime: '07:00',
           digestEmailEnabled: false,
+          weeklyReportEnabled: true,
+          pushEnabled: false,
         });
       }
       if (url === '/api/users/me' && init?.method === 'PATCH') {
