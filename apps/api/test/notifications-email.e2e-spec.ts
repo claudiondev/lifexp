@@ -1,5 +1,6 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
+import { vi } from 'vitest';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   DigestEmailService,
@@ -7,7 +8,10 @@ import {
   MAX_EMAIL_ATTEMPTS,
 } from '../src/notifications/digest-email.service.js';
 import { NotificationGenerator } from '../src/notifications/notification-generator.service.js';
-import { NotificationsScheduler } from '../src/notifications/notifications.scheduler.js';
+import {
+  NotificationsScheduler,
+  SCAN_LOCK_KEY,
+} from '../src/notifications/notifications.scheduler.js';
 import {
   FakeClock,
   FakeMailer,
@@ -15,6 +19,7 @@ import {
   createTestApp,
   listActivities,
   registerUser,
+  holdScanLock,
   scanWhenFree,
   type TestUser,
 } from './helpers.js';
@@ -75,125 +80,169 @@ describe('Resumo diário por e-mail (e2e)', () => {
   };
   const mailsTo = (user: TestUser) => mailer.sent.filter((mail) => mail.to === user.email);
 
-  it('envia o resumo para quem ligou a opção, com o conteúdo do aviso e o link do app', async () => {
-    const { user, activity } = await setup();
-    const digest = await digestOf(user);
-
-    const summary = await emails.sendPending(new Date(DIGEST_Z));
-
-    expect(summary.sent).toBeGreaterThanOrEqual(1);
-    const [mail] = mailsTo(user);
-    expect(mail).toBeDefined();
-    expect(mail!.subject).toBe('Seu dia no LifeXP');
-    expect(mail!.text).toContain(digest.body);
-    expect(mail!.text).toContain(`${activity.name}, às 08:00`);
-    expect(mail!.text).toContain('http://localhost:5173/hoje');
-    const row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
-    expect(row.emailSentAt!.toISOString()).toBe(DIGEST_Z);
-    expect(row.emailAttempts).toBe(1);
-  });
-
-  it('é desligado por padrão: sem a preferência, nada é enviado', async () => {
-    const { user } = await setup(false);
-    const digest = await digestOf(user);
-
-    await emails.sendPending(new Date(DIGEST_Z));
-
-    expect(mailsTo(user)).toHaveLength(0);
-    const row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
-    expect(row.emailSentAt).toBeNull();
-    expect(row.emailAttempts).toBe(0);
-  });
-
-  it('não envia de novo o que já foi enviado', async () => {
-    const { user } = await setup();
-    await digestOf(user);
-
-    await emails.sendPending(new Date(DIGEST_Z));
-    await emails.sendPending(new Date('2026-10-07T10:01:20.000Z'));
-    await emails.sendPending(new Date('2026-10-07T10:02:20.000Z'));
-
-    expect(mailsTo(user)).toHaveLength(1);
-  });
-
-  it('só o resumo vai por e-mail, nunca lembretes de bloco ou de evento', async () => {
-    const { user } = await setup();
-    await prisma.notification.create({
-      data: {
-        userId: user.userId,
-        kind: 'EVENT',
-        title: 'Consulta amanhã',
-        body: 'corpo',
-        scheduledFor: new Date(DIGEST_Z),
-        dedupeKey: 'event:x:2026-10-08:all-day:1440',
-        eventId: 'x',
-      },
+  // Estes testes chamam o envio direto e contam tentativas: a varredura de outra suíte (mesmo banco, em paralelo) não
+  // pode enviar os avisos deles antes. Seguram a trava da varredura enquanto rodam.
+  describe('envio direto, com a trava da varredura presa', () => {
+    let release: () => Promise<void>;
+    beforeEach(async () => {
+      release = await holdScanLock(SCAN_LOCK_KEY);
+    }, 120_000);
+    afterEach(async () => {
+      await release();
     });
 
-    await emails.sendPending(new Date(DIGEST_Z));
+    it('envia o resumo para quem ligou a opção, com o conteúdo do aviso e o link do app', async () => {
+      const { user, activity } = await setup();
+      const digest = await digestOf(user);
 
-    expect(mailsTo(user)).toHaveLength(0);
-  });
+      const summary = await emails.sendPending(new Date(DIGEST_Z));
 
-  it('uma falha do provedor é repetida no minuto seguinte, até dar certo', async () => {
-    const { user } = await setup();
-    const digest = await digestOf(user);
-    mailer.failNext = 1;
+      expect(summary.sent).toBeGreaterThanOrEqual(1);
+      const [mail] = mailsTo(user);
+      expect(mail).toBeDefined();
+      expect(mail!.subject).toBe('Seu dia no LifeXP');
+      expect(mail!.text).toContain(digest.body);
+      expect(mail!.text).toContain(`${activity.name}, às 08:00`);
+      expect(mail!.text).toContain('http://localhost:5173/hoje');
+      const row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
+      expect(row.emailSentAt!.toISOString()).toBe(DIGEST_Z);
+      expect(row.emailAttempts).toBe(1);
+    });
 
-    const first = await emails.sendPending(new Date(DIGEST_Z));
-    expect(first.failed).toBeGreaterThanOrEqual(1);
-    let row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
-    expect(row.emailSentAt).toBeNull();
-    expect(row.emailAttempts).toBe(1);
+    it('é desligado por padrão: sem a preferência, nada é enviado', async () => {
+      const { user } = await setup(false);
+      const digest = await digestOf(user);
 
-    await emails.sendPending(new Date('2026-10-07T10:01:20.000Z'));
-    row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
-    expect(row.emailSentAt).not.toBeNull();
-    expect(row.emailAttempts).toBe(2);
-    expect(mailsTo(user)).toHaveLength(1);
-  });
+      await emails.sendPending(new Date(DIGEST_Z));
 
-  it(`desiste depois de ${MAX_EMAIL_ATTEMPTS} tentativas, sem travar os outros`, async () => {
-    const [ana, bia] = [await setup(), await setup()];
-    const digestAna = await digestOf(ana.user);
-    await digestOf(bia.user);
-    // o provedor falha só para a Ana
-    const original = mailer.send.bind(mailer);
-    mailer.send = async (message) => {
-      if (message.to === ana.user.email) throw new Error('recusou');
-      return original(message);
-    };
-    try {
-      for (let minute = 0; minute < MAX_EMAIL_ATTEMPTS + 2; minute += 1) {
-        await emails.sendPending(new Date(`2026-10-07T10:0${minute}:20.000Z`));
+      expect(mailsTo(user)).toHaveLength(0);
+      const row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
+      expect(row.emailSentAt).toBeNull();
+      expect(row.emailAttempts).toBe(0);
+    });
+
+    it('não envia de novo o que já foi enviado', async () => {
+      const { user } = await setup();
+      await digestOf(user);
+
+      await emails.sendPending(new Date(DIGEST_Z));
+      await emails.sendPending(new Date('2026-10-07T10:01:20.000Z'));
+      await emails.sendPending(new Date('2026-10-07T10:02:20.000Z'));
+
+      expect(mailsTo(user)).toHaveLength(1);
+    });
+
+    it('só o resumo vai por e-mail, nunca lembretes de bloco ou de evento', async () => {
+      const { user } = await setup();
+      await prisma.notification.create({
+        data: {
+          userId: user.userId,
+          kind: 'EVENT',
+          title: 'Consulta amanhã',
+          body: 'corpo',
+          scheduledFor: new Date(DIGEST_Z),
+          dedupeKey: 'event:x:2026-10-08:all-day:1440',
+          eventId: 'x',
+        },
+      });
+
+      await emails.sendPending(new Date(DIGEST_Z));
+
+      expect(mailsTo(user)).toHaveLength(0);
+    });
+
+    it('uma falha do provedor é repetida no minuto seguinte, até dar certo', async () => {
+      const { user } = await setup();
+      const digest = await digestOf(user);
+      mailer.failNext = 1;
+
+      const first = await emails.sendPending(new Date(DIGEST_Z));
+      expect(first.failed).toBeGreaterThanOrEqual(1);
+      let row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
+      expect(row.emailSentAt).toBeNull();
+      expect(row.emailAttempts).toBe(1);
+
+      await emails.sendPending(new Date('2026-10-07T10:01:20.000Z'));
+      row = await prisma.notification.findUniqueOrThrow({ where: { id: digest.id } });
+      expect(row.emailSentAt).not.toBeNull();
+      expect(row.emailAttempts).toBe(2);
+      expect(mailsTo(user)).toHaveLength(1);
+    });
+
+    it(`desiste depois de ${MAX_EMAIL_ATTEMPTS} tentativas, sem travar os outros`, async () => {
+      const [ana, bia] = [await setup(), await setup()];
+      const digestAna = await digestOf(ana.user);
+      await digestOf(bia.user);
+      // o provedor falha só para a Ana
+      const original = mailer.send.bind(mailer);
+      mailer.send = async (message) => {
+        if (message.to === ana.user.email) throw new Error('recusou');
+        return original(message);
+      };
+      try {
+        for (let minute = 0; minute < MAX_EMAIL_ATTEMPTS + 2; minute += 1) {
+          await emails.sendPending(new Date(`2026-10-07T10:0${minute}:20.000Z`));
+        }
+      } finally {
+        mailer.send = original;
       }
-    } finally {
-      mailer.send = original;
-    }
 
-    const row = await prisma.notification.findUniqueOrThrow({ where: { id: digestAna.id } });
-    expect(row.emailAttempts).toBe(MAX_EMAIL_ATTEMPTS);
-    expect(row.emailSentAt).toBeNull();
-    expect(mailsTo(ana.user)).toHaveLength(0);
-    expect(mailsTo(bia.user)).toHaveLength(1);
-  });
+      const row = await prisma.notification.findUniqueOrThrow({ where: { id: digestAna.id } });
+      expect(row.emailAttempts).toBe(MAX_EMAIL_ATTEMPTS);
+      expect(row.emailSentAt).toBeNull();
+      expect(mailsTo(ana.user)).toHaveLength(0);
+      expect(mailsTo(bia.user)).toHaveLength(1);
+    });
 
-  it(`não envia um resumo com mais de ${EMAIL_FRESH_HOURS} horas`, async () => {
-    const { user } = await setup();
-    await digestOf(user);
+    it(`não envia um resumo com mais de ${EMAIL_FRESH_HOURS} horas`, async () => {
+      const { user } = await setup();
+      await digestOf(user);
 
-    await emails.sendPending(new Date('2026-10-07T13:00:21.000Z')); // 3 h e 1 s depois
+      await emails.sendPending(new Date('2026-10-07T13:00:21.000Z')); // 3 h e 1 s depois
 
-    expect(mailsTo(user)).toHaveLength(0);
-  });
+      expect(mailsTo(user)).toHaveLength(0);
+    });
 
-  it('ainda envia dentro da janela de frescor', async () => {
-    const { user } = await setup();
-    await digestOf(user);
+    it('ainda envia dentro da janela de frescor', async () => {
+      const { user } = await setup();
+      await digestOf(user);
 
-    await emails.sendPending(new Date('2026-10-07T12:59:00.000Z'));
+      await emails.sendPending(new Date('2026-10-07T12:59:00.000Z'));
 
-    expect(mailsTo(user)).toHaveLength(1);
+      expect(mailsTo(user)).toHaveLength(1);
+    });
+
+    it('uma conta excluída no meio do envio não derruba a rodada nem os outros e-mails', async () => {
+      const { user } = await setup();
+      await digestOf(user);
+      const real = await prisma.notification.findMany({
+        where: { userId: user.userId, kind: 'DIGEST' },
+        include: { user: { select: { email: true, name: true } } },
+      });
+      // a leitura devolve também um aviso que já não existe (a conta dele foi excluída logo depois de lida)
+      const ghost = { ...real[0]!, id: '0192f1a0-7b3c-7000-8000-0000000000ff' };
+      const spy = vi
+        .spyOn(prisma.notification, 'findMany')
+        .mockResolvedValueOnce([ghost, ...real] as never);
+
+      const summary = await emails.sendPending(new Date(DIGEST_Z));
+      spy.mockRestore();
+
+      expect(summary).toEqual({ sent: 1, failed: 0 });
+      expect(mailsTo(user)).toHaveLength(1);
+    });
+
+    it('cada resumo vai para o endereço da própria pessoa', async () => {
+      const [ana, bia] = [await setup(), await setup()];
+      await digestOf(ana.user);
+      await digestOf(bia.user);
+
+      await emails.sendPending(new Date(DIGEST_Z));
+
+      expect(mailsTo(ana.user)).toHaveLength(1);
+      expect(mailsTo(bia.user)).toHaveLength(1);
+      expect(mailsTo(ana.user)[0]!.text).toContain(ana.user.email ? 'Olá,' : '');
+    });
   });
 
   it('varreduras simultâneas (duas instâncias, sob a trava) não mandam o mesmo e-mail duas vezes', async () => {
@@ -208,18 +257,6 @@ describe('Resumo diário por e-mail (e2e)', () => {
     expect(mailsTo(user)).toHaveLength(1);
     expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(1);
   }, 120_000);
-
-  it('cada resumo vai para o endereço da própria pessoa', async () => {
-    const [ana, bia] = [await setup(), await setup()];
-    await digestOf(ana.user);
-    await digestOf(bia.user);
-
-    await emails.sendPending(new Date(DIGEST_Z));
-
-    expect(mailsTo(ana.user)).toHaveLength(1);
-    expect(mailsTo(bia.user)).toHaveLength(1);
-    expect(mailsTo(ana.user)[0]!.text).toContain(ana.user.email ? 'Olá,' : '');
-  });
 
   it('o agendador gera e envia no mesmo minuto', async () => {
     const { user } = await setup();

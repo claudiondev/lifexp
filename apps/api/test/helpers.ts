@@ -145,3 +145,22 @@ export async function scanWhenFree<T>(run: () => Promise<T | null>): Promise<T> 
   }
   throw new Error('A trava da varredura não ficou livre a tempo');
 }
+
+/**
+ * Segura a trava da varredura de notificações (a mesma de `NotificationsScheduler.runOnce`) até chamar a função
+ * devolvida. Serve a testes que chamam `sendPending` ou `scanUser` direto: sem isso, a varredura de OUTRA suíte
+ * (no mesmo banco, em paralelo) pode enviar ou gerar os avisos deste teste antes dele, e as contagens de tentativas
+ * e de envios deixam de ser só dele. Enquanto a trava está presa, `runOnce` das outras suítes "pula o minuto" e
+ * `scanWhenFree` espera.
+ */
+export async function holdScanLock(key: number): Promise<() => Promise<void>> {
+  const { default: pg } = await import('pg');
+  const { resolveTestDatabase } = await import('./test-db.js');
+  const client = new pg.Client({ connectionString: resolveTestDatabase().testUrl });
+  await client.connect();
+  await client.query('SELECT pg_advisory_lock($1)', [key]);
+  return async () => {
+    await client.query('SELECT pg_advisory_unlock($1)', [key]);
+    await client.end();
+  };
+}

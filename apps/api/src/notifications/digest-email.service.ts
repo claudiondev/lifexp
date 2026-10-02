@@ -54,10 +54,12 @@ export class DigestEmailService {
     const summary: EmailSummary = { sent: 0, failed: 0 };
     const appUrl = this.config.get('APP_URL', { infer: true });
     for (const notification of pending) {
-      await this.prisma.notification.update({
+      const claimed = await this.prisma.notification.updateMany({
         where: { id: notification.id },
         data: { emailAttempts: { increment: 1 } },
       });
+      // A conta pode ter sido excluída entre a leitura e agora (RS15): não há mais o que enviar, e isso não é falha.
+      if (claimed.count === 0) continue;
 
       try {
         const email = buildDigestEmail({
@@ -66,7 +68,7 @@ export class DigestEmailService {
           appUrl,
         });
         await this.mailer.send({ to: notification.user.email, ...email });
-        await this.prisma.notification.update({
+        await this.prisma.notification.updateMany({
           where: { id: notification.id },
           data: { emailSentAt: now },
         });
