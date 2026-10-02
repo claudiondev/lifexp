@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -74,6 +74,38 @@ produção (mesma origem, cookie `SameSite=Strict`).
   Reuso de um token já rotacionado revoga a família inteira da sessão.
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
+
+### Sessões e conta (Marco 3a)
+
+Telas: **Configurações** (`/configuracoes`; `/perfil` continua funcionando e redireciona), com perfil, notificações,
+**dispositivos conectados**, **exportar os dados** e **excluir a conta**.
+
+| Método | Rota                               | O que faz                                                    |
+| ------ | ---------------------------------- | ------------------------------------------------------------ |
+| GET    | `/api/auth/sessions`               | Dispositivos com sessão ativa (a atual primeiro)             |
+| DELETE | `/api/auth/sessions/:id`           | Encerra um dispositivo (se for o atual, equivale a sair)     |
+| POST   | `/api/auth/sessions/revoke-others` | Encerra todos, menos o atual                                 |
+| GET    | `/api/users/me/export`             | Baixa todos os dados da pessoa em JSON (sem credenciais)     |
+| POST   | `/api/users/me/delete`             | Exclui a conta e tudo que é dela, depois de conferir a senha |
+
+- **Uma "sessão" é um aparelho:** a família de refresh tokens (`tokenFamily`). Renovar troca o token, mas a sessão é a mesma.
+  A lista mostra o aparelho ("Chrome · Windows", montado a partir do User-Agent), quando entrou e o último uso. **Não há IP**
+  (RS17: identificar o aparelho sem expor dado desnecessário) e o User-Agent original nunca é devolvido.
+- **O token de acesso cai na hora:** o JWT agora leva o id da sessão (`sid`) e o guard confere a cada requisição (uma consulta
+  indexada) que ela está ativa. Assim **sair, encerrar um dispositivo e redefinir a senha valem imediatamente**, sem esperar os
+  15 minutos do token. (Isso fecha a limitação que existia desde o 2d.) A renovação do refresh token ficou **atômica** (revoga o
+  antigo e cria o novo na mesma transação): sem isso uma requisição no meio da troca levaria 401 sem motivo.
+- **Sessão de outra pessoa responde 404**, igual a uma inexistente (RS06). Encerrar de novo uma sessão sua é idempotente.
+- **Exportar (RF06, RS15):** um JSON versionado (`version: 1`) com uma lista por tipo de dado (áreas, atividades, blocos,
+  exceções, conclusões, livro-caixa de XP, metas, marcos, eventos, avisos e preferências), lido numa única transação de leitura
+  repetível. Datas civis saem como `AAAA-MM-DD` e instantes como ISO UTC. **Senhas, tokens de sessão e de recuperação nunca
+  entram.** O nome do arquivo usa a data no fuso da pessoa.
+- **Teste-guarda:** um teste lê o `schema.prisma` e **falha se aparecer um modelo que pertence a uma pessoa sem decisão** de
+  exportá-lo (ou de excluí-lo de propósito, com o motivo). Notas, revisões e o que vier depois não ficam de fora sem ninguém notar.
+- **Excluir (RS15):** pede a senha (403 se errada) e, na tela, também uma palavra digitada. É imediato e irreversível: uma única
+  exclusão leva junto, em cascata, sessões, áreas, blocos, conclusões, livro-caixa, metas, eventos e avisos. Um teste confere,
+  tabela por tabela, que não sobra nenhuma linha, e que os dados de outras pessoas ficam intactos. Não há período de arrependimento.
+  O mesmo e-mail pode abrir uma conta nova depois. Exportar e excluir têm rate limit por IP (RS08).
 
 ## Perfil, áreas e atividades (Marco 1b)
 

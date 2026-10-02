@@ -200,6 +200,27 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   Weekly sempre vai por `/blocks/weekly`; avulso continua em `/blocks`.
 - Lição de teste: o roteiro de mutantes agora confere o ESTADO BASE antes de injetar (se a suíte já falha, "morto" não prova nada).
 
+## Sessões e conta (decisões do 3a)
+
+- Sessão = `tokenFamily` (cada renovação cria uma linha nova na mesma família). O JWT leva `sid` (a família) e o `JwtAuthGuard`
+  consulta a sessão a cada requisição (ativa, do dono, não expirada): logout, revogar dispositivo e redefinir senha valem NA
+  HORA. Token sem `sid` é recusado. `AuthenticatedUser` ganhou `sessionId`. A renovação (`refresh`) é UMA transação (revoga o
+  antigo e cria o novo): sem isso o guard daria 401 no intervalo. Os testes que contam queries filtram as da tabela `Session`.
+- `SessionsService`/`SessionsController` (`/auth/sessions`): lista por família (um item por aparelho, `lastUsedAt` do token mais
+  novo, `createdAt` do primeiro), 404 para sessão alheia, encerrar a atual limpa o cookie. Nome do aparelho em
+  `auth/domain/device-label.ts` (puro). Sem IP, por decisão (RS17).
+- `AccountService`: `export` (leitor por modelo, transação `RepeatableRead`, `serializeRow` põe datas civis em AAAA-MM-DD) e
+  `deleteAccount` (`argon2.verify`, 403 se errada, `deleteMany` para ser idempotente). `POST /users/me/delete` (não `DELETE` com
+  corpo: alguns proxies descartam o corpo). Rate limit compartilhado em `auth/throttler.ts` (`authThrottler`, importado por Auth e Users).
+- **Todo modelo novo que pertença a uma pessoa precisa entrar em `EXPORT_KEYS` (e ter leitor em `account.service.ts`) ou em
+  `EXCLUDED_FROM_EXPORT` com o motivo**: `test/account.e2e-spec.ts` lê o `schema.prisma` e falha senão. O teste de exclusão
+  também percorre todas as tabelas. Cascatas: o trigger do ledger só bloqueia UPDATE, então o DELETE em cascata funciona.
+- Front: `features/account` (`SessionsCard`, `DataExportCard`, `DeleteAccountCard`), página `SettingsPage` em `/configuracoes`
+  (`/perfil` redireciona; o menu mostra "Ajustes"). Excluir pede a senha e a palavra `EXCLUIR`; depois chama `logout()` para limpar
+  memória e cache. Download via `apiFetch` + blob (`downloadFile`).
+- Lição de teste: arquivos que fixam variáveis de ambiente (`AUTH_RATE_LIMIT_PER_MINUTE`) precisam de IMPORT DINÂMICO dos
+  helpers, senão o `AppModule` já foi carregado com o env antigo. O roteiro de mutantes confere o estado base de cada comando.
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -253,7 +274,8 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. Próximo: fase 3 (a combinar).
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)** feito; próximos: 3c (revisão semanal), 3b (notas), fase 4 e,
+  por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
