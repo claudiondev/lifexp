@@ -17,6 +17,24 @@ describe('validateEnv', () => {
     expect(validateEnv({ ...base, COOKIE_SECURE: 'false' }).COOKIE_SECURE).toBe(false);
   });
 
+  it('configura a varredura de notificações e o e-mail, com padrões seguros', () => {
+    const env = validateEnv(base);
+    expect(env.NOTIFICATIONS_SCHEDULER).toBe(true);
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.APP_URL).toBe('http://localhost:5173');
+    expect(env.MAIL_FROM).toContain('LifeXP');
+
+    expect(validateEnv({ ...base, NOTIFICATIONS_SCHEDULER: 'false' }).NOTIFICATIONS_SCHEDULER).toBe(
+      false,
+    );
+    expect(validateEnv({ ...base, RESEND_API_KEY: 're_abc' }).RESEND_API_KEY).toBe('re_abc');
+    expect(() => validateEnv({ ...base, APP_URL: 'não é url' })).toThrow(/APP_URL/);
+    expect(() => validateEnv({ ...base, RESEND_API_KEY: '' })).toThrow(/RESEND_API_KEY/);
+    expect(() => validateEnv({ ...base, NOTIFICATIONS_SCHEDULER: 'talvez' })).toThrow(
+      /NOTIFICATIONS_SCHEDULER/,
+    );
+  });
+
   it('falha quando DATABASE_URL está ausente', () => {
     expect(() => validateEnv({ JWT_ACCESS_SECRET: base.JWT_ACCESS_SECRET })).toThrow(
       /DATABASE_URL/,

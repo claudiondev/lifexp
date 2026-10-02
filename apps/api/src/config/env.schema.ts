@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+const booleanString = (fallback: 'true' | 'false') =>
+  z
+    .enum(['true', 'false'])
+    .default(fallback)
+    .transform((value) => value === 'true');
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
@@ -13,6 +19,13 @@ export const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((value) => value === 'true'),
+  // Liga a varredura por minuto que gera lembretes e resumos (RN38). Os testes desligam.
+  NOTIFICATIONS_SCHEDULER: booleanString('true'),
+  // E-mail do resumo diário (RF39): sem RESEND_API_KEY o envio só vai para o log (dev e testes).
+  RESEND_API_KEY: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(3).default('LifeXP <nao-responda@lifexp.app>'),
+  // Endereço do app, usado no link do e-mail.
+  APP_URL: z.url().default('http://localhost:5173'),
   // Variáveis de ambiente são sempre string; "false" não pode virar true por coerção.
   COOKIE_SECURE: z
     .enum(['true', 'false'])

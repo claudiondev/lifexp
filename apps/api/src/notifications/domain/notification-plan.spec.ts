@@ -39,10 +39,11 @@ const event = (overrides: Partial<PlannedEvent> = {}): PlannedEvent => ({
   ...overrides,
 });
 
-const plan = (
-  now: string,
-  parts: Partial<Omit<PlanInput, 'window'>> & { prefs?: Partial<NotificationPreferences> } = {},
-) =>
+type PlanParts = Partial<Omit<PlanInput, 'window' | 'prefs'>> & {
+  prefs?: Partial<NotificationPreferences>;
+};
+
+const plan = (now: string, parts: PlanParts = {}) =>
   planNotifications({
     window: scanWindow(at(now)),
     timezone: TZ,

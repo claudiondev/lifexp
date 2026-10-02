@@ -17,6 +17,8 @@ export default defineConfig({
       JWT_ACCESS_SECRET: 'test-secret-test-secret-test-secret-123',
       AUTH_RATE_LIMIT_PER_MINUTE: '1000',
       COOKIE_SECURE: 'false',
+      // O agendador não pode mexer nos dados no meio dos testes: a varredura é chamada à mão.
+      NOTIFICATIONS_SCHEDULER: 'false',
     },
   },
 });
