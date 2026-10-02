@@ -3,7 +3,7 @@
 Planejador semanal gamificado e multiusuário. Cada pessoa organiza a semana em blocos por área da
 vida, cumpre os blocos, ganha XP e evolui.
 
-> Status: **Marco 4c (conquistas, títulos e recompensas reais)**, **4b (radar e coringa)**, **Marco 4a (quest semanal)**, **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
+> Status: **Marco 4d (push no celular e relatório semanal)**, **4c (conquistas, títulos e recompensas reais)**, **4b (radar e coringa)**, **Marco 4a (quest semanal)**, **Marco 3b (notas)**, **3c (revisão semanal)** e **3a (sessões e conta)** sobre o **Marco 2e** (blocos em vários dias da semana, com fim) sobre o **Marco 2d (extras)**: arrastar e soltar na grade, histórico de XP e recuperação de senha. Com 2a
 > (metas), 2b (eventos) e 2c (notificações), a **fase 2 está completa**, sobre o **Marco 1** (PWA, streak, Hoje/XP,
 > blocos/Semana, perfil/áreas, autenticação, fundação).
 
@@ -74,6 +74,62 @@ produção (mesma origem, cookie `SameSite=Strict`).
   Reuso de um token já rotacionado revoga a família inteira da sessão.
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
+
+### Relatório semanal (Marco 4d, RF47)
+
+Na **Revisão**, a seção **"Relatório da semana"** resume o que foi planejado e cumprido de segunda a domingo, gerado no backend a cada
+leitura (nada é gravado: editar um bloco ou desfazer dentro do prazo aparece na próxima abertura).
+
+| Método | Rota                                | O que faz                                                     |
+| ------ | ----------------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/reports/weekly?weekStart=`    | O relatório (a semana atual por padrão; semana futura dá 400) |
+| GET    | `/api/reports/weekly.md?weekStart=` | O mesmo em **Markdown**, como arquivo para baixar             |
+
+- **Conteúdo:** blocos (planejados, cumpridos, pulados, ainda em aberto) e **aderência** (blocos, nunca minutos nem XP: RN40-RN42); tempo
+  cumprido; XP **líquido** (ganhos e devolvidos por desfazer, total e por área; o bônus da quest entra como "Sem área"); aderência por
+  área (área sem blocos = "sem dados", nunca zero); a **quest** da semana; **streak** no fim da semana e o **coringa** daquela semana;
+  conquistas desbloqueadas, marcos e metas concluídos e o melhor dia.
+- **Mesmas regras do radar e do streak:** pular não pune; o que ainda dá tempo de concluir (hoje e ontem) vira **"em aberto"** e não pesa
+  na aderência; o que ainda vai acontecer não entra. XP e conquistas são da semana **no fuso da pessoa**.
+- **Aviso "relatório pronto":** toda **segunda-feira, na hora do resumo do dia**, a varredura gera (uma vez, `report:<semana>`) um aviso
+  do relatório da semana que acabou, no sino e no push. Semana sem nenhum bloco contado não gera aviso; dá para desligar em
+  Configurações ("Relatório da semana"). Na segunda de manhã o domingo ainda está dentro do prazo, então o número do aviso conta só
+  o que já fechou; abrir o relatório mostra o estado atual.
+- **Markdown seguro:** nomes de área, metas e marcos são escapados; o arquivo se chama `lifexp-relatorio-<segunda>.md`.
+
+### Push no celular (Marco 4d, RF41)
+
+Os mesmos avisos do sino (lembrete de bloco e de evento, resumo do dia, relatório) podem chegar como **notificação do celular**, mesmo com
+o app fechado, por **Web Push com chaves VAPID**. **Desligado até você configurar as chaves.**
+
+| Método | Rota                      | O que faz                                                     |
+| ------ | ------------------------- | ------------------------------------------------------------- |
+| GET    | `/api/push/config`        | O push está ligado neste servidor? Traz a chave pública VAPID |
+| GET    | `/api/push/subscriptions` | Quantos aparelhos da pessoa estão inscritos                   |
+| POST   | `/api/push/subscriptions` | Inscreve este aparelho (até 10)                               |
+| DELETE | `/api/push/subscriptions` | Cancela a inscrição deste aparelho (idempotente)              |
+| POST   | `/api/push/test`          | Envia um aviso de teste aos aparelhos (limitado por IP)       |
+
+**Como ligar (local ou produção):**
+
+1. `pnpm --filter @lifexp/api push:keys` gera o par de chaves. Copie as linhas para `apps/api/.env` (nunca versione):
+   `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (`mailto:voce@exemplo.com` ou `https://seusite`). As **duas** chaves vêm
+   juntas ou nenhuma; a chave privada é segredo, e **trocar o par invalida as inscrições** (cada aparelho precisa ativar de novo).
+2. Reinicie a API. Em **Configurações > Avisos no celular**, clique em **Ativar neste aparelho** (o navegador pede a permissão) e use
+   **Enviar teste**.
+
+- **Privacidade:** a mensagem é **criptografada de ponta a ponta** com as chaves do aparelho (RFC 8291); o serviço de push do navegador
+  (Google, Mozilla, Apple) só vê texto cifrado. O endereço da inscrição é segredo: nunca vai para log nem para a exportação de dados
+  (só o host aparece nos logs).
+- **Segurança (SSRF):** o servidor só envia para endereços de **serviços de push conhecidos** (`fcm.googleapis.com`,
+  `push.services.mozilla.com`, `notify.windows.com`, `push.apple.com`); `https` obrigatório, sem usuário/senha nem porta diferente de 443.
+  Qualquer outro host é recusado (400), e o banco também confere `https`.
+- **Envio:** junto da varredura por minuto, sob a mesma trava de banco. Só para quem **ligou o push** e tem aparelho inscrito; aviso já
+  lido no app, agendado para o futuro ou com mais de **30 min** não vira push. Cada aviso tem até **3 tentativas**; inscrição que o
+  navegador cancelou (404/410) é apagada sozinha. Sem as chaves VAPID, nada é enviado nem tentado.
+- **Aparelhos:** cada navegador/aparelho é uma inscrição (até 10 por pessoa); o mesmo aparelho que entra em outra conta passa a pertencer
+  a ela. No **iPhone/iPad** (iOS 16.4+) o push só funciona com o app **instalado na Tela de Início** e aberto por ele.
+- **Toque no aviso:** abre o destino certo (bloco na Semana, calendário, Hoje ou Revisão); só caminhos do próprio app são aceitos.
 
 ### Conquistas, títulos e recompensas reais (Marco 4c)
 
@@ -437,7 +493,7 @@ celular, lista do dia escolhido) e os eventos do dia na tela **Hoje** como infor
 
 ## Notificações (Marco 2c)
 
-Avisos **dentro do app** (o sino no topo) e, se você quiser, o **resumo do dia por e-mail**. Push no celular é da fase 4.
+Avisos **dentro do app** (o sino no topo) e, se você quiser, o **resumo do dia por e-mail** e o **push no celular** (Marco 4d, mais abaixo).
 
 - **O que avisa:** lembrete de **bloco** (15 min antes, configurável: 5/10/15/30/60), lembrete de **evento** (na antecedência do
   próprio evento, 1 dia antes por padrão) e o **resumo do dia** (às 07:00 locais por padrão; dia sem nada não gera aviso).
@@ -468,7 +524,7 @@ Avisos **dentro do app** (o sino no topo) e, se você quiser, o **resumo do dia 
 | PUT    | `/api/notification-preferences`   | Altera só os campos enviados                           |
 
 Variáveis novas (`apps/api/.env.example`): `NOTIFICATIONS_SCHEDULER` (liga a varredura), `RESEND_API_KEY` (opcional),
-`MAIL_FROM` e `APP_URL` (link do e-mail). Em produção com Resend você precisa de conta, chave e domínio verificado; para
+`MAIL_FROM` e `APP_URL` (link do e-mail); `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (push, Marco 4d). Em produção com Resend você precisa de conta, chave e domínio verificado; para
 rodar e testar localmente, nada disso é necessário.
 
 **Testar o e-mail de verdade (grátis):** o plano gratuito do Resend basta (na data em que escrevi: ~3.000 e-mails por mês e

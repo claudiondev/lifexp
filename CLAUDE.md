@@ -310,6 +310,35 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
   `RewardFormDialog` com estado local + `createRewardSchema.safeParse`), páginas `AchievementsPage` e `RewardsPage`. `achievementsKey` e `rewardsKey`
   são invalidadas por concluir/desfazer e pelas mutações de metas. `CharacterCard` recebe `title`.
 
+## Push e relatório (decisões do 4d)
+
+- **Relatório (RF47)** é derivado, sem tabela: `reviews/reports.service.ts` monta tudo na leitura. Regra pura em `reviews/domain/weekly-report.ts`
+  (`tallyWeek`, `summarizeXp`, `toReportAreas`) e `weekly-report-markdown.ts` (com `escapeMarkdown`). `tallyWeek` recebe o HOJE de verdade para
+  decidir fechado/em aberto; `asOf = min(hoje, domingo)` só mede o streak. `weekly(userId, semana?, at?)` aceita o instante de quem pede (a varredura
+  passa o dela). O aviso "relatório pronto" (`NotificationKind.REPORT`) nasce na varredura (`planWeeklyReport` + `reportNotificationText`):
+  segunda, na `digestTime`, chave `report:<semana anterior>`, e confere se já existe ANTES de montar o relatório (caro).
+- **Push (RF41):** `push/` é um módulo global com a interface `PushSender` (`PUSH_SENDER`), no mesmo molde do `Mailer`: `WebPushSender` (lib
+  `web-push`, VAPID por chamada) ou `DisabledPushSender`; a escolha está em `createPushSender` (sem as DUAS chaves = desligado, e o env já
+  recusa uma só). Testes injetam `FakePushSender` (`createTestApp({ pushSender })`).
+  - `PushSubscription`: `endpoint` único no sistema (reinscrever em outra conta MOVE o aparelho), CHECKs de https/tamanho/base64url, até 10 por
+    pessoa (trava com `FOR NO KEY UPDATE`). Fica FORA da exportação de dados (`EXCLUDED_FROM_EXPORT`): são credenciais do aparelho.
+  - **Anti-SSRF:** `isAllowedPushEndpoint` (em `@lifexp/shared`, sem `URL`) só aceita hosts de `PUSH_SERVICE_HOSTS`; vale na API (zod) e é
+    testado contra truques (`@`, barra invertida, sufixo falso, porta, IP).
+  - `PushNotifier.sendPending` (em `notifications/`) roda DENTRO da trava da varredura, depois do e-mail. Mesmo molde do e-mail: conta a tentativa
+    ANTES de enviar, usa `updateMany` (conta excluída no meio não derruba a rodada), frescor de 30 min, 3 tentativas, `gone` apaga a inscrição.
+    Sem chaves VAPID não toca no banco. O log só tem o HOST do endereço (`maskEndpoint`), nunca o caminho nem as chaves.
+  - Front: `features/push` (`pushBrowser` isola `navigator`/`Notification`, `pushState.derivePhase`, `usePush`, `PushCard`) e
+    `public/push-sw.js` (tratadores `push`/`notificationclick`, carregado pelo Workbox via `importScripts`; só aceita caminhos do app).
+    `scripts/check-pwa.mjs` confere no build que o `sw.js` carrega o `push-sw.js`. `eslint.config.mjs` dá os globais de service worker a `*-sw.js`.
+- **Testes de envio direto** (e-mail e push) seguram a trava da varredura com `holdScanLock(SCAN_LOCK_KEY)`: a varredura de OUTRA suíte (mesmo
+  banco, em paralelo) enviaria os avisos deles antes. O teste que usa `runOnce`/`scanWhenFree` NÃO pode estar dentro dessa trava.
+- **Migrations:** valor novo de enum em migration própria e ANTES da que o usa (`..._notification_kind_report` → `..._push_and_report`).
+  ATENÇÃO: `prisma migrate dev --create-only` APLICA as migrations pendentes ao banco de desenvolvimento antes de criar a nova; apagar depois uma
+  pasta já aplicada deixa o histórico divergente (e o Prisma pede `reset`). Conserto sem perder dados: apagar a linha de `_prisma_migrations` e
+  `prisma migrate resolve --applied <nome>`.
+- Mutante de banco: ao remover uma CHECK para testar, apague as linhas que a violam ANTES de recriá-la (senão o roteiro quebra e deixa o banco de
+  teste sem a restrição).
+
 ## Convenções de teste
 
 - Todo comportamento de regra/segurança precisa de teste que FALHE quando o código quebra. Antes de dar uma
@@ -363,8 +392,8 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** feitos; próximos:
-  4d (push e relatório) e, por último, o deploy.
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** feitos; próximos:
+  extras opcionais (RF13, RF56), transversais (logs de jobs, Dependabot/audit) e, por último, o deploy.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
