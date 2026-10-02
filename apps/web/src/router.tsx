@@ -5,6 +5,8 @@ import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { RegisterPage } from './features/auth/RegisterPage';
 import { AppShell } from './components/layout/AppShell';
 import { AreasPage } from './pages/AreasPage';
+import { GoalDetailPage } from './pages/GoalDetailPage';
+import { GoalsPage } from './pages/GoalsPage';
 import { HomePage } from './pages/HomePage';
 import { TodayPage } from './pages/TodayPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -22,6 +24,8 @@ export function AppRoutes() {
           <Route path="/" element={<HomePage />} />
           <Route path="/hoje" element={<TodayPage />} />
           <Route path="/semana" element={<WeekPage />} />
+          <Route path="/metas" element={<GoalsPage />} />
+          <Route path="/metas/:goalId" element={<GoalDetailPage />} />
           <Route path="/areas" element={<AreasPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
         </Route>

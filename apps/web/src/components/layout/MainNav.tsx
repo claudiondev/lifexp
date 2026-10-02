@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Swords,
   Shapes,
+  Trophy,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ const ITEMS: NavItem[] = [
   { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
   { to: '/hoje', label: 'Hoje', icon: Swords },
   { to: '/semana', label: 'Semana', icon: CalendarDays },
+  { to: '/metas', label: 'Metas', icon: Trophy },
   { to: '/areas', label: 'Áreas', icon: Shapes },
   { to: '/perfil', label: 'Perfil', icon: UserRound },
 ];
@@ -55,7 +57,7 @@ export function MobileNav() {
   return (
     <nav
       aria-label="Principal (celular)"
-      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/90 backdrop-blur-md sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-border bg-background/90 backdrop-blur-md sm:hidden"
     >
       {ITEMS.map(({ to, label, icon: Icon, end }) => (
         <NavLink
