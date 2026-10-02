@@ -6,6 +6,7 @@ import {
   progressSchema,
   todayResponseSchema,
 } from '@lifexp/shared';
+import { CacheRebuildService } from '../src/gamification/cache-rebuild.service.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import {
   FakeClock,
@@ -524,6 +525,32 @@ describe('XP de marcos e metas (e2e)', () => {
       await call('delete', user, `/api/goals/${goal.id}`);
 
       expect((await prisma.block.findUniqueOrThrow({ where: { id: block.id } })).goalId).toBeNull();
+    });
+  });
+
+  describe('reconstrução dos caches a partir do livro-caixa', () => {
+    it('com XP de metas (com e sem área), os caches batem e o rebuild corrige uma corrupção', async () => {
+      const { user, areaId } = await setup();
+      const withArea = await newGoal(user, { areaId });
+      const noArea = await newGoal(user);
+      await completeMs(user, withArea.id, await newMilestone(user, withArea.id));
+      await setStatus(user, withArea.id, 'completed');
+      await completeMs(user, noArea.id, await newMilestone(user, noArea.id));
+
+      const rebuild = app.get(CacheRebuildService);
+      expect(await rebuild.check(user.userId)).toEqual([]);
+
+      await prisma.user.update({ where: { id: user.userId }, data: { cachedTotalXp: 5 } });
+      await prisma.areaProgress.update({
+        where: { areaId },
+        data: { cachedXp: 7, cachedLevel: 3 },
+      });
+      expect((await rebuild.check(user.userId)).length).toBe(2);
+
+      const report = await rebuild.rebuild(user.userId);
+      expect(report.discrepancies).toHaveLength(2);
+      expect(await rebuild.check(user.userId)).toEqual([]);
+      expect((await progress(user)).total.xp).toBe(700);
     });
   });
 
