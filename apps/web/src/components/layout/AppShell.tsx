@@ -1,7 +1,7 @@
 import { LogOut } from 'lucide-react';
 import { Outlet } from 'react-router';
 import { LevelSigil } from '@/components/game/LevelSigil';
-import { RuneBackdrop } from '@/components/game/RuneBackdrop';
+import { SkyBackdrop } from '@/components/game/SkyBackdrop';
 import { StreakFlame } from '@/components/game/StreakFlame';
 import { Wordmark } from '@/components/game/Wordmark';
 import { XpBar } from '@/components/game/XpBar';
@@ -22,7 +22,7 @@ export function AppShell() {
 
   return (
     <div className="relative min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
-      <RuneBackdrop />
+      <SkyBackdrop />
 
       <aside className="relative z-10 hidden h-dvh flex-col border-r border-border bg-card/60 backdrop-blur-md lg:sticky lg:top-0 lg:flex">
         <div className="flex h-16 items-center px-6">

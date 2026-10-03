@@ -153,15 +153,10 @@
 
 /* Animações ambientes do HUD (respeitam prefers-reduced-motion pela regra em @layer base). */
 @theme {
-  --animate-drift: drift 24s ease-in-out infinite alternate;
-  --animate-drift-slow: drift 38s ease-in-out infinite alternate-reverse;
   --animate-rune-breathe: rune-breathe 2.6s ease-in-out infinite;
+  --animate-twinkle: twinkle 5s ease-in-out infinite;
+  --animate-node-glow: node-glow 6s ease-in-out infinite;
 
-  @keyframes drift {
-    to {
-      transform: translate3d(6%, 8%, 0) scale(1.1);
-    }
-  }
   @keyframes rune-breathe {
     0%,
     100% {
@@ -171,23 +166,24 @@
       opacity: 1;
     }
   }
-}
-
-/* Grade fina estilo "mapa de masmorra", esmaecida nas bordas. */
-.rune-grid {
-  background-image:
-    linear-gradient(
-      to right,
-      color-mix(in oklab, var(--foreground) 7%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in oklab, var(--foreground) 7%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, black 25%, transparent 75%);
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+    50% {
+      opacity: 0.95;
+    }
+  }
+  @keyframes node-glow {
+    0%,
+    100% {
+      opacity: 0.1;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
 }
 
 /* Rótulo de HUD: caixa alta, espaçado, fonte de painel. */

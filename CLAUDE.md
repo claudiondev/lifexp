@@ -392,6 +392,7 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Estrutura: `AppShell` com barra lateral agrupada (`SideNav`: Jogar, Evoluir, Registrar, Conta) a partir de `lg`, HUD fixo no topo e, abaixo de
   `lg`, barra inferior com 4 atalhos + "Mais" (diálogo com o resto). Os grupos ficam em `NAV_GROUPS` (`MainNav.tsx`). Cartões que mudam de
   layout conforme a coluna usam container queries (`@container` + `@lg:`), não breakpoints da tela.
+- Fundo: `SkyBackdrop` (céu noturno com poeira de estrelas e uma constelação de nós hexagonais, eco do selo de nível; SVG com semente fixa, fixo na janela, cores pelos tokens, algumas estrelas e nós piscam). Nada de grade quadriculada.
 - Fontes auto-hospedadas (`@fontsource`): Bricolage Grotesque (títulos, `font-display`), Figtree (texto),
   Chakra Petch (números e rótulos de HUD, `font-hud`).
 - Assinatura: `XpBar` (runas inclinadas que acendem em sequência) e `LevelSigil` (selo hexagonal).
