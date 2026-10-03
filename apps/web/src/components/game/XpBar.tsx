@@ -44,7 +44,7 @@ export function XpBar({
           <div
             key={index}
             className={cn(
-              'relative flex-1 -skew-x-12 overflow-hidden rounded-[3px] bg-muted',
+              'relative flex-1 -skew-x-12 overflow-hidden rounded-[3px] bg-accent',
               segmentClassName,
             )}
           >
