@@ -34,7 +34,9 @@ export function AuthLayout({ title, subtitle, children, footer, characterName }:
             <p className="font-display text-5xl leading-[1.05] font-extrabold">
               <span className="block">Cumpra.</span>
               <span className="block">Descanse.</span>
-              <span className="block text-xp">Evolua.</span>
+              <span className="block text-xp [text-shadow:0_0_28px_color-mix(in_oklab,var(--xp)_55%,transparent)]">
+                Evolua.
+              </span>
             </p>
             <p className="mt-4 text-lg text-muted-foreground">
               Monte a semana em blocos, ganhe XP pelo que cumpriu e veja cada área da sua vida subir
@@ -52,10 +54,15 @@ export function AuthLayout({ title, subtitle, children, footer, characterName }:
           <ol className="hidden max-w-lg flex-wrap items-center gap-x-2 gap-y-2 lg:flex">
             {LOOP.map((step, index) => (
               <li key={step} className="flex items-center gap-2">
-                <span className="font-hud text-xs text-xp tabular-nums">{index + 1}</span>
+                <span className="grid size-6 place-items-center rounded-md border border-xp/50 bg-xp/10 font-hud text-xs text-xp tabular-nums">
+                  {index + 1}
+                </span>
                 <span className="text-sm text-muted-foreground">{step}</span>
                 {index < LOOP.length - 1 && (
-                  <span aria-hidden className="ml-1 h-px w-3 bg-border" />
+                  <span
+                    aria-hidden
+                    className="ml-1 h-px w-4 bg-gradient-to-r from-xp/60 to-border"
+                  />
                 )}
               </li>
             ))}
@@ -66,7 +73,7 @@ export function AuthLayout({ title, subtitle, children, footer, characterName }:
           <div className="relative rounded-2xl border border-border bg-card/85 p-6 shadow-[0_30px_80px_-30px_rgb(0_0_0/0.65)] backdrop-blur sm:p-8">
             <div
               aria-hidden
-              className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent"
+              className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-xp to-transparent"
             />
             <h1 className="font-display text-3xl font-bold">{title}</h1>
             <p className="mt-1.5 text-muted-foreground">{subtitle}</p>
