@@ -12,7 +12,7 @@ interface LevelSigilProps {
   className?: string;
 }
 
-/** Selo hexagonal de nível: borda em degradê ouro→violeta, número em fonte de HUD. */
+/** Selo hexagonal de nível: borda em degradê branco→azul, número em fonte de HUD. */
 export function LevelSigil({ level, size = 88, emblem, className }: LevelSigilProps) {
   const gradientId = useId();
   return (
@@ -29,8 +29,8 @@ export function LevelSigil({ level, size = 88, emblem, className }: LevelSigilPr
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="var(--xp)" />
-            <stop offset="1" stopColor="var(--primary)" />
+            <stop offset="0" stopColor="var(--foreground)" />
+            <stop offset="1" stopColor="var(--xp)" />
           </linearGradient>
         </defs>
         <polygon

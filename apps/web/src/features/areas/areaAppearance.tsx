@@ -33,7 +33,7 @@ export const AREA_COLOR_CLASSES: Record<
   { label: string; text: string; soft: string; solid: string; border: string }
 > = {
   violet: {
-    label: 'Violeta',
+    label: 'Cobalto',
     text: 'text-area-violet',
     soft: 'bg-area-violet/15',
     solid: 'bg-area-violet',

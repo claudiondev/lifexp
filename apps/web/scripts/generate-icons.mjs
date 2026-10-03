@@ -17,7 +17,7 @@ const png = (size, file) =>
 const maskable = async (size, file) => {
   const inner = Math.round(size * 0.7);
   const glyph = await sharp(svg, { density: 384 }).resize(inner, inner).png().toBuffer();
-  await sharp({ create: { width: size, height: size, channels: 4, background: '#0e0b1a' } })
+  await sharp({ create: { width: size, height: size, channels: 4, background: '#05070d' } })
     .composite([{ input: glyph, gravity: 'center' }])
     .png()
     .toFile(join(out, file));

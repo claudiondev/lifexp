@@ -5,75 +5,78 @@
 @import '@fontsource/chakra-petch/700.css';
 
 /*
- * Tokens do LifeXP — HUD de RPG.
- * Escuro é o padrão ("Void Ink"); com prefers-color-scheme: light vira "pergaminho" (RNF10).
+ * Tokens do LifeXP — HUD de RPG em azul, preto e branco.
+ * Escuro é o padrão (azul-noite); com prefers-color-scheme: light vira branco-gelo (RNF10).
  * Nomes semânticos (background, primary...) são os que os componentes shadcn esperam;
- * xp / mana são tokens do jogo: xp = conquista (ouro), mana = progresso e descanso (musgo).
+ * xp = progresso e experiência (azul luminoso), mana = descanso e sucesso (menta),
+ * reward = conquistas e recompensas (ouro, acento pequeno). O azul domina; as outras só acentuam.
  */
 :root {
-  --background: #0e0b1a;
-  --foreground: #f3e9d2;
-  --card: #1a1530;
-  --card-foreground: #f3e9d2;
-  --popover: #1a1530;
-  --popover-foreground: #f3e9d2;
-  --primary: #6d4aff;
+  --background: #05070d;
+  --foreground: #eaf0ff;
+  --card: #0b1220;
+  --card-foreground: #eaf0ff;
+  --popover: #0b1220;
+  --popover-foreground: #eaf0ff;
+  --primary: #2f6ff0;
   --primary-foreground: #ffffff;
-  --secondary: #261f45;
-  --secondary-foreground: #f3e9d2;
-  --muted: #221b3d;
-  --muted-foreground: #a79fc4;
-  --accent: #2c2452;
-  --accent-foreground: #f3e9d2;
+  --secondary: #131c33;
+  --secondary-foreground: #eaf0ff;
+  --muted: #101a2e;
+  --muted-foreground: #8a97b8;
+  --accent: #16233f;
+  --accent-foreground: #eaf0ff;
   --destructive: #ff7b7b;
-  --border: #2e2650;
-  --input: #2e2650;
-  --ring: #9d84ff;
-  --xp: #ffb547;
+  --border: #1f2b4a;
+  --input: #2a3a60;
+  --ring: #7db2ff;
+  --xp: #4db5ff;
   --mana: #3ddbb0;
+  --reward: #ffc247;
   /* Cores das áreas da vida (chaves de AREA_COLORS em @lifexp/shared). */
-  --area-violet: #9d84ff;
-  --area-gold: #ffb547;
+  --area-violet: #6c9bff;
+  --area-gold: #ffc247;
   --area-moss: #3ddbb0;
   --area-rose: #ff7a93;
-  --area-sky: #4cc2ff;
+  --area-sky: #3cc8f5;
   --area-orange: #ff8a4c;
-  --area-pink: #ff6bd6;
-  --area-slate: #9aa6c4;
-  --radius: 0.75rem;
+  --area-pink: #e879c6;
+  --area-slate: #9fb2d6;
+  --radius: 0.625rem;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    --background: #f6eedc;
-    --foreground: #1b1530;
-    --card: #fffbf0;
-    --card-foreground: #1b1530;
-    --popover: #fffbf0;
-    --popover-foreground: #1b1530;
-    --primary: #5b3be0;
+    --background: #f4f7fd;
+    --foreground: #0a1124;
+    --card: #ffffff;
+    --card-foreground: #0a1124;
+    --popover: #ffffff;
+    --popover-foreground: #0a1124;
+    --primary: #1d5fe0;
     --primary-foreground: #ffffff;
-    --secondary: #ece1c8;
-    --secondary-foreground: #1b1530;
-    --muted: #efe5cc;
-    --muted-foreground: #5c5578;
-    --accent: #e6d9ba;
-    --accent-foreground: #1b1530;
+    --secondary: #e8eefb;
+    --secondary-foreground: #0a1124;
+    --muted: #edf2fc;
+    --muted-foreground: #51608a;
+    --accent: #dde7fa;
+    --accent-foreground: #0a1124;
     --destructive: #c42b2b;
-    --border: #e0d2b2;
-    --input: #cfbf9b;
-    --ring: #5b3be0;
-    --xp: #b86e00;
+    --border: #d3ddf2;
+    --input: #b7c6e6;
+    --ring: #1d5fe0;
+    --xp: #0b6bcb;
     --mana: #0f8f6e;
-    --area-violet: #5b3be0;
+    --reward: #b86e00;
+    --area-violet: #1d5fe0;
     --area-gold: #b86e00;
     --area-moss: #0f8f6e;
     --area-rose: #c2304f;
-    --area-sky: #0a74b8;
+    --area-sky: #0a7fa8;
     --area-orange: #c2540a;
     --area-pink: #b3248f;
-    --area-slate: #55607f;
+    --area-slate: #4e5f85;
     color-scheme: light;
   }
 }
@@ -99,6 +102,7 @@
   --color-ring: var(--ring);
   --color-xp: var(--xp);
   --color-mana: var(--mana);
+  --color-reward: var(--reward);
   --color-area-violet: var(--area-violet);
   --color-area-gold: var(--area-gold);
   --color-area-moss: var(--area-moss);
@@ -184,4 +188,23 @@
     );
   background-size: 56px 56px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, black 25%, transparent 75%);
+}
+
+/* Quina chanfrada: cartões e botões de "painel de jogo" (o canto superior direito e o inferior esquerdo são cortados). */
+.chamfer {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+/* Rótulo de HUD: caixa alta, espaçado, fonte de painel. */
+.hud-label {
+  font-family: var(--font-hud);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Brilho azul de elemento "aceso" (barra de XP, selo, item ativo). */
+.glow-xp {
+  box-shadow: 0 0 16px color-mix(in oklab, var(--xp) 45%, transparent);
 }

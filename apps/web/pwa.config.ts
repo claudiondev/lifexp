@@ -1,7 +1,7 @@
 import type { ManifestOptions, VitePWAOptions } from 'vite-plugin-pwa';
 
 /** Cores do tema escuro do HUD (--background em src/index.css). */
-export const THEME_COLOR = '#0e0b1a';
+export const THEME_COLOR = '#05070d';
 
 export const manifest: Partial<ManifestOptions> = {
   name: 'LifeXP',

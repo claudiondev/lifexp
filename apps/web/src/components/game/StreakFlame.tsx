@@ -12,7 +12,7 @@ export function StreakFlame({ days, className }: StreakFlameProps) {
     <span className={cn('inline-flex items-center gap-1.5', className)}>
       <Flame
         aria-hidden
-        className={cn('size-4', active ? 'fill-xp text-xp' : 'text-muted-foreground')}
+        className={cn('size-4', active ? 'fill-reward text-reward' : 'text-muted-foreground')}
       />
       <span className="font-hud text-sm font-medium whitespace-nowrap tabular-nums">
         {days} {days === 1 ? 'dia' : 'dias'}
