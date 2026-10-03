@@ -115,16 +115,16 @@ describe('rotas e telas de auth', () => {
     renderAt('/');
     await screen.findByRole('heading', { name: /Olá, Ana/ });
 
-    // Há dois menus (topo e barra do celular); ambos devem levar à mesma tela.
-    expect(screen.getAllByRole('link', { name: 'Áreas' })).toHaveLength(2);
-    await userEvent.click(screen.getAllByRole('link', { name: 'Áreas' })[0]!);
+    // Áreas e Ajustes ficam só na barra lateral; na barra do celular entram em "Mais" (fechado, fora da tela).
+    expect(screen.getAllByRole('link', { name: 'Áreas' })).toHaveLength(1);
+    await userEvent.click(screen.getByRole('link', { name: 'Áreas' }));
     expect(await screen.findByRole('heading', { name: 'Áreas da vida' })).toBeInTheDocument();
 
     // o menu aponta direto para o endereço novo (senão a aba ativa nunca ficaria destacada)
     for (const link of screen.getAllByRole('link', { name: 'Ajustes' })) {
       expect(link).toHaveAttribute('href', '/configuracoes');
     }
-    await userEvent.click(screen.getAllByRole('link', { name: 'Ajustes' })[1]!);
+    await userEvent.click(screen.getByRole('link', { name: 'Ajustes' }));
     expect(
       await screen.findByRole('heading', { name: 'Configurações' }, { timeout: 5000 }),
     ).toBeInTheDocument();
@@ -138,11 +138,13 @@ describe('rotas e telas de auth', () => {
     renderAt('/');
     await screen.findByRole('heading', { name: /Olá, Ana/ });
 
-    expect(screen.getByRole('link', { name: 'Conquistas' })).toHaveAttribute('href', '/conquistas');
-    expect(screen.getByRole('link', { name: 'Recompensas' })).toHaveAttribute(
-      'href',
-      '/recompensas',
-    );
+    // o atalho do painel e o item da barra lateral levam ao mesmo lugar
+    for (const link of screen.getAllByRole('link', { name: 'Conquistas' })) {
+      expect(link).toHaveAttribute('href', '/conquistas');
+    }
+    for (const link of screen.getAllByRole('link', { name: 'Recompensas' })) {
+      expect(link).toHaveAttribute('href', '/recompensas');
+    }
     // nível 1 (ponto de partida) é "Aprendiz"
     expect(screen.getByText('Aprendiz')).toBeInTheDocument();
   });
@@ -160,7 +162,7 @@ describe('rotas e telas de auth', () => {
     expect(await screen.findByRole('heading', { name: 'Recompensas' })).toBeInTheDocument();
   });
 
-  it('no menu do topo só a aba ativa mostra o nome (cabe no cabeçalho); as outras o mantêm para leitor de tela e dica', async () => {
+  it('a barra lateral lista as telas por grupo e marca só a atual', async () => {
     stubApi({
       '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
       '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
@@ -169,17 +171,37 @@ describe('rotas e telas de auth', () => {
     await screen.findByRole('heading', { name: /Olá, Ana/ });
 
     const nav = screen.getByRole('navigation', { name: 'Principal' });
-    const labelOf = (name: string) =>
-      within(nav).getByRole('link', { name }).querySelector('span') as HTMLElement;
-    // a ativa (Painel) mostra o texto; as demais têm o nome só para leitor de tela
-    expect(labelOf('Painel')).not.toHaveClass('sr-only');
-    for (const name of ['Hoje', 'Semana', 'Metas', 'Notas', 'Áreas', 'Ajustes']) {
-      expect(labelOf(name)).toHaveClass('sr-only');
-      expect(within(nav).getByRole('link', { name })).toHaveAttribute('title', name);
+    for (const name of ['Painel', 'Hoje', 'Semana', 'Mês', 'Metas', 'Notas', 'Áreas', 'Ajustes']) {
+      expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
     }
+    expect(within(nav).getByRole('link', { name: 'Painel' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(within(nav).getByRole('link', { name: 'Hoje' })).not.toHaveAttribute('aria-current');
   });
 
-  it('o menu tem "Notas" no topo e na barra do celular, apontando para /notas', async () => {
+  it('o botão "Mais" da barra do celular abre as telas que não cabem nela', async () => {
+    stubApi({
+      '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
+      '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
+    });
+    renderAt('/');
+    await screen.findByRole('heading', { name: /Olá, Ana/ });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Mais' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mais telas' });
+    expect(within(dialog).getByRole('link', { name: 'Mês' })).toHaveAttribute(
+      'href',
+      '/calendario',
+    );
+    expect(within(dialog).getByRole('link', { name: 'Revisão' })).toHaveAttribute(
+      'href',
+      '/revisao',
+    );
+  });
+
+  it('o menu tem "Notas" na barra lateral e na barra do celular, apontando para /notas', async () => {
     stubApi({
       '/api/auth/refresh': () => json(200, { user, accessToken: 't' }),
       '/api/health': () => json(200, { status: 'ok', timestamp: '2026-10-01T12:00:00.000Z' }),
