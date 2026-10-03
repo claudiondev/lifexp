@@ -27,6 +27,25 @@ import { PageHeader } from './PageHeader';
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/** Número de destaque do dia: rótulo de HUD em cima, valor grande em fonte de painel embaixo. */
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="relative overflow-hidden rounded-xl border border-border bg-card/80 px-4 py-3 backdrop-blur">
+      <span
+        aria-hidden
+        className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-xp/60 to-transparent"
+      />
+      <dt className="hud-label">{label}</dt>
+      <dd className="mt-1 font-hud text-2xl font-bold tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+const formatMinutes = (minutes: number) =>
+  minutes < 60
+    ? `${minutes} min`
+    : `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`;
+
 export function TodayPage() {
   const today = useToday();
   const character = useCharacter();
@@ -69,6 +88,10 @@ export function TodayPage() {
       progress: dayProgress(groups.today),
     };
   }, [today.data, activities.data, areas.data]);
+
+  const minutesDone = (views?.today ?? [])
+    .filter((view) => view.item.status === 'completed')
+    .reduce((sum, view) => sum + view.item.durationMin, 0);
 
   /** Roda uma ação sobre uma ocorrência travando só o card dela e avisando erro do servidor. */
   const act = (item: TodayItem, action: () => Promise<void>) => {
@@ -143,7 +166,7 @@ export function TodayPage() {
   const total = today.data?.total;
 
   return (
-    <main className="mx-auto max-w-3xl px-5 py-10">
+    <main className="mx-auto max-w-6xl px-5 py-10">
       <PageHeader
         eyebrow="Missões de hoje"
         title="Hoje"
@@ -154,126 +177,146 @@ export function TodayPage() {
         }
       />
 
-      {total && (
-        <section
-          aria-label="Resumo do dia"
-          className="mt-6 flex items-center gap-4 rounded-2xl border border-border bg-card/80 p-4 backdrop-blur sm:p-5"
-        >
-          <LevelSigil level={total.level} size={52} />
-          <div className="min-w-0 flex-1">
-            <XpBar
-              progress={total.progress}
-              segments={10}
-              segmentClassName="h-2"
-              valueText={`${total.xpIntoLevel} de ${total.xpForNextLevel} XP`}
-            />
-            <p className="mt-2 font-hud text-xs text-muted-foreground tabular-nums">
-              {total.xpIntoLevel} / {total.xpForNextLevel} para o nível {total.level + 1}
-            </p>
-            {character.ready && (
-              <p className="mt-1 font-hud text-xs text-muted-foreground tabular-nums">
-                Streak: {character.streakDays} {character.streakDays === 1 ? 'dia' : 'dias'}
-                {character.streakBest > 0 && ` · recorde ${character.streakBest}`}
-              </p>
-            )}
-            {character.joker && (
-              <p className="mt-1 text-xs text-muted-foreground">{describeJoker(character.joker)}</p>
-            )}
-          </div>
-          <div className="text-right">
-            <p className="font-hud text-2xl font-bold text-xp tabular-nums">
-              {(today.data?.xpToday ?? 0) >= 0 ? '+' : ''}
-              {today.data?.xpToday ?? 0}
-            </p>
-            <p className="font-hud text-[0.65rem] tracking-wider text-muted-foreground uppercase">
-              XP do dia
-            </p>
-          </div>
-        </section>
-      )}
-
-      {hasQuest(quest.data) && (
-        <div className="mt-6">
-          <QuestCard quest={quest.data} />
-        </div>
-      )}
-
-      <section aria-label="Blocos de hoje" className="mt-6">
-        {!views && !failed && (
-          <div
-            aria-busy="true"
-            className="h-40 animate-pulse rounded-2xl border border-border bg-card/50"
+      {views && views.progress.total > 0 && (
+        <dl aria-label="Números do dia" className="mt-6 grid grid-cols-3 gap-3">
+          <StatTile
+            label="Concluídos"
+            value={`${views.progress.done} de ${views.progress.total}`}
           />
-        )}
+          <StatTile label="Tempo cumprido" value={formatMinutes(minutesDone)} />
+          <StatTile label="Faltam" value={String(views.progress.total - views.progress.done)} />
+        </dl>
+      )}
 
-        {failed && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-destructive/40 bg-destructive/10 p-5"
-          >
-            <p className="text-destructive">Não foi possível carregar as missões de hoje.</p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-3"
-              onClick={() => {
-                void today.refetch();
-                void activities.refetch();
-                void areas.refetch();
-              }}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="min-w-0">
+          <section aria-label="Blocos de hoje">
+            {!views && !failed && (
+              <div
+                aria-busy="true"
+                className="h-40 animate-pulse rounded-2xl border border-border bg-card/50"
+              />
+            )}
+
+            {failed && (
+              <div
+                role="alert"
+                className="rounded-2xl border border-destructive/40 bg-destructive/10 p-5"
+              >
+                <p className="text-destructive">Não foi possível carregar as missões de hoje.</p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => {
+                    void today.refetch();
+                    void activities.refetch();
+                    void areas.refetch();
+                  }}
+                >
+                  Tentar de novo
+                </Button>
+              </div>
+            )}
+
+            {views && (
+              <div className="flex flex-col gap-8">
+                {views.carryover.length > 0 && (
+                  <div>
+                    <h2 className="font-display text-xl font-bold">De ontem (ainda dá tempo)</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Dá para concluir até 23:59 de hoje.
+                    </p>
+                    <ul className="mt-3 flex flex-col gap-3">{renderCards(views.carryover)}</ul>
+                  </div>
+                )}
+
+                {eventsToday.length > 0 && (
+                  <div>
+                    <h2 className="font-display text-xl font-bold">Eventos de hoje</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Compromissos do dia. Eventos não rendem XP.
+                    </p>
+                    <ul className="mt-3 flex flex-col gap-2">
+                      {eventsToday.map((event) => (
+                        <li key={event.id}>
+                          <EventChip event={event} onSelect={setSelectedEvent} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 className="font-display text-xl font-bold">Blocos de hoje</h2>
+                    {views.progress.total > 0 && (
+                      <p className="font-hud text-sm text-muted-foreground tabular-nums">
+                        {views.progress.done} de {views.progress.total} concluídos
+                      </p>
+                    )}
+                  </div>
+                  {views.today.length === 0 ? (
+                    <p className="mt-3 rounded-2xl border border-dashed border-border bg-card/40 p-6 text-muted-foreground">
+                      Nenhum bloco planejado para hoje: dia livre, seu streak não muda. Crie um
+                      bloco na Semana se quiser ganhar XP.
+                    </p>
+                  ) : (
+                    <ul className="mt-3 flex flex-col gap-3">{renderCards(views.today)}</ul>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+        <aside aria-label="Seu progresso" className="flex flex-col gap-4 lg:sticky lg:top-24">
+          {total && (
+            <section
+              aria-label="Resumo do dia"
+              className="flex items-center gap-4 rounded-2xl border border-border bg-card/80 p-4 backdrop-blur sm:p-5"
             >
-              Tentar de novo
-            </Button>
-          </div>
-        )}
-
-        {views && (
-          <div className="flex flex-col gap-8">
-            {views.carryover.length > 0 && (
-              <div>
-                <h2 className="font-display text-xl font-bold">De ontem (ainda dá tempo)</h2>
-                <p className="text-sm text-muted-foreground">Dá para concluir até 23:59 de hoje.</p>
-                <ul className="mt-3 flex flex-col gap-3">{renderCards(views.carryover)}</ul>
-              </div>
-            )}
-
-            {eventsToday.length > 0 && (
-              <div>
-                <h2 className="font-display text-xl font-bold">Eventos de hoje</h2>
-                <p className="text-sm text-muted-foreground">
-                  Compromissos do dia. Eventos não rendem XP.
+              <LevelSigil level={total.level} size={52} />
+              <div className="min-w-0 flex-1">
+                <XpBar
+                  progress={total.progress}
+                  segments={10}
+                  segmentClassName="h-2"
+                  valueText={`${total.xpIntoLevel} de ${total.xpForNextLevel} XP`}
+                />
+                <p className="mt-2 font-hud text-xs text-muted-foreground tabular-nums">
+                  {total.xpIntoLevel} / {total.xpForNextLevel} para o nível {total.level + 1}
                 </p>
-                <ul className="mt-3 flex flex-col gap-2">
-                  {eventsToday.map((event) => (
-                    <li key={event.id}>
-                      <EventChip event={event} onSelect={setSelectedEvent} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div>
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="font-display text-xl font-bold">Blocos de hoje</h2>
-                {views.progress.total > 0 && (
-                  <p className="font-hud text-sm text-muted-foreground tabular-nums">
-                    {views.progress.done} de {views.progress.total} concluídos
+                {character.ready && (
+                  <p className="mt-1 font-hud text-xs text-muted-foreground tabular-nums">
+                    Streak: {character.streakDays} {character.streakDays === 1 ? 'dia' : 'dias'}
+                    {character.streakBest > 0 && ` · recorde ${character.streakBest}`}
+                  </p>
+                )}
+                {character.joker && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {describeJoker(character.joker)}
                   </p>
                 )}
               </div>
-              {views.today.length === 0 ? (
-                <p className="mt-3 rounded-2xl border border-dashed border-border bg-card/40 p-6 text-muted-foreground">
-                  Nenhum bloco planejado para hoje: dia livre, seu streak não muda. Crie um bloco na
-                  Semana se quiser ganhar XP.
+              <div className="text-right">
+                <p className="font-hud text-2xl font-bold text-xp tabular-nums">
+                  {(today.data?.xpToday ?? 0) >= 0 ? '+' : ''}
+                  {today.data?.xpToday ?? 0}
                 </p>
-              ) : (
-                <ul className="mt-3 flex flex-col gap-3">{renderCards(views.today)}</ul>
-              )}
+                <p className="font-hud text-[0.65rem] tracking-wider text-muted-foreground uppercase">
+                  XP do dia
+                </p>
+              </div>
+            </section>
+          )}
+
+          {hasQuest(quest.data) && (
+            <div>
+              <QuestCard quest={quest.data} />
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </aside>
+      </div>
 
       <EventDialog
         event={selectedEvent}
