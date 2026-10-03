@@ -196,3 +196,26 @@ export async function holdScanLock(key: number): Promise<() => Promise<void>> {
     await client.end();
   };
 }
+
+/** Chave do mutex de teste (não é a da trava de produção): serializa os testes que dependem da varredura geral. */
+export const TEST_SCAN_MUTEX_KEY = 74_201_900;
+
+/**
+ * `runOnce` varre TODAS as contas do banco. Com suítes em paralelo, a varredura de um teste cria e envia os avisos que
+ * outro teste acabou de montar (e o envio sai pelo `FakeMailer`/`FakePushSender` da suíte errada): o teste dono vê
+ * `created = 0` ou nenhum e-mail. Este mutex faz esses testes entrarem um por vez, do preparo até as conferências.
+ * Use SÓ em testes que chamam `runOnce`/`scanAll` e dependem do resultado (a trava de produção, `scanWhenFree`, só
+ * impede varreduras simultâneas, não o furto de dados).
+ */
+export async function withScanMutex<T>(run: () => Promise<T>): Promise<T> {
+  const { default: pg } = await import('pg');
+  const { resolveTestDatabase } = await import('./test-db.js');
+  const client = new pg.Client({ connectionString: resolveTestDatabase().testUrl });
+  await client.connect();
+  try {
+    await client.query('SELECT pg_advisory_lock($1)', [TEST_SCAN_MUTEX_KEY]);
+    return await run();
+  } finally {
+    await client.end(); // fechar a conexão libera a trava de sessão, mesmo se o teste falhar
+  }
+}

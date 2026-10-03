@@ -13,6 +13,7 @@ import {
   listActivities,
   registerUser,
   scanWhenFree,
+  withScanMutex,
   type TestUser,
 } from './helpers.js';
 
@@ -467,17 +468,22 @@ describe('Geração de notificações (e2e)', () => {
       expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(0);
     });
 
-    it('runOnce varre e devolve o resumo', async () => {
-      const { user, activity } = await setup();
-      await weeklyBlock(user, activity.id);
+    it(
+      'runOnce varre e devolve o resumo',
+      () =>
+        withScanMutex(async () => {
+          const { user, activity } = await setup();
+          await weeklyBlock(user, activity.id);
 
-      const summary = await scanWhenFree(() =>
-        scheduler.runOnce(new Date('2026-10-07T11:45:20.000Z')),
-      );
+          const summary = await scanWhenFree(() =>
+            scheduler.runOnce(new Date('2026-10-07T11:45:20.000Z')),
+          );
 
-      expect(summary.created).toBeGreaterThanOrEqual(1);
-      expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(1);
-    }, 120_000);
+          expect(summary.created).toBeGreaterThanOrEqual(1);
+          expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(1);
+        }),
+      120_000,
+    );
 
     it('se outra instância já está varrendo (trava de banco), pula o minuto sem gerar nada', async () => {
       const { user, activity } = await setup();

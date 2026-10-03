@@ -17,6 +17,7 @@ import {
   listActivities,
   registerUser,
   scanWhenFree,
+  withScanMutex,
   type TestUser,
 } from './helpers.js';
 
@@ -292,14 +293,18 @@ describe('Push dos avisos (e2e, RF41)', () => {
     expect(sentTo(endpoints)).toHaveLength(1);
   });
 
-  it('o agendador gera e envia o push no mesmo minuto', async () => {
-    const { user, endpoints } = await setup();
+  it(
+    'o agendador gera e envia o push no mesmo minuto',
+    () =>
+      withScanMutex(async () => {
+        const { endpoints } = await setup();
 
-    const summary = await scanWhenFree(() => scheduler.runOnce(new Date(DIGEST_Z)));
+        const summary = await scanWhenFree(() => scheduler.runOnce(new Date(DIGEST_Z)));
 
-    expect(summary.created).toBeGreaterThanOrEqual(1);
-    expect(summary.pushed).toBeGreaterThanOrEqual(1);
-    expect(sentTo(endpoints)).toHaveLength(1);
-    void user;
-  }, 120_000);
+        expect(summary.created).toBeGreaterThanOrEqual(1);
+        expect(summary.pushed).toBeGreaterThanOrEqual(1);
+        expect(sentTo(endpoints)).toHaveLength(1);
+      }),
+    120_000,
+  );
 });
