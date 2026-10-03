@@ -29,14 +29,16 @@ function RewardRow({
     <li
       className={cn(
         'flex items-start gap-3 rounded-2xl border bg-card/80 p-4 backdrop-blur',
-        reward.status === 'available' ? 'border-xp/60' : 'border-border',
+        reward.status === 'available'
+          ? 'border-reward/60 shadow-[0_0_28px_-14px_var(--reward)]'
+          : 'border-border',
       )}
     >
       <span
         aria-hidden
         className={cn(
           'mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-secondary',
-          reward.status === 'available' ? 'text-xp' : 'text-muted-foreground',
+          reward.status === 'available' ? 'text-reward' : 'text-muted-foreground',
         )}
       >
         <Gift className="size-4" />
@@ -116,7 +118,7 @@ export function RewardsPage() {
   const groups = groupByStatus(rewards.data ?? []);
 
   return (
-    <main className="mx-auto max-w-3xl px-5 py-10">
+    <main className="mx-auto max-w-5xl px-5 py-10">
       <PageHeader
         eyebrow="Prêmios de verdade"
         title="Recompensas"

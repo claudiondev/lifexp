@@ -66,7 +66,7 @@ describe('AchievementsPage', () => {
     expect(bar).toHaveAttribute('aria-valuenow', '3');
     expect(bar).toHaveAttribute('aria-valuemax', '7');
     expect(bar).toHaveAttribute('aria-valuetext', '3 de 7');
-    expect(screen.getAllByRole('progressbar')).toHaveLength(1);
+    expect(screen.getAllByRole('progressbar', { name: /^Progresso de / })).toHaveLength(1);
   });
 
   it('uma desbloqueada não mostra barra nem "bloqueada"', async () => {
@@ -85,7 +85,22 @@ describe('AchievementsPage', () => {
     );
 
     await screen.findByText('Constante');
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByRole('progressbar', { name: /^Progresso de / })).not.toBeInTheDocument();
+  });
+
+  it('a coleção mostra quantas conquistas já foram desbloqueadas', async () => {
+    setup(() =>
+      ok(
+        ACHIEVEMENT_KEYS.map((key, index) =>
+          index < 2
+            ? entry(key, { unlocked: true, unlockedAt: '2026-09-01T12:00:00.000Z' })
+            : entry(key),
+        ),
+      ),
+    );
+
+    const bar = await screen.findByRole('progressbar', { name: 'Coleção de conquistas' });
+    expect(bar).toHaveAttribute('aria-valuetext', `2 de ${ACHIEVEMENT_KEYS.length} conquistas`);
   });
 
   it('se a rota falhar, mostra o erro com "Tentar de novo"', async () => {

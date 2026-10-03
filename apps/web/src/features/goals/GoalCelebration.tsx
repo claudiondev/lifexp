@@ -26,16 +26,16 @@ export function GoalCelebration({ celebration, onClose }: GoalCelebrationProps) 
               initial={reduceMotion ? false : { scale: 0.4, opacity: 0, rotate: -15 }}
               animate={{ scale: 1, opacity: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 12 }}
-              className="grid size-24 place-items-center rounded-full border-2 border-xp/60 bg-xp/10 text-xp shadow-[0_0_40px_-8px_var(--xp)]"
+              className="grid size-24 place-items-center rounded-full border-2 border-reward/60 bg-reward/10 text-reward shadow-[0_0_40px_-8px_var(--reward)]"
             >
               <Trophy aria-hidden className="size-12" />
             </motion.span>
-            <p className="font-hud text-xs tracking-[0.25em] text-xp uppercase">Meta concluída</p>
+            <p className="font-hud text-xs tracking-[0.25em] text-reward uppercase">Meta concluída</p>
             <DialogTitle className="font-display text-3xl font-extrabold">
               {celebration.title}
             </DialogTitle>
             <DialogDescription>
-              <span className="font-hud text-lg text-xp tabular-nums">+{celebration.xp} XP</span> no
+              <span className="font-hud text-lg text-reward tabular-nums">+{celebration.xp} XP</span> no
               seu personagem.
             </DialogDescription>
             <Button onClick={onClose}>Continuar</Button>

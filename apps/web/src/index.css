@@ -190,18 +190,6 @@
   mask-image: radial-gradient(ellipse 70% 60% at 50% 35%, black 25%, transparent 75%);
 }
 
-/* Quina chanfrada: cartões e botões de "painel de jogo" (o canto superior direito e o inferior esquerdo são cortados). */
-.chamfer {
-  clip-path: polygon(
-    0 0,
-    calc(100% - 12px) 0,
-    100% 12px,
-    100% 100%,
-    12px 100%,
-    0 calc(100% - 12px)
-  );
-}
-
 /* Rótulo de HUD: caixa alta, espaçado, fonte de painel. */
 .hud-label {
   font-family: var(--font-hud);
