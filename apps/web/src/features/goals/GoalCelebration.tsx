@@ -30,13 +30,17 @@ export function GoalCelebration({ celebration, onClose }: GoalCelebrationProps) 
             >
               <Trophy aria-hidden className="size-12" />
             </motion.span>
-            <p className="font-hud text-xs tracking-[0.25em] text-reward uppercase">Meta concluída</p>
+            <p className="font-hud text-xs tracking-[0.25em] text-reward uppercase">
+              Meta concluída
+            </p>
             <DialogTitle className="font-display text-3xl font-extrabold">
               {celebration.title}
             </DialogTitle>
             <DialogDescription>
-              <span className="font-hud text-lg text-reward tabular-nums">+{celebration.xp} XP</span> no
-              seu personagem.
+              <span className="font-hud text-lg text-reward tabular-nums">
+                +{celebration.xp} XP
+              </span>{' '}
+              no seu personagem.
             </DialogDescription>
             <Button onClick={onClose}>Continuar</Button>
           </div>
