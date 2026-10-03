@@ -384,9 +384,14 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 
 ## Design system (front)
 
-- Direção: **HUD de RPG moderno**, interface gamificada. Escuro por padrão ("Void Ink" `#0E0B1A`), claro
-  "pergaminho" via `prefers-color-scheme` (RNF10). Tokens em `apps/web/src/index.css`: `primary` violeta
-  (ação), `xp` ouro (conquista), `mana` musgo (progresso/descanso). Use sempre os tokens, nunca hex solto.
+- Direção: **HUD de RPG moderno** em **azul, preto e branco** (redesign a partir do Figma). Escuro por padrão (azul-noite `#05070D`), claro
+  branco-gelo via `prefers-color-scheme` (RNF10). Tokens em `apps/web/src/index.css`: `primary` azul (ação), `xp` azul luminoso
+  (experiência e progresso), `mana` menta (descanso/sucesso), `reward` ouro (SÓ conquistas e recompensas, como acento pequeno). Use sempre
+  os tokens, nunca hex solto. Utilitários: `.hud-label` (rótulo de painel) e `.glow-xp` (elemento aceso). As cores das áreas mantêm as
+  CHAVES (`violet`, `gold`...) mas com valores harmonizados com o azul (a chave `violet` agora é "Cobalto").
+- Estrutura: `AppShell` com barra lateral agrupada (`SideNav`: Jogar, Evoluir, Registrar, Conta) a partir de `lg`, HUD fixo no topo e, abaixo de
+  `lg`, barra inferior com 4 atalhos + "Mais" (diálogo com o resto). Os grupos ficam em `NAV_GROUPS` (`MainNav.tsx`). Cartões que mudam de
+  layout conforme a coluna usam container queries (`@container` + `@lg:`), não breakpoints da tela.
 - Fontes auto-hospedadas (`@fontsource`): Bricolage Grotesque (títulos, `font-display`), Figtree (texto),
   Chakra Petch (números e rótulos de HUD, `font-hud`).
 - Assinatura: `XpBar` (runas inclinadas que acendem em sequência) e `LevelSigil` (selo hexagonal).
