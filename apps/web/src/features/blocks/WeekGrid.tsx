@@ -152,7 +152,7 @@ export function WeekGrid({
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card/60 backdrop-blur">
-      <div className="min-w-[56rem]">
+      <div className="min-w-[44rem]">
         <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-border">
           <div />
           {dates.map((date) => {
