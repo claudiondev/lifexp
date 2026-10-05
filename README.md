@@ -54,6 +54,7 @@ Também é um projeto de **aprendizado de TypeScript** (vindo de Java/Spring Boo
 
 - ✅ **Áreas e atividades** com cor, ícone e peso de XP; arquivar em vez de excluir
 - ✅ **Blocos semanais** recorrentes (vários dias de uma vez, com data de fim) ou avulsos
+- ✅ **Anotação** em cada bloco (até 500 caracteres, texto puro), visível na Semana, em Hoje e no painel do bloco
 - ✅ Editar, pular ou excluir **"só esta ocorrência"** ou **"esta e as próximas"** — o passado nunca muda
 - ✅ **Arrastar e soltar** na grade da Semana (desktop) e agenda/abas no celular
 - ✅ **Calendário de eventos** com lembrete configurável (sem XP)

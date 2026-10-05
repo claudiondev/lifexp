@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
 import { addDays, firstOccurrenceOnOrAfter, weekdayOf } from './civil-date.js';
 import {
   BLOCK_NOTE_MAX,
@@ -369,8 +370,11 @@ describe('anotação do bloco (note)', () => {
     durationMin: 60,
     validFrom: '2026-10-07',
   };
-  const parseNote = (schema: { safeParse: (v: unknown) => any }, base: object, note: unknown) =>
-    schema.safeParse({ ...base, note });
+  const parseNote = <T>(
+    schema: { safeParse: (value: unknown) => z.ZodSafeParseResult<T> },
+    base: object,
+    note: unknown,
+  ) => schema.safeParse({ ...base, note });
 
   it('é opcional nos três formatos de criação', () => {
     expect(createBlockSchema.safeParse(weekly).success).toBe(true);
