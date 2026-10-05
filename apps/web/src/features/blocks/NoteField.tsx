@@ -8,6 +8,8 @@ interface NoteFieldProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement
   /** Texto atual (para o contador); o formulário é quem guarda o valor. */
   value: string;
   error?: string | undefined;
+  /** Frase de apoio ao lado do contador; o padrão é a do bloco. */
+  hint?: string;
 }
 
 /**
@@ -15,7 +17,7 @@ interface NoteFieldProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement
  * aparece perto do limite para não pesar no formulário.
  */
 export const NoteField = forwardRef<HTMLTextAreaElement, NoteFieldProps>(function NoteField(
-  { id, value, error, ...props },
+  { id, value, error, hint = 'Vale para todas as ocorrências deste bloco.', ...props },
   ref,
 ) {
   const left = BLOCK_NOTE_MAX - value.length;
@@ -33,7 +35,7 @@ export const NoteField = forwardRef<HTMLTextAreaElement, NoteFieldProps>(functio
         {...props}
       />
       <div className="flex justify-between gap-3 text-xs text-muted-foreground">
-        <span>Vale para todas as ocorrências deste bloco.</span>
+        <span>{hint}</span>
         <span aria-live="polite" className={left <= 50 ? 'text-foreground' : undefined}>
           {value.length}/{BLOCK_NOTE_MAX}
         </span>

@@ -4,7 +4,14 @@ import { z } from 'zod';
  * Origens de um lançamento do livro-caixa de XP (RF53). `reversal` é o estorno de qualquer uma das
  * outras.
  */
-export const XP_ENTRY_TYPES = ['completion', 'milestone', 'goal', 'quest', 'reversal'] as const;
+export const XP_ENTRY_TYPES = [
+  'completion',
+  'milestone',
+  'goal',
+  'quest',
+  'task',
+  'reversal',
+] as const;
 export const xpEntryTypeSchema = z.enum(XP_ENTRY_TYPES);
 
 /** Origens que geram XP (tudo menos o estorno). */

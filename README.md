@@ -54,6 +54,7 @@ Também é um projeto de **aprendizado de TypeScript** (vindo de Java/Spring Boo
 
 - ✅ **Áreas e atividades** com cor, ícone e peso de XP; arquivar em vez de excluir
 - ✅ **Blocos semanais** recorrentes (vários dias de uma vez, com data de fim) ou avulsos
+- ✅ **Tarefas** do dia sem horário, com prioridade, área, meta, anotação e checklist; o que não foi feito passa para o dia seguinte sozinho, e as sem dia ficam em **Pendentes**
 - ✅ **Anotação** em cada bloco (até 500 caracteres, texto puro), visível na Semana, em Hoje e no painel do bloco
 - ✅ Editar, pular ou excluir **"só esta ocorrência"** ou **"esta e as próximas"** — o passado nunca muda
 - ✅ **Arrastar e soltar** na grade da Semana (desktop) e agenda/abas no celular
@@ -141,6 +142,7 @@ Todas as rotas ficam sob `/api` e exigem autenticação, exceto as de `/auth` e 
 | 👤 Conta        | `/users`                                      | Perfil, exportar dados, excluir conta                                                                |
 | 🧭 Áreas        | `/areas`                                      | CRUD, arquivar e restaurar                                                                           |
 | ✅ Atividades   | `/activities`                                 | CRUD, arquivar e restaurar                                                                           |
+| ✅ Tarefas      | `/tasks`                                      | Hoje e Pendentes, criar, editar, arquivar, concluir e desfazer, passos do checklist                  |
 | 🧱 Blocos       | `/blocks`                                     | Semana, criar (avulso ou vários dias), editar/pular/excluir ocorrência ou série, concluir e desfazer |
 | 🎯 Metas        | `/goals`                                      | Metas, marcos, concluir e reabrir                                                                    |
 | 📅 Eventos      | `/events`                                     | CRUD por período                                                                                     |
@@ -313,6 +315,10 @@ O **front** (estático) vai para a **Vercel** e a **API** para o **Render** e o 
 - ✅ Radar de equilíbrio e coringa de streak
 - ✅ Conquistas, títulos e recompensas reais
 - ✅ Push no celular e relatório semanal
+
+### ✅ Marco 5: Tarefas
+
+- ✅ Tarefas sem horário, Pendentes, checklist e XP com teto diário
 
 ### ✅ Transversais
 

@@ -73,6 +73,7 @@ describe('modelos exportados', () => {
     expect([...CIVIL_DATE_FIELDS].sort()).toEqual([
       'date',
       'deadline',
+      'dueDate',
       'newDate',
       'occurrenceDate',
       'validFrom',

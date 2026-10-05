@@ -15,6 +15,7 @@ import { EventDialog } from '@/features/events/EventDialog';
 import { EventFormDialog } from '@/features/events/EventFormDialog';
 import { useEvents } from '@/features/events/useEvents';
 import { QuestCard } from '@/features/quest/QuestCard';
+import { TasksSection } from '@/features/tasks/TasksSection';
 import { hasQuest } from '@/features/quest/questModel';
 import { useQuest } from '@/features/quest/useQuest';
 import { LevelUpDialog } from '@/features/today/LevelUpDialog';
@@ -246,6 +247,8 @@ export function TodayPage() {
                     </ul>
                   </div>
                 )}
+
+                <TasksSection today={todayDate} onLevelUp={setLevelUp} />
 
                 <div>
                   <div className="flex items-baseline justify-between gap-3">

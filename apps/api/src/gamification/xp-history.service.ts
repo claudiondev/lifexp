@@ -61,7 +61,7 @@ export class XpHistoryService {
 
     const ids = collectSourceIds(rows);
     // Sempre com o dono no filtro (RS06), mesmo o id vindo do livro-caixa da própria pessoa.
-    const [completions, milestones, goals, quests] = await Promise.all([
+    const [completions, milestones, goals, quests, tasks] = await Promise.all([
       ids.completion.length === 0
         ? []
         : this.prisma.completion.findMany({
@@ -86,6 +86,12 @@ export class XpHistoryService {
             where: { id: { in: ids.quest }, userId },
             select: { id: true, weekStart: true },
           }),
+      ids.task.length === 0
+        ? []
+        : this.prisma.task.findMany({
+            where: { id: { in: ids.task }, userId },
+            select: { id: true, title: true },
+          }),
     ]);
     // A conclusão guarda a "foto" da atividade: o nome vem dela, não do bloco (que pode ter mudado).
     const activities =
@@ -103,6 +109,7 @@ export class XpHistoryService {
         milestone: byId(milestones, (milestone) => milestone.title),
         goal: byId(goals, (goal) => goal.title),
         quest: byId(quests, (quest) => questLabel(toCivil(quest.weekStart))),
+        task: byId(tasks, (task) => task.title),
       }),
       nextCursor,
     };

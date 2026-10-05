@@ -88,6 +88,27 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: `NoteField` (formulário de criar e de editar, contador), `OccurrenceNote` (painel, Hoje com 2 linhas, agenda do celular com 2 linhas, grade só em
   cartões de 1h30 ou mais, e tooltip do cartão). A anotação NÃO entra no `aria-label` dos cartões.
 
+## Tarefas (decisões do 5a)
+
+- Tarefa = coisa a fazer SEM horário (`Task` + `TaskItem` para o checklist, migrations `tasks` e `xp_ledger_task_type`: o valor `TASK` do enum e a nova regra do
+  livro-caixa ficam em migrations separadas, como no `QUEST`). `dueDate` nulo = **Pendentes** (caixa de entrada, NÃO é uma área do radar).
+- **"Vinda de ontem" é derivado**, nada é gravado na virada do dia: em aberto com `dueDate < hoje` entra em Hoje com `carriedFrom` (sem aviso de atraso, sem punição; o
+  texto nunca diz "atrasada"). Regras puras em `tasks/domain/task-lists.ts` (`carriedFrom`, `belongsToToday`, `belongsToInbox`, `compareTasks`).
+- **XP:** 10/20/40 por prioridade (`TASK_XP` em `@lifexp/shared`) e **teto diário de 100** (`TASK_DAILY_XP_CAP`). `creditableTaskXp(prioridade, usadoHoje)` rende só o que cabe; com o
+  teto atingido a tarefa conclui com `xpAwarded = 0` e NADA vai ao livro-caixa (a CHECK exige `amount > 0`). "Usado hoje" = soma dos lançamentos `TASK` do dia LOCAL ainda não
+  estornados (estornar libera espaço); só XP de tarefas e só da própria pessoa contam. Tudo na MESMA transação, com `lockUser`; teste de estresse conclui 6 tarefas em paralelo.
+- Concluir/desfazer idempotentes; desfazer vale a qualquer dia e estorna o lançamento ORIGINAL (área em que foi ganho, mesmo que a tarefa mude de área). Arquivar nunca mexe no XP.
+  Marcar passos do checklist NÃO conclui a tarefa. Limites: 20 passos por tarefa (trava com a pessoa) e `MAX_OPEN_TASKS` = 500 em aberto (a lista carrega todas as abertas).
+- Tarefa NÃO afeta streak, quest, radar nem conquistas na v1 (decisão de escopo). Anotação = texto puro de até 500 caracteres (mesmo `blockNoteSchema`).
+- **Todo tipo novo do livro-caixa precisa entrar no histórico de XP**: `XP_ENTRY_TYPES` (shared), `LedgerType`/`TYPE_TO_*`/`collectSourceIds` (`xp-history.ts`), a consulta de nomes
+  em `xp-history.service.ts` e os `Record`s do front (`xpHistoryFormat`, `XpHistoryPage`). O compilador cobra, mas o teste `TYPE_TO_LEDGER` também acusa.
+- `Task` e `TaskItem` estão em `EXPORT_KEYS`; `dueDate` em `CIVIL_DATE_FIELDS`; a `fullAccount` do teste de conta cria tarefa com passo concluída.
+- Front: `features/tasks` (`tasksApi`, `useTasks`/`useTaskMutations`, `useTaskActions`, `taskModel`, `QuickAddTask`, `TaskCard`, `TaskList`, `TaskFormDialog`, `TasksSection`),
+  `PendingPage` em `/pendentes` (menu Jogar, depois de Hoje). A seção de Hoje é um EXTRA: se falhar, só ela avisa (texto, sem `role="alert"`). Concluir/desfazer invalidam
+  tasks + progress + today; editar/arquivar/passos só tasks. `testing.tsx` tem a API falsa em memória (com o teto) e `renderWithProviders`.
+- Lição de teste: a página usa o relógio real (`todayIn`), então o teste fixa a data com `vi.useFakeTimers({ toFake: ['Date'] })`; e os ids de passo nos fixtures precisam ser UUID e `doneAt` ISO
+  (senão o zod recusa a resposta e a seção mostra erro).
+
 ## Hoje, XP e níveis (decisões do 1d)
 
 - XP = `round(durationMin × xpWeight × multiplicador)`, teto 300; curva `xpToReachLevel(n)=round(100·(n−1)^1.5)`
@@ -435,7 +456,7 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** feitos; próximos:
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** e **5a (tarefas sem horário e Pendentes)** feitos; próximos:
   **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy preparado** (Dockerfile, Vercel, guia no README). Sobram só o que depende de contas e decisões do usuário (publicar), os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.

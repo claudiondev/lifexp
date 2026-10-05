@@ -67,6 +67,8 @@ interface Options {
   };
   /** Resposta de GET /api/quest; sem ela a rota falha (404) e a tela segue sem o cartão. */
   quest?: unknown;
+  /** Resposta de GET /api/tasks?scope=today; sem ela a rota falha (500) e só a seção de tarefas avisa. */
+  tasks?: unknown;
   /** Resposta do DELETE de conclusão; padrão: 90 XP devolvidos, sem mexer na quest. */
   undoResponse?: () => Response;
 }
@@ -78,6 +80,7 @@ function setup({
   completeResponse,
   quest,
   undoResponse,
+  tasks,
   streak = { current: 3, best: 7, lastFulfilledDate: '2026-10-06' },
 }: Options) {
   const calls: { method: string; url: string; body?: unknown }[] = [];
@@ -95,6 +98,20 @@ function setup({
       if (url.startsWith('/api/events?')) {
         calls.push({ method, url });
         return eventsStatus ? json(eventsStatus, { message: 'falhou' }) : json(200, events);
+      }
+      if (url === '/api/tasks?scope=today') return tasks ? json(200, tasks) : json(500);
+      if (url.endsWith('/complete') && url.startsWith('/api/tasks/') && method === 'POST') {
+        totalXp = 120;
+        return json(200, {
+          task: { ...TASK, completedAt: '2026-10-07T15:00:00.000Z', xpAwarded: 20 },
+          alreadyCompleted: false,
+          xpAwarded: 20,
+          capped: false,
+          levelBefore: 2,
+          levelAfter: 2,
+          total: level(120, 2),
+          area: null,
+        });
       }
       if (url === '/api/quest') return quest ? json(200, quest) : json(404);
       if (url === '/api/progress')
@@ -192,6 +209,21 @@ const activeQuest = {
   completedAt: null,
 };
 
+const TASK = {
+  id: '0192f1a0-7b3c-7000-8000-0000000000f1',
+  title: 'Pagar a conta de luz',
+  note: null,
+  dueDate: '2026-10-07',
+  priority: 'medium',
+  areaId: null,
+  goalId: null,
+  completedAt: null,
+  xpAwarded: 0,
+  xpPreview: 20,
+  carriedFrom: null,
+  items: [],
+};
+
 const card = (name: string) => screen.findByRole('article', { name: new RegExp(`^${name}`) });
 
 describe('TodayPage', () => {
@@ -225,6 +257,49 @@ describe('TodayPage', () => {
 
     const article = await card('Corrida');
     expect(article.querySelector('p.line-clamp-2')).toBeNull();
+  });
+
+  describe('tarefas do dia (sem horário)', () => {
+    it('aparecem junto dos blocos, na própria seção', async () => {
+      setup({
+        items: [makeItem(BLOCK_1)],
+        tasks: { tasks: [TASK], xpToday: 0, xpCap: 100 },
+      });
+
+      expect(await card('Corrida')).toBeInTheDocument();
+      const tasksSection = await screen.findByRole('region', { name: 'Tarefas de hoje' });
+      expect(within(tasksSection).getByText('Pagar a conta de luz')).toBeInTheDocument();
+      expect(screen.getByRole('region', { name: 'Blocos de hoje' })).toBeInTheDocument();
+    });
+
+    it('se as tarefas falham, os blocos continuam e só a seção avisa', async () => {
+      setup({ items: [makeItem(BLOCK_1)] });
+
+      expect(await card('Corrida')).toBeInTheDocument();
+      expect(
+        await screen.findByText(/Não foi possível carregar as tarefas agora/),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('concluir uma tarefa atualiza o XP do HUD', async () => {
+      const { calls } = setup({
+        items: [makeItem(BLOCK_1)],
+        tasks: { tasks: [TASK], xpToday: 0, xpCap: 100 },
+      });
+      await card('Corrida');
+      expect(await screen.findByTestId('hud')).toHaveTextContent('100 XP');
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Concluir “Pagar a conta de luz”' }),
+      );
+
+      await waitFor(() => expect(screen.getByTestId('hud')).toHaveTextContent('120 XP'));
+      expect(toast.success).toHaveBeenCalledWith('+20 XP', {
+        description: '“Pagar a conta de luz” feita.',
+      });
+      expect(calls.filter((call) => call.url === '/api/today').length).toBeGreaterThan(1);
+    });
   });
 
   it('mostra o streak e o recorde no resumo do dia', async () => {

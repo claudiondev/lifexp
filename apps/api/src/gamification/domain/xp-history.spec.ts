@@ -23,6 +23,7 @@ const labels = (over: Partial<SourceLabels> = {}): SourceLabels => ({
   milestone: new Map(),
   goal: new Map(),
   quest: new Map(),
+  task: new Map(),
   ...over,
 });
 const uuid = (n: number) => `0192f1a0-7b3c-7000-8000-00000000000${n}`;
@@ -41,6 +42,7 @@ describe('collectSourceIds', () => {
       milestone: ['m1'],
       goal: ['g1'],
       quest: [],
+      task: [],
     });
   });
 
@@ -49,7 +51,13 @@ describe('collectSourceIds', () => {
       row({ id: '1', type: 'REVERSAL', amount: -100, sourceId: 'm1', reversedType: 'MILESTONE' }),
       row({ id: '2', type: 'REVERSAL', amount: -500, sourceId: 'g1', reversedType: 'GOAL' }),
     ]);
-    expect(ids).toEqual({ completion: [], milestone: ['m1'], goal: ['g1'], quest: [] });
+    expect(ids).toEqual({
+      completion: [],
+      milestone: ['m1'],
+      goal: ['g1'],
+      quest: [],
+      task: [],
+    });
   });
 
   it('ignora lançamento sem origem e estorno sem original conhecido', () => {
@@ -58,7 +66,7 @@ describe('collectSourceIds', () => {
       row({ id: '2', type: 'REVERSAL', amount: -1, sourceId: 'x', reversedType: null }),
       row({ id: '3', type: 'REVERSAL', amount: -1, sourceId: 'y', reversedType: 'REVERSAL' }),
     ]);
-    expect(ids).toEqual({ completion: [], milestone: [], goal: [], quest: [] });
+    expect(ids).toEqual({ completion: [], milestone: [], goal: [], quest: [], task: [] });
   });
 });
 
@@ -184,6 +192,7 @@ describe('TYPE_TO_LEDGER', () => {
       milestone: 'MILESTONE',
       goal: 'GOAL',
       quest: 'QUEST',
+      task: 'TASK',
       reversal: 'REVERSAL',
     });
   });
@@ -200,5 +209,41 @@ describe('cutPage', () => {
     expect(cutPage(rows, 3)).toEqual({ page: rows, nextCursor: null });
     expect(cutPage(rows, 10)).toEqual({ page: rows, nextCursor: null });
     expect(cutPage([], 10)).toEqual({ page: [], nextCursor: null });
+  });
+});
+
+describe('tarefas no histórico de XP', () => {
+  it('a conclusão de tarefa e o estorno dela resolvem o nome pela tarefa', () => {
+    const entries = toHistoryEntries(
+      [
+        row({ id: uuid(2), type: 'REVERSAL', amount: -20, sourceId: 't1', reversedType: 'TASK' }),
+        row({ id: uuid(1), type: 'TASK', amount: 20, sourceId: 't1' }),
+      ],
+      labels({ task: new Map([['t1', 'Pagar a conta de luz']]) }),
+    );
+
+    expect(entries).toMatchObject([
+      { type: 'reversal', reversedType: 'task', sourceLabel: 'Pagar a conta de luz', amount: -20 },
+      { type: 'task', reversedType: null, sourceLabel: 'Pagar a conta de luz', amount: 20 },
+    ]);
+    for (const entry of entries) expect(xpHistoryEntrySchema.safeParse(entry).success).toBe(true);
+  });
+
+  it('separa os ids de tarefa, sem repetir, tanto no ganho quanto no estorno', () => {
+    const ids = collectSourceIds([
+      row({ id: '1', type: 'TASK', sourceId: 't1' }),
+      row({ id: '2', type: 'REVERSAL', amount: -20, sourceId: 't1', reversedType: 'TASK' }),
+      row({ id: '3', type: 'TASK', sourceId: 't2' }),
+    ]);
+    expect(ids.task).toEqual(['t1', 't2']);
+    expect(ids.completion).toEqual([]);
+  });
+
+  it('o nome da tarefa excluída (ou de outra pessoa) fica nulo, sem quebrar', () => {
+    const [entry] = toHistoryEntries(
+      [row({ id: uuid(1), type: 'TASK', sourceId: 'gone' })],
+      labels(),
+    );
+    expect(entry!.sourceLabel).toBeNull();
   });
 });

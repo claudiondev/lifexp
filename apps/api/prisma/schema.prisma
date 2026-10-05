@@ -49,6 +49,7 @@ model User {
   achievements        Achievement[]
   rewards             Reward[]
   pushSubscriptions   PushSubscription[]
+  tasks               Task[]
 }
 
 // Uma linha por refresh token emitido. A rotação cria uma nova linha na mesma tokenFamily
@@ -88,6 +89,7 @@ model Area {
   progress       AreaProgress?
   xpTransactions XpTransaction[]
   goals          Goal[]
+  tasks          Task[]
   events         CalendarEvent[]
   linkedNotes    Note[]
 
@@ -182,6 +184,7 @@ enum XpTransactionType {
   MILESTONE // marco de meta concluído (RN21)
   GOAL // meta concluída (RN21)
   QUEST // bônus da quest semanal (RN17)
+  TASK // conclusão de tarefa (Marco 5a)
   REVERSAL
 }
 
@@ -276,6 +279,7 @@ model Goal {
   area        Area?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
   milestones  Milestone[]
   blocks      Block[]
+  tasks       Task[]
   linkedNotes Note[]
 
   @@index([userId, status])
@@ -543,4 +547,54 @@ model PushSubscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// Tarefa do dia, SEM horário (Marco 5a). `dueDate` nulo = caixa de entrada (Pendentes). "Vinda de ontem" é derivado
+// (em aberto com dueDate < hoje), nunca gravado. Concluir credita XP no livro-caixa (tipo TASK); `xpAwarded` é o que
+// ESTA conclusão rendeu (0 se o teto diário já tinha sido atingido).
+model Task {
+  id          String       @id @default(uuid(7))
+  userId      String
+  areaId      String?
+  goalId      String?
+  title       String
+  note        String? // texto puro, 1 a 500 caracteres (nulo = sem anotação)
+  dueDate     DateTime?    @db.Date // data civil (RN36)
+  priority    TaskPriority @default(MEDIUM)
+  completedAt DateTime?
+  xpAwarded   Int          @default(0)
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  area  Area?      @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  goal  Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  items TaskItem[]
+
+  @@index([userId, dueDate])
+  @@index([userId, completedAt])
+  @@index([areaId])
+  @@index([goalId])
+}
+
+// Passo do checklist de uma tarefa. Marcar passos NÃO conclui a tarefa.
+model TaskItem {
+  id        String    @id @default(uuid(7))
+  taskId    String
+  title     String
+  position  Int
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, position])
 }

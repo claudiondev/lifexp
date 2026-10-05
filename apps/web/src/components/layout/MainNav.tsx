@@ -4,6 +4,7 @@ import {
   Ellipsis,
   Gift,
   History,
+  Inbox,
   LayoutDashboard,
   NotebookPen,
   ScrollText,
@@ -38,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: '/', label: 'Painel', icon: LayoutDashboard, end: true },
       { to: '/hoje', label: 'Hoje', icon: Swords },
+      { to: '/pendentes', label: 'Pendentes', icon: Inbox },
       { to: '/semana', label: 'Semana', icon: CalendarDays },
       { to: '/calendario', label: 'Mês', icon: CalendarRange },
     ],

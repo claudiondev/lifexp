@@ -10,6 +10,7 @@ import { BlocksModule } from './blocks/blocks.module.js';
 import { EventsModule } from './events/events.module.js';
 import { GamificationModule } from './gamification/gamification.module.js';
 import { GoalsModule } from './goals/goals.module.js';
+import { TasksModule } from './tasks/tasks.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { NotesModule } from './notes/notes.module.js';
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module.js';
     EventsModule,
     GamificationModule,
     GoalsModule,
+    TasksModule,
     HealthModule,
     NotesModule,
     NotificationsModule,

@@ -14,6 +14,7 @@ export const XP_HISTORY_FILTERS: { value: XpEntryType | undefined; label: string
   { value: 'milestone', label: 'Marcos' },
   { value: 'goal', label: 'Metas' },
   { value: 'quest', label: 'Quests' },
+  { value: 'task', label: 'Tarefas' },
   { value: 'reversal', label: 'Estornos' },
 ];
 
@@ -22,6 +23,7 @@ const SOURCE_NAME: Record<XpSourceType, string> = {
   milestone: 'marco',
   goal: 'meta',
   quest: 'quest',
+  task: 'tarefa',
 };
 
 /** Quando a origem não existe mais, o lançamento continua valendo: só falta o nome. */
@@ -30,6 +32,7 @@ const MISSING_SOURCE: Record<XpSourceType, string> = {
   milestone: 'Marco excluído',
   goal: 'Meta excluída',
   quest: 'Quest da semana',
+  task: 'Tarefa excluída',
 };
 
 /** O tipo de origem do lançamento; no estorno, o do lançamento estornado. */

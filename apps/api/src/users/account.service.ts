@@ -47,6 +47,10 @@ const READERS: Record<ExportedModel, Reader> = {
   Achievement: (tx, userId) =>
     tx.achievement.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
   Reward: (tx, userId) => tx.reward.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  Task: (tx, userId) => tx.task.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  // Sem userId próprio: pertence à pessoa pela tarefa.
+  TaskItem: (tx, userId) =>
+    tx.taskItem.findMany({ where: { task: { userId } }, orderBy: { id: 'asc' } }),
 };
 
 export interface ExportResult {

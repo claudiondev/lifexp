@@ -222,6 +222,19 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         expiresAt: new Date(clock.now().getTime() + 30 * 60_000),
       },
     });
+    // tarefa com passo, ligada à área e à meta, concluída (lançamento TASK no livro-caixa)
+    const task = (
+      await send('post', user, '/api/tasks', {
+        title: 'Pagar a conta de luz',
+        dueDate: '2026-10-07',
+        priority: 'high',
+        areaId,
+        goalId: goal.id,
+        note: 'Vence hoje',
+      })
+    ).body;
+    await send('post', user, `/api/tasks/${task.id}/items`, { title: 'Pegar o código de barras' });
+    await send('post', user, `/api/tasks/${task.id}/complete`);
     return { user, areaId, goal, once, weekly };
   };
 
@@ -288,6 +301,8 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         notes: await prisma.note.count({ where: { userId: user.userId } }),
         weeklyQuests: await prisma.weeklyQuest.count({ where: { userId: user.userId } }),
         questItems: await prisma.questItem.count({ where: { quest: { userId: user.userId } } }),
+        tasks: await prisma.task.count({ where: { userId: user.userId } }),
+        taskItems: await prisma.taskItem.count({ where: { task: { userId: user.userId } } }),
       };
       for (const [key, count] of Object.entries(expected)) {
         expect([key, data[key]!.length]).toEqual([key, count]);
@@ -302,7 +317,7 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
       const { data } = accountExportSchema.parse((await exportOf(user)).body);
 
       expect(data.xpTransactions!.map((x) => x['type']).sort()).toEqual(
-        ['COMPLETION', 'MILESTONE', 'MILESTONE', 'REVERSAL'].sort(),
+        ['COMPLETION', 'MILESTONE', 'MILESTONE', 'REVERSAL', 'TASK'].sort(),
       );
       const exportedWeekly = data.blocks!.find((b) => b['id'] === weekly.id)!;
       expect(exportedWeekly).toMatchObject({
@@ -319,6 +334,14 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
       });
       expect(data.goals![0]).toMatchObject({ title: 'Escrever o livro' });
       expect(data.milestones![0]).toMatchObject({ title: 'Capítulo 1', done: true });
+      expect(data.tasks![0]).toMatchObject({
+        title: 'Pagar a conta de luz',
+        dueDate: '2026-10-07',
+        priority: 'HIGH',
+        note: 'Vence hoje',
+        xpAwarded: 40,
+      });
+      expect(data.taskItems![0]).toMatchObject({ title: 'Pegar o código de barras' });
       expect(data.calendarEvents![0]).toMatchObject({
         title: 'Consulta',
         date: '2026-10-20',

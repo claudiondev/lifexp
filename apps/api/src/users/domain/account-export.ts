@@ -23,6 +23,8 @@ export const EXPORT_KEYS = {
   QuestItem: 'questItems',
   Achievement: 'achievements',
   Reward: 'rewards',
+  Task: 'tasks',
+  TaskItem: 'taskItems',
 } as const;
 
 export type ExportedModel = keyof typeof EXPORT_KEYS;
@@ -43,6 +45,7 @@ export const CIVIL_DATE_FIELDS: ReadonlySet<string> = new Set([
   'occurrenceDate',
   'newDate',
   'deadline',
+  'dueDate',
   'weekStart',
 ]);
 
