@@ -1,6 +1,6 @@
 # LifeXP — contexto para o Claude
 
-Planejador semanal gamificado e multiusuário. Requisitos completos: `docs/requisitos-v2.pdf` (pasta `docs/` é local e está no `.gitignore`; não é versionada)
+Planejador semanal gamificado e multiusuário. Documentação: `README.md` (visão geral), `ARQUITETURA.md` (decisões por marco) e `DEPLOY.md`. Requisitos completos: `docs/requisitos-v2.pdf` (pasta `docs/` é local e está no `.gitignore`; não é versionada)
 (RF = requisitos funcionais, RN = regras de negócio, RS = segurança, RNF = não funcionais).
 Projeto de aprendizado de TypeScript (vindo de Java/Spring Boot) e portfólio: explique brevemente
 decisões não óbvias, comparando com Spring quando ajudar. Responda em português.
@@ -14,9 +14,9 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   fica em `prisma.config.ts`, não no `schema.prisma`; client gerado em `apps/api/src/generated`, ignorado no git).
 - **Vitest** em api, web e shared. (Desvio do requisito original "Jest na api": o Nest 12 é ESM-only e o
   template oficial usa Vitest.) TypeScript 5.9.
-- Datas: **Luxon** (ainda não instalado; entra com os blocos). Timestamps em UTC; datas civis
+- Datas: **Luxon**. Timestamps em UTC; datas civis
   (`occurrenceDate`, `weekStart`, `deadline`) como `DATE`.
-- CI: GitHub Actions (lint, test, build). Deploy futuro: Vercel com rewrite `/api` → Railway
+- CI: GitHub Actions (lint, test, build). Deploy (preparado, ainda não publicado): Vercel com rewrite `/api` → Railway
   (mesma origem, cookie `SameSite=Strict`).
 
 ## Arquitetura (backend)
