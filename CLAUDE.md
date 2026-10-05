@@ -76,6 +76,18 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Front: grade (desktop) x abas/agenda (celular) decididas por `useIsDesktop` (JS), não por CSS, para não duplicar
   blocos no DOM. Cartão da grade é `<button>`. Painel de ações em `OccurrenceDialog`.
 
+## Anotação do bloco (decisões)
+
+- `Block.note` (texto, nulo = sem anotação; CHECK de 1 a 500 caracteres), **por bloco e igual em toda a série**, sem texto por dia (decisão: simples, e
+  editar "esta e as próximas" já resolve). É TEXTO PURO: nunca markdown nem HTML (a tela usa `OccurrenceNote`, com `whitespace-pre-wrap`; React escapa).
+- `blockNoteSchema` em `@lifexp/shared/primitives.ts` (`trim`, máx. `BLOCK_NOTE_MAX` = 500 DEPOIS do trim, vazio vira nulo). Criação aceita `note`
+  opcional (avulso, semanal e vários dias; cada dia recebe a mesma); edição: `note` nulo ou vazio APAGA, ausente mantém. `planEdit` herda a anotação na
+  série nova e mudar SÓ a anotação já divide a série (o passado fica com a antiga).
+- `Occurrence.note` (e `Block.note`) usam `.nullable().default(null)` na LEITURA: front novo com API ainda antiga (deploys em momentos diferentes) não quebra.
+  Todo fixture que monta `Occurrence` à mão precisa de `note: null` (o tipo de saída exige).
+- Front: `NoteField` (formulário de criar e de editar, contador), `OccurrenceNote` (painel, Hoje com 2 linhas, agenda do celular com 2 linhas, grade só em
+  cartões de 1h30 ou mais, e tooltip do cartão). A anotação NÃO entra no `aria-label` dos cartões.
+
 ## Hoje, XP e níveis (decisões do 1d)
 
 - XP = `round(durationMin × xpWeight × multiplicador)`, teto 300; curva `xpToReachLevel(n)=round(100·(n−1)^1.5)`
@@ -392,7 +404,7 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Estrutura: `AppShell` com barra lateral agrupada (`SideNav`: Jogar, Evoluir, Registrar, Conta) a partir de `lg`, HUD fixo no topo e, abaixo de
   `lg`, barra inferior com 4 atalhos + "Mais" (diálogo com o resto). Os grupos ficam em `NAV_GROUPS` (`MainNav.tsx`). Cartões que mudam de
   layout conforme a coluna usam container queries (`@container` + `@lg:`), não breakpoints da tela.
-- Fundo: `SkyBackdrop` (céu noturno com poeira de estrelas e uma constelação de nós hexagonais, eco do selo de nível; SVG com semente fixa, fixo na janela, cores pelos tokens, algumas estrelas e nós piscam). Nada de grade quadriculada.
+- Fundo: `HexBackdrop` (azul-noite liso, luz suave no topo e favos hexagonais, eco do selo de nível, que se apagam para baixo via máscara; SVG `pattern`, fixo na janela, cores pelos tokens, sem animação). Nada de grade quadriculada nem céu estrelado.
 - Fontes auto-hospedadas (`@fontsource`): Bricolage Grotesque (títulos, `font-display`), Figtree (texto),
   Chakra Petch (números e rótulos de HUD, `font-hud`).
 - Assinatura: `XpBar` (runas inclinadas que acendem em sequência) e `LevelSigil` (selo hexagonal).
