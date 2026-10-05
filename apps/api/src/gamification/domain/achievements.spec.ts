@@ -123,6 +123,7 @@ describe('isBalancedWeek', () => {
     activityId: 'a',
     areaId,
     goalId: null,
+    note: null,
     recurrence: 'once',
     skipped: false,
     modified: false,

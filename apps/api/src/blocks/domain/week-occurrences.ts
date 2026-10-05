@@ -18,6 +18,8 @@ export interface BlockTemplate {
   validUntil: CivilDate | null;
   /** Meta a que o bloco serve (RF19). Não afeta o cálculo das ocorrências. */
   goalId?: string | null;
+  /** Anotação livre do bloco; vai igual para todas as ocorrências da série. */
+  note?: string | null;
 }
 
 export interface ExceptionRule {
@@ -112,6 +114,7 @@ export function computeWeekOccurrences(
         activityId: block.activityId,
         areaId: block.areaId,
         goalId: block.goalId ?? null,
+        note: block.note ?? null,
         recurrence: block.recurrence,
         skipped: resolved.skipped,
         modified: resolved.modified,

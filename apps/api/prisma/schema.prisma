@@ -139,6 +139,7 @@ model Block {
   durationMin Int
   validFrom   DateTime?       @db.Date // só WEEKLY: primeira data em que a regra vale
   validUntil  DateTime?       @db.Date // só WEEKLY: última data em que a regra vale (nulo = sem fim)
+  note        String? // anotação livre da pessoa (1 a 500 caracteres; nulo = sem anotação), igual em toda a série
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 

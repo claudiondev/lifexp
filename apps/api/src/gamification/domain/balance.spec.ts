@@ -17,6 +17,7 @@ const occ = (date: string, over: Partial<Occurrence> = {}): Occurrence => ({
   activityId: 'a1',
   areaId: SAUDE,
   goalId: null,
+  note: null,
   recurrence: 'once',
   skipped: false,
   modified: false,

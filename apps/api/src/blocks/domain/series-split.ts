@@ -6,6 +6,8 @@ export interface BlockChanges {
   activityId?: string;
   /** Nulo desvincula da meta; indefinido mantém o vínculo atual. */
   goalId?: string | null;
+  /** Nulo apaga a anotação; indefinido mantém a atual. */
+  note?: string | null;
   weekday?: number;
   /** Só para bloco avulso. */
   date?: CivilDate;
@@ -35,6 +37,7 @@ export type PlanInvalidReason =
 export interface NewBlockData {
   activityId: string;
   goalId: string | null;
+  note: string | null;
   recurrence: 'weekly' | 'once';
   weekday: number | null;
   date: CivilDate | null;
@@ -115,6 +118,7 @@ export function planEdit(
   const merged = {
     activityId: changes.activityId ?? block.activityId,
     goalId: changes.goalId !== undefined ? changes.goalId : (block.goalId ?? null),
+    note: changes.note !== undefined ? changes.note : (block.note ?? null),
     startTime: changes.startTime ?? block.startTime,
     durationMin: changes.durationMin ?? block.durationMin,
   };

@@ -109,6 +109,23 @@ describe('DayView', () => {
     expect(within(panel()).queryByRole('button', { name: /Sexta B/ })).not.toBeInTheDocument();
   });
 
+  it('a agenda mostra a anotação de cada bloco, como texto puro', () => {
+    render(
+      <Harness
+        items={[
+          display({ note: 'Levar o caderno <i>sim</i>' }, { activityName: 'Inglês' }),
+          display({ startTime: '11:00' }, { activityName: 'Sem nota' }),
+        ]}
+      />,
+    );
+
+    const withNote = within(panel()).getByRole('button', { name: /Inglês/ });
+    expect(within(withNote).getByText('Levar o caderno <i>sim</i>')).toBeInTheDocument();
+    expect(withNote.querySelector('i')).toBeNull();
+    const without = within(panel()).getByRole('button', { name: /Sem nota/ });
+    expect(without.querySelector('p, .line-clamp-2')).toBeNull();
+  });
+
   it('trocar de aba troca a agenda', async () => {
     render(
       <Harness

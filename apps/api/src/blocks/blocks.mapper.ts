@@ -25,6 +25,7 @@ export function toBlockResponse(block: BlockEntity): Block {
     validFrom: toCivilOrNull(block.validFrom),
     validUntil: toCivilOrNull(block.validUntil),
     goalId: block.goalId,
+    note: block.note,
   };
 }
 

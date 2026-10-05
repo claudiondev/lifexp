@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { addDays, firstOccurrenceOnOrAfter, weekdayOf } from './civil-date.js';
 import {
+  BLOCK_NOTE_MAX,
   MAX_SERIES_WEEKS,
   checkSeriesEnd,
   createBlockSchema,
   createWeeklyBlocksSchema,
   deleteBlockQuerySchema,
+  occurrenceSchema,
   putExceptionSchema,
   updateBlockSchema,
   validUntilForWeeks,
@@ -356,5 +358,92 @@ describe('validUntilForWeeks ("por N semanas")', () => {
 
   it('o teto é de dois anos', () => {
     expect(MAX_SERIES_WEEKS).toBe(104);
+  });
+});
+
+describe('anotação do bloco (note)', () => {
+  const multi = {
+    activityId,
+    weekdays: [1, 3],
+    startTime: '09:00',
+    durationMin: 60,
+    validFrom: '2026-10-07',
+  };
+  const parseNote = (schema: { safeParse: (v: unknown) => any }, base: object, note: unknown) =>
+    schema.safeParse({ ...base, note });
+
+  it('é opcional nos três formatos de criação', () => {
+    expect(createBlockSchema.safeParse(weekly).success).toBe(true);
+    expect(createBlockSchema.safeParse(once).success).toBe(true);
+    expect(createWeeklyBlocksSchema.safeParse(multi).success).toBe(true);
+  });
+
+  it('apara as pontas e transforma vazio em nulo', () => {
+    for (const [schema, base] of [
+      [createBlockSchema, weekly],
+      [createBlockSchema, once],
+      [createWeeklyBlocksSchema, multi],
+    ] as const) {
+      expect(parseNote(schema, base, '  Aula de inglês ').data.note).toBe('Aula de inglês');
+      expect(parseNote(schema, base, '').data.note).toBeNull();
+      expect(parseNote(schema, base, ' \n\t ').data.note).toBeNull();
+      expect(parseNote(schema, base, null).data.note).toBeNull();
+    }
+  });
+
+  it('mantém quebras de linha no meio do texto', () => {
+    expect(parseNote(createBlockSchema, weekly, 'a\nb').data.note).toBe('a\nb');
+  });
+
+  it(`aceita ${BLOCK_NOTE_MAX} caracteres e recusa ${BLOCK_NOTE_MAX + 1}`, () => {
+    expect(parseNote(createBlockSchema, weekly, 'a'.repeat(BLOCK_NOTE_MAX)).success).toBe(true);
+    expect(parseNote(createBlockSchema, weekly, 'a'.repeat(BLOCK_NOTE_MAX + 1)).success).toBe(
+      false,
+    );
+    expect(parseNote(createWeeklyBlocksSchema, multi, 'a'.repeat(BLOCK_NOTE_MAX + 1)).success).toBe(
+      false,
+    );
+  });
+
+  it('o limite é medido depois do trim', () => {
+    expect(parseNote(createBlockSchema, weekly, ` ${'a'.repeat(BLOCK_NOTE_MAX)} `).success).toBe(
+      true,
+    );
+  });
+
+  it('recusa tipos que não são texto', () => {
+    for (const note of [1, true, {}, ['x']]) {
+      expect(parseNote(createBlockSchema, weekly, note).success).toBe(false);
+    }
+  });
+
+  it('na edição: sozinha já é uma mudança; null e vazio apagam; ausente não mexe', () => {
+    const from = { from: '2026-10-07' };
+    expect(updateBlockSchema.safeParse({ ...from, note: 'oi' }).success).toBe(true);
+    expect(updateBlockSchema.safeParse({ ...from, note: null }).data?.note).toBeNull();
+    expect(updateBlockSchema.safeParse({ ...from, note: '  ' }).data?.note).toBeNull();
+    expect(updateBlockSchema.safeParse({ ...from, startTime: '10:00' }).data).not.toHaveProperty(
+      'note',
+    );
+  });
+});
+
+describe('leitura sem anotação (API anterior ao campo)', () => {
+  it('a ocorrência sem `note` vale nulo, em vez de falhar', () => {
+    const base = {
+      blockId: activityId,
+      occurrenceDate: '2026-10-07',
+      date: '2026-10-07',
+      startTime: '09:00',
+      durationMin: 60,
+      activityId,
+      areaId: activityId,
+      goalId: null,
+      recurrence: 'weekly',
+      skipped: false,
+      modified: false,
+    };
+    expect(occurrenceSchema.parse(base).note).toBeNull();
+    expect(occurrenceSchema.parse({ ...base, note: 'oi' }).note).toBe('oi');
   });
 });

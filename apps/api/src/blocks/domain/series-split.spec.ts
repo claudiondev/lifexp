@@ -755,3 +755,52 @@ describe('planEdit: vínculo com meta (RF19)', () => {
     expect(plan).toMatchObject({ newBlock: { goalId: null } });
   });
 });
+
+describe('planEdit: anotação do bloco', () => {
+  const FROM_DATE = '2026-10-14';
+
+  it('mudar só a anotação já conta como mudança', () => {
+    expect(planEdit(series(), FROM_DATE, { note: 'oi' }, []).kind).not.toBe('invalid');
+    expect(planEdit(series({ note: 'oi' }), FROM_DATE, { note: null }, []).kind).not.toBe(
+      'invalid',
+    );
+  });
+
+  it('a série nova herda a anotação quando só o horário muda', () => {
+    const plan = planEdit(
+      series({ note: 'Aula de inglês' }),
+      FROM_DATE,
+      { startTime: '18:00' },
+      [],
+    );
+    expect(plan).toMatchObject({ kind: 'split', newBlock: { note: 'Aula de inglês' } });
+  });
+
+  it('trocar a anotação vale na série nova; null apaga; indefinido mantém', () => {
+    const base = series({ note: 'antiga' });
+    expect(planEdit(base, FROM_DATE, { note: 'nova' }, [])).toMatchObject({
+      newBlock: { note: 'nova' },
+    });
+    expect(planEdit(base, FROM_DATE, { note: null }, [])).toMatchObject({
+      newBlock: { note: null },
+    });
+    expect(planEdit(base, FROM_DATE, { startTime: '10:00' }, [])).toMatchObject({
+      newBlock: { note: 'antiga' },
+    });
+  });
+
+  it('sem passado (edição no lugar), a anotação também é atualizada', () => {
+    const plan = planEdit(series({ note: 'antiga' }), '2026-09-02', { note: null }, []);
+    expect(plan).toMatchObject({ kind: 'in-place', update: { note: null } });
+  });
+
+  it('bloco avulso: a anotação entra na atualização no lugar', () => {
+    const plan = planEdit(single(), '2026-10-07', { note: 'Levar o documento' }, []);
+    expect(plan).toMatchObject({ kind: 'in-place', update: { note: 'Levar o documento' } });
+  });
+
+  it('bloco sem anotação (campo ausente) vira note null na série nova', () => {
+    const plan = planEdit(series(), FROM_DATE, { startTime: '10:00' }, []);
+    expect(plan).toMatchObject({ newBlock: { note: null } });
+  });
+});

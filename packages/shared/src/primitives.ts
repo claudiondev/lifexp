@@ -4,6 +4,7 @@ import { isValidCivilDate, isValidTimeOfDay, isWeekStart } from './civil-date.js
 export const BLOCK_DURATION_MIN = 15;
 export const BLOCK_DURATION_MAX = 720;
 export const BLOCK_DURATION_STEP = 5;
+export const BLOCK_NOTE_MAX = 500;
 
 export const civilDateSchema = z
   .string()
@@ -16,6 +17,16 @@ export const durationMinSchema = z
   .min(BLOCK_DURATION_MIN, `A duração mínima é ${BLOCK_DURATION_MIN} minutos`)
   .max(BLOCK_DURATION_MAX, `A duração máxima é ${BLOCK_DURATION_MAX / 60} horas`)
   .multipleOf(BLOCK_DURATION_STEP, `A duração deve ser múltipla de ${BLOCK_DURATION_STEP} minutos`);
+
+/**
+ * Anotação livre do bloco (texto puro, nunca markdown). Sem espaços nas pontas; vazia vira nula, então "sem
+ * anotação" tem uma só forma. O limite é checado depois do `trim`.
+ */
+export const blockNoteSchema = z
+  .string()
+  .trim()
+  .max(BLOCK_NOTE_MAX, `A anotação pode ter no máximo ${BLOCK_NOTE_MAX} caracteres`)
+  .transform((note) => (note === '' ? null : note));
 
 /**
  * Data civil que é uma segunda-feira (início da semana). O refinamento só olha o dia da semana quando a data

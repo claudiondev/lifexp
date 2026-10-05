@@ -675,3 +675,73 @@ describe('BlockFormDialog', () => {
     expect(screen.getByTestId('block-summary')).not.toHaveTextContent('Sem data para terminar');
   });
 });
+
+describe('BlockFormDialog: anotação', () => {
+  beforeEach(() => {
+    setAccessToken('token');
+    toast.success.mockClear();
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const typeNote = (text: string) =>
+    userEvent.type(screen.getByLabelText('Anotação (opcional)'), text);
+
+  it('o campo começa vazio, é opcional e mostra o contador', async () => {
+    setup();
+    await activitiesLoaded();
+
+    expect(screen.getByLabelText('Anotação (opcional)')).toHaveValue('');
+    expect(screen.getByText('0/500')).toBeInTheDocument();
+    expect(screen.getByLabelText('Anotação (opcional)')).toHaveAttribute('maxlength', '500');
+  });
+
+  it('o contador acompanha o que a pessoa digita', async () => {
+    setup();
+    await activitiesLoaded();
+    await typeNote('Aula');
+
+    expect(screen.getByText('4/500')).toBeInTheDocument();
+  });
+
+  it('bloco semanal: envia a anotação digitada', async () => {
+    const { posts } = setup();
+    await choose('Reunião');
+    await typeNote('Aula de inglês');
+    await submit();
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toMatchObject({ activityId: ACT_MEETING, note: 'Aula de inglês' });
+  });
+
+  it('bloco avulso: envia a anotação digitada', async () => {
+    const { posts } = setup();
+    await choose('Corrida');
+    await userEvent.click(screen.getByRole('radio', { name: 'Só uma vez' }));
+    await typeNote('Levar o documento');
+    await submit();
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toMatchObject({ recurrence: 'once', note: 'Levar o documento' });
+  });
+
+  it('sem anotação (ou só espaços), não envia o campo', async () => {
+    const { posts } = setup();
+    await choose('Reunião');
+    await typeNote('   ');
+    await submit();
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).not.toHaveProperty('note');
+  });
+
+  it('com vários dias marcados, a anotação vale para todos (uma única chamada)', async () => {
+    const { posts } = setup();
+    await choose('Reunião');
+    await userEvent.click(day('Sexta-feira'));
+    await typeNote('Treino de pernas');
+    await submit();
+
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toMatchObject({ weekdays: [3, 5], note: 'Treino de pernas' });
+  });
+});

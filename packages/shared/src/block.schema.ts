@@ -8,6 +8,7 @@ import {
 } from './civil-date.js';
 import { completionSchema } from './completion.schema.js';
 import {
+  blockNoteSchema,
   civilDateSchema,
   durationMinSchema,
   timeOfDaySchema,
@@ -19,6 +20,8 @@ export {
   BLOCK_DURATION_MAX,
   BLOCK_DURATION_MIN,
   BLOCK_DURATION_STEP,
+  BLOCK_NOTE_MAX,
+  blockNoteSchema,
   civilDateSchema,
   durationMinSchema,
   timeOfDaySchema,
@@ -82,6 +85,8 @@ export const blockSchema = z.object({
   validUntil: civilDateSchema.nullable(),
   /** Meta a que o bloco serve (RF19); nulo = sem meta. */
   goalId: z.uuid().nullable(),
+  /** Anotação livre (até 500 caracteres); nulo = sem anotação. */
+  note: z.string().nullable().default(null),
 });
 
 const weeklyBlockSchema = z
@@ -89,6 +94,7 @@ const weeklyBlockSchema = z
     recurrence: z.literal('weekly'),
     activityId: z.uuid(),
     goalId: z.uuid().nullish(),
+    note: blockNoteSchema.nullish(),
     weekday: weekdaySchema,
     startTime: timeOfDaySchema,
     durationMin: durationMinSchema,
@@ -114,6 +120,7 @@ const onceBlockSchema = z
     recurrence: z.literal('once'),
     activityId: z.uuid(),
     goalId: z.uuid().nullish(),
+    note: blockNoteSchema.nullish(),
     date: civilDateSchema,
     startTime: timeOfDaySchema,
     durationMin: durationMinSchema,
@@ -131,6 +138,7 @@ export const createWeeklyBlocksSchema = z
   .strictObject({
     activityId: z.uuid(),
     goalId: z.uuid().nullish(),
+    note: blockNoteSchema.nullish(),
     weekdays: z
       .array(weekdaySchema)
       .min(1, 'Escolha ao menos um dia da semana')
@@ -169,6 +177,8 @@ export const updateBlockSchema = z
     activityId: z.uuid().optional(),
     /** Nulo desvincula o bloco da meta. */
     goalId: z.uuid().nullable().optional(),
+    /** Nulo (ou texto vazio) apaga a anotação; ausente mantém a atual. */
+    note: blockNoteSchema.nullable().optional(),
     weekday: weekdaySchema.optional(),
     date: civilDateSchema.optional(),
     startTime: timeOfDaySchema.optional(),
@@ -226,6 +236,11 @@ export const occurrenceSchema = z.object({
   areaId: z.uuid(),
   /** Meta a que o bloco serve (RF19); nulo = sem meta. */
   goalId: z.uuid().nullable(),
+  /**
+   * Anotação do bloco (a mesma em toda a série); nulo = sem anotação. Respostas de uma API anterior ao campo
+   * (front novo, API ainda subindo) chegam sem ele e valem nulo, em vez de derrubar a tela.
+   */
+  note: z.string().nullable().default(null),
   recurrence: z.enum(['weekly', 'once']),
   skipped: z.boolean(),
   modified: z.boolean(),

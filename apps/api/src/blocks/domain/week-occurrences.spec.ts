@@ -421,3 +421,37 @@ describe('computeWeekOccurrences: meta do bloco (RF19)', () => {
     ]);
   });
 });
+
+describe('computeWeekOccurrences: anotação', () => {
+  it('toda ocorrência da série leva a anotação do bloco', () => {
+    const block = weekly({ weekday: 3, note: 'Aula de inglês' });
+    for (const weekStart of ['2026-10-05', '2026-10-12', '2026-10-19']) {
+      expect(computeWeekOccurrences(weekStart, [block], []).map((o) => o.note)).toEqual([
+        'Aula de inglês',
+      ]);
+    }
+  });
+
+  it('sem anotação (ou undefined) a ocorrência traz note nulo', () => {
+    expect(computeWeekOccurrences('2026-10-05', [weekly({ weekday: 3 })], [])[0]!.note).toBeNull();
+    expect(
+      computeWeekOccurrences('2026-10-05', [weekly({ weekday: 3, note: null })], [])[0]!.note,
+    ).toBeNull();
+  });
+
+  it('mover ou alterar a ocorrência não mexe na anotação', () => {
+    const block = weekly({ weekday: 3, note: 'Aula de inglês' });
+    const moved: ExceptionRule = {
+      blockId: block.id,
+      occurrenceDate: '2026-10-07',
+      type: 'override',
+      newDate: '2026-10-09',
+      newStartTime: '18:00',
+      newDurationMin: null,
+    };
+    expect(computeWeekOccurrences('2026-10-05', [block], [moved])[0]).toMatchObject({
+      date: '2026-10-09',
+      note: 'Aula de inglês',
+    });
+  });
+});

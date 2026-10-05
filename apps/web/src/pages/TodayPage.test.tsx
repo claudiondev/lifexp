@@ -212,6 +212,21 @@ describe('TodayPage', () => {
     expect(screen.getByRole('img', { name: 'Nível 2' })).toBeInTheDocument();
   });
 
+  it('mostra a anotação do bloco no cartão, como texto puro', async () => {
+    setup({ items: [makeItem(BLOCK_1, { note: 'Aula de inglês <b>lição 5</b>' })] });
+
+    const article = await card('Corrida');
+    expect(within(article).getByText('Aula de inglês <b>lição 5</b>')).toBeInTheDocument();
+    expect(article.querySelector('b')).toBeNull();
+  });
+
+  it('bloco sem anotação não ganha linha extra', async () => {
+    setup({ items: [makeItem(BLOCK_1)] });
+
+    const article = await card('Corrida');
+    expect(article.querySelector('p.line-clamp-2')).toBeNull();
+  });
+
   it('mostra o streak e o recorde no resumo do dia', async () => {
     setup({ items: [makeItem(BLOCK_1)] });
 

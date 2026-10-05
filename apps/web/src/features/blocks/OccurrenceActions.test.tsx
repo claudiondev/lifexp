@@ -610,6 +610,126 @@ describe('ações por ocorrência', () => {
     });
   });
 
+  describe('anotação do bloco', () => {
+    const NOTE = 'Aula de inglês, levar o caderno';
+    const openEdit = async () => {
+      await userEvent.click(await card(/Reunião/));
+      await userEvent.click(
+        within(await dialog()).getByRole('button', { name: /Editar esta e as próximas/ }),
+      );
+    };
+    const save = () =>
+      userEvent.click(screen.getByRole('button', { name: 'Salvar esta e as próximas' }));
+
+    it('o painel mostra a anotação do bloco', async () => {
+      setup([weeklyOccurrence({ note: NOTE })]);
+      await userEvent.click(await card(/Reunião/));
+
+      const panel = within(await dialog());
+      expect(panel.getByRole('region', { name: 'Anotação' })).toHaveTextContent(NOTE);
+    });
+
+    it('a anotação aparece como texto puro, sem interpretar marcação, e mantém as quebras de linha', async () => {
+      setup([weeklyOccurrence({ note: '<b>negrito</b> **x**\nsegunda linha' })]);
+      await userEvent.click(await card(/Reunião/));
+
+      const section = within(await dialog()).getByRole('region', { name: 'Anotação' });
+      expect(section).toHaveTextContent('<b>negrito</b> **x**');
+      expect(section.querySelector('b, strong')).toBeNull();
+      expect(section.querySelector('p')?.className).toContain('whitespace-pre-wrap');
+    });
+
+    it('bloco sem anotação não mostra a seção', async () => {
+      setup([weeklyOccurrence()]);
+      await userEvent.click(await card(/Reunião/));
+
+      await dialog();
+      expect(screen.queryByRole('region', { name: 'Anotação' })).not.toBeInTheDocument();
+    });
+
+    it('o cartão da grade traz a anotação no tooltip', async () => {
+      setup([weeklyOccurrence({ note: NOTE })]);
+
+      expect((await card(/Reunião/)).getAttribute('title')).toContain(NOTE);
+    });
+
+    it('a edição já vem com a anotação e salvar fica desabilitado até mudar algo', async () => {
+      setup([weeklyOccurrence({ note: NOTE })]);
+      await openEdit();
+
+      expect(await screen.findByLabelText('Anotação (opcional)')).toHaveValue(NOTE);
+      expect(screen.getByRole('button', { name: 'Salvar esta e as próximas' })).toBeDisabled();
+    });
+
+    it('mudar só a anotação envia só o note', async () => {
+      const { calls } = setup([weeklyOccurrence({ note: NOTE })]);
+      await openEdit();
+
+      const field = await screen.findByLabelText('Anotação (opcional)');
+      await userEvent.clear(field);
+      await userEvent.type(field, 'Lição 5');
+      await save();
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]).toEqual({
+        method: 'PATCH',
+        url: `/api/blocks/${WEEKLY_ID}`,
+        body: { from: '2026-10-07', note: 'Lição 5' },
+      });
+    });
+
+    it('esvaziar o campo apaga a anotação (note nulo)', async () => {
+      const { calls } = setup([weeklyOccurrence({ note: NOTE })]);
+      await openEdit();
+
+      await userEvent.clear(await screen.findByLabelText('Anotação (opcional)'));
+      await save();
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.body).toEqual({ from: '2026-10-07', note: null });
+    });
+
+    it('acrescentar uma anotação a um bloco que não tinha', async () => {
+      const { calls } = setup([weeklyOccurrence()]);
+      await openEdit();
+
+      await userEvent.type(await screen.findByLabelText('Anotação (opcional)'), 'Novidade');
+      await save();
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.body).toEqual({ from: '2026-10-07', note: 'Novidade' });
+    });
+
+    it('espaços nas pontas não contam como mudança', async () => {
+      setup([weeklyOccurrence({ note: NOTE })]);
+      await openEdit();
+
+      await userEvent.type(await screen.findByLabelText('Anotação (opcional)'), '   ');
+
+      expect(screen.getByRole('button', { name: 'Salvar esta e as próximas' })).toBeDisabled();
+    });
+
+    it('mudar outro campo não envia a anotação', async () => {
+      const { calls } = setup([weeklyOccurrence({ note: NOTE })]);
+      await openEdit();
+
+      fireEvent.change(screen.getByLabelText('Início'), { target: { value: '18:00' } });
+      await save();
+
+      await waitFor(() => expect(calls).toHaveLength(1));
+      expect(calls[0]!.body).toEqual({ from: '2026-10-07', startTime: '18:00' });
+    });
+
+    it('o contador mostra quantos caracteres já foram usados, e o campo trava no limite', async () => {
+      setup([weeklyOccurrence({ note: NOTE })]);
+      await openEdit();
+
+      const field = await screen.findByLabelText('Anotação (opcional)');
+      expect(screen.getByText(`${NOTE.length}/500`)).toBeInTheDocument();
+      expect(field).toHaveAttribute('maxlength', '500');
+    });
+  });
+
   describe('editar esta e as próximas', () => {
     const open = async (name: RegExp = /Reunião/) => {
       await userEvent.click(await card(name));
