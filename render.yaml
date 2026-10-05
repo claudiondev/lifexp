@@ -1,6 +1,9 @@
 # Blueprint do Render (https://render.com/docs/blueprint-spec): descreve SÓ a API. O banco é um Postgres do Neon
 # (o Postgres gratuito do Render expira em 30 dias) e o front fica na Vercel. Veja o passo a passo em DEPLOY.md.
 #
+# E-mail (RESEND_API_KEY, MAIL_FROM) e push (VAPID_*) NÃO ficam aqui: variável vazia não vale (o env recusa ""), então
+# crie-as no painel só quando for usar. Veja DEPLOY.md.
+#
 # Plano free: o serviço dorme após ~15 min sem tráfego. Como a API tem um agendador interno (avisos a cada minuto),
 # um monitor de uptime (UptimeRobot) chamando /api/health a cada 5 min mantém tudo acordado.
 
@@ -10,6 +13,8 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
+    # Mesma região do banco no Neon (AWS US East 2, Ohio): cada requisição faz várias consultas.
+    region: ohio
     healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_ENV
@@ -28,15 +33,4 @@ services:
         sync: false
       # Endereço https do front na Vercel (usado no link dos e-mails).
       - key: APP_URL
-        sync: false
-      # Opcionais: e-mail (Resend) e push (chaves VAPID). Sem eles o recurso fica desligado.
-      - key: RESEND_API_KEY
-        sync: false
-      - key: MAIL_FROM
-        sync: false
-      - key: VAPID_PUBLIC_KEY
-        sync: false
-      - key: VAPID_PRIVATE_KEY
-        sync: false
-      - key: VAPID_SUBJECT
         sync: false

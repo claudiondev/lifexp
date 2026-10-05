@@ -22,14 +22,13 @@ constrói a imagem a cada push.
 ## 2. Render (API)
 
 1. **New > Blueprint**, escolha o repositório `claudiondev/lifexp`. O Render lê o `render.yaml`.
-2. Ele pede os valores marcados como `sync: false`. Preencha:
+2. Ele pede só `DATABASE_URL` (a string **direta** do Neon) e `APP_URL` (o endereço **https** do front na Vercel; a API **não sobe** com http). A
+   região (Ohio) já está no arquivo. Para e-mail e push, depois do deploy crie no painel (**Environment**) as variáveis abaixo; **nunca vazias**:
 
-   | Variável                                                 | Valor                                                                            | Obrigatória |
-   | -------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------- |
-   | `DATABASE_URL`                                           | a string **direta** do Neon                                                      | sim         |
-   | `APP_URL`                                                | o endereço **https** do front na Vercel (a API **não sobe** com http)            | sim         |
-   | `RESEND_API_KEY`, `MAIL_FROM`                            | e-mail do resumo e da recuperação de senha                                       | opcional    |
-   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | push (gere com `pnpm --filter @lifexp/api push:keys`; as duas chaves ou nenhuma) | opcional    |
+   | Variável                                                 | Valor                                                                            |
+   | -------------------------------------------------------- | -------------------------------------------------------------------------------- |
+   | `RESEND_API_KEY`, `MAIL_FROM`                            | e-mail do resumo e da recuperação de senha                                       |
+   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | push (gere com `pnpm --filter @lifexp/api push:keys`; as duas chaves ou nenhuma) |
 
    Já vêm no `render.yaml`: `NODE_ENV=production`, `COOKIE_SECURE=true`, `TRUST_PROXY=2` (Vercel e Render entre o cliente e a API) e `JWT_ACCESS_SECRET`
    (gerado pelo Render; trocar derruba as sessões). Não defina `PORT`. Para ligar o Swagger em produção, crie `SWAGGER_ENABLED=true` (padrão: desligado).
