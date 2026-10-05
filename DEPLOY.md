@@ -33,7 +33,7 @@ constrói a imagem a cada push.
    Já vêm no `render.yaml`: `NODE_ENV=production`, `COOKIE_SECURE=true`, `TRUST_PROXY=2` (Vercel e Render entre o cliente e a API) e `JWT_ACCESS_SECRET`
    (gerado pelo Render; trocar derruba as sessões). Não defina `PORT`. Para ligar o Swagger em produção, crie `SWAGGER_ENABLED=true` (padrão: desligado).
 
-3. **Apply.** As migrations rodam **sozinhas** a cada subida (`prisma migrate deploy`, com trava de banco). Anote o endereço `https://lifexp-api.onrender.com`
+3. **Apply.** As migrations rodam **sozinhas** a cada subida (`prisma migrate deploy`, com trava de banco). Anote o endereço `https://lifexp-api-15zb.onrender.com`
    (o nome pode variar se já estiver em uso).
 
 Se o `APP_URL` ainda não existir (a Vercel vem depois), coloque um https provisório e corrija no passo 4.
@@ -49,7 +49,7 @@ Se o `APP_URL` ainda não existir (a Vercel vem depois), coloque um https provis
 
 1. No Render, ajuste `APP_URL` para o endereço final da Vercel (a API reinicia sozinha).
 2. **Mantenha a API acordada.** No [UptimeRobot](https://uptimerobot.com) (plano gratuito), crie um monitor HTTP em
-   `https://lifexp-api.onrender.com/api/health` a cada **5 minutos**. Sem isso, a API dorme e o agendador de avisos para.
+   `https://lifexp-api-15zb.onrender.com/api/health` a cada **5 minutos**. Sem isso, a API dorme e o agendador de avisos para.
 3. Confira:
 
 ```bash

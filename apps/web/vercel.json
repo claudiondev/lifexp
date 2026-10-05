@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://SEU-APP.onrender.com/api/:path*"
+      "destination": "https://lifexp-api-15zb.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
