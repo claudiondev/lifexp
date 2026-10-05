@@ -45,12 +45,7 @@ export function HexBackdrop() {
         }}
       >
         <defs>
-          <pattern
-            id="hex-backdrop"
-            width={TILE_W}
-            height={TILE_H}
-            patternUnits="userSpaceOnUse"
-          >
+          <pattern id="hex-backdrop" width={TILE_W} height={TILE_H} patternUnits="userSpaceOnUse">
             {CELLS.map(([cx, cy]) => (
               <polygon
                 key={`${cx}-${cy}`}
