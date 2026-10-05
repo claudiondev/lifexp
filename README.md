@@ -11,12 +11,14 @@
 ![Prisma](https://img.shields.io/badge/Prisma%207-2D3748?style=for-the-badge&logo=prisma&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-F69220?style=for-the-badge&logo=pnpm&logoColor=white)
 
-![Status](https://img.shields.io/badge/Status-✅%20Funcionalidades%20completas-brightgreen?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-✅%20Em%20produção-brightgreen?style=for-the-badge)
 ![PWA](https://img.shields.io/badge/PWA-instalável-5A0FC8?style=for-the-badge&logo=pwa&logoColor=white)
 
 [![CI](https://github.com/claudiondev/lifexp/actions/workflows/ci.yml/badge.svg)](https://github.com/claudiondev/lifexp/actions/workflows/ci.yml)
 
 **Cumpra. Descanse. Evolua.** 🎯✨
+
+[![Acesse o LifeXP](https://img.shields.io/badge/Acesse_o_LifeXP-Clique_Aqui-blue?style=for-the-badge&logo=vercel)](https://lifexp-zeta.vercel.app/)
 
 </div>
 
@@ -28,7 +30,9 @@ O **LifeXP** é um planejador semanal multiusuário com cara de jogo. Cada pesso
 
 Os princípios do produto valem na interface inteira: **recompensar sem punir**, **descanso conta como progresso** e **sem ranking** entre pessoas.
 
-> **Fase atual:** todas as funcionalidades planejadas (marcos 0 a 4) estão implementadas e testadas. O deploy (Vercel + Render + Neon) está preparado e documentado em [`DEPLOY.md`](DEPLOY.md); falta publicar. 🚀
+> **Fase atual:** todas as funcionalidades planejadas (marcos 0 a 4) estão implementadas e testadas. Em produção: front na Vercel, API no Render e banco no Neon (guia em [`DEPLOY.md`](DEPLOY.md)). 🚀
+>
+> ⏳ A API roda no plano gratuito do Render: depois de um período sem uso ela "dorme", e o primeiro acesso pode levar cerca de um minuto.
 
 Também é um projeto de **aprendizado de TypeScript** (vindo de Java/Spring Boot): as decisões não óbvias estão explicadas e comparadas com o Spring em [`ARQUITETURA.md`](ARQUITETURA.md).
 
@@ -312,11 +316,11 @@ O **front** (estático) vai para a **Vercel** e a **API** para o **Render** e o 
 ### ✅ Transversais
 
 - ✅ Logs estruturados, monitor de jobs, auditoria de dependências, fumaça de desempenho
-- ✅ Dockerfile, `vercel.json` e guia de deploy
+- ✅ Dockerfile, `render.yaml`, `vercel.json` e guia de deploy
+- ✅ Publicado: Vercel (front), Render (API) e Neon (PostgreSQL)
 
 ### 🔜 Próximos passos
 
-- ⏳ Publicar na Vercel + Render + Neon
 - ⏳ Conferir PWA, instalação e push em navegador e celular reais
 - ⏳ Content-Security-Policy no front e monitoramento de uptime
 - 💡 Extras opcionais (RF13, RF56), só se o uso justificar
@@ -335,4 +339,4 @@ O **front** (estático) vai para a **Vercel** e a **API** para o **Render** e o 
 
 ---
 
-**Status:** ✅ Funcionalidades completas, deploy preparado | Última atualização: Outubro de 2026
+**Status:** ✅ Em produção (Vercel + Render + Neon) | Última atualização: Outubro de 2026
