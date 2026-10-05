@@ -1,0 +1,42 @@
+# Blueprint do Render (https://render.com/docs/blueprint-spec): descreve SÓ a API. O banco é um Postgres do Neon
+# (o Postgres gratuito do Render expira em 30 dias) e o front fica na Vercel. Veja o passo a passo em DEPLOY.md.
+#
+# Plano free: o serviço dorme após ~15 min sem tráfego. Como a API tem um agendador interno (avisos a cada minuto),
+# um monitor de uptime (UptimeRobot) chamando /api/health a cada 5 min mantém tudo acordado.
+
+services:
+  - name: lifexp-api
+    type: web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health/ready
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: 'true'
+      # Vercel -> Render: dois proxies entre o cliente e a API.
+      - key: TRUST_PROXY
+        value: '2'
+      # Gerado pelo Render na criação do blueprint (nunca aparece no repositório). Trocar derruba as sessões.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      # sync: false = o Render pede o valor uma vez, no painel, e não o versiona.
+      # URL DIRETA do Neon (sem "-pooler"), com ?sslmode=require.
+      - key: DATABASE_URL
+        sync: false
+      # Endereço https do front na Vercel (usado no link dos e-mails).
+      - key: APP_URL
+        sync: false
+      # Opcionais: e-mail (Resend) e push (chaves VAPID). Sem eles o recurso fica desligado.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false

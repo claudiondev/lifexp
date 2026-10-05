@@ -1,44 +1,57 @@
-# LifeXP — Deploy (Vercel + Railway)
+# LifeXP — Deploy (Vercel + Render + Neon)
 
-O LifeXP vai ao ar em duas partes: o **front** (arquivos estáticos do `apps/web`) na **Vercel** e a **API + Postgres** na **Railway**. A Vercel reescreve
-`/api/*` para a API, então o navegador vê **uma única origem** (o cookie de sessão e o PWA funcionam sem CORS). Nada abaixo foi publicado por mim: criar
-contas, gerar segredos e aceitar cobrança é com você.
+O LifeXP vai ao ar em três partes, todas com plano gratuito: o **front** (arquivos estáticos do `apps/web`) na **Vercel**, a **API** (Docker) no **Render** e o
+**PostgreSQL** no **Neon**. A Vercel reescreve `/api/*` para a API, então o navegador vê **uma única origem** (o cookie de sessão e o PWA funcionam sem
+CORS). Criar contas, gerar segredos e aceitar termos é com você.
 
-**O que já está pronto no repositório:** `Dockerfile` (API), `apps/web/vercel.json`, `GET /api/health/ready` (prontidão), logs em JSON, Swagger desligado
-em produção, e o `pnpm --filter @lifexp/api smoke:prod <url>` para conferir o resultado. O CI constrói a imagem a cada push (job `docker`); **eu não
-consegui construir a imagem localmente** (sem acesso ao Docker nesta máquina): o que o `Dockerfile` faz foi validado passo a passo sem Docker
-(`pnpm deploy --prod`, `prisma migrate deploy` num banco vazio e a API em `NODE_ENV=production`), mas o primeiro build de verdade é o do CI.
+**O que já está pronto no repositório:** `Dockerfile` (API), `render.yaml` (Blueprint do Render), `apps/web/vercel.json`, `GET /api/health/ready`
+(prontidão), logs em JSON, Swagger desligado em produção e o `pnpm --filter @lifexp/api smoke:prod <url>` para conferir o resultado. O job `docker` do CI
+constrói a imagem a cada push.
 
-### 1. Railway (API e banco)
+> **Planos gratuitos mudam.** Confira limites e preços nos sites antes de criar as contas. O que importa aqui: o serviço **free do Render dorme** depois de
+> ~15 min sem tráfego, e o **Neon free suspende o banco** quando fica ocioso e tem um teto de horas de computação por mês. A API tem um agendador interno
+> (avisos a cada minuto), então ela mantém o banco acordado: acompanhe o consumo no painel do Neon no primeiro mês (veja _Operação_).
 
-1. **Novo projeto** > **Provision PostgreSQL**.
-2. **New > GitHub Repo** com este repositório. A Railway acha o `Dockerfile` na raiz sozinha. Em **Settings > Deploy**: _Healthcheck Path_ =
-   `/api/health/ready`.
-3. **Variables** do serviço da API (`DATABASE_URL` pode referenciar o Postgres do projeto, `${{Postgres.DATABASE_URL}}`):
+## 1. Neon (banco)
 
-   | Variável                                                 | Valor                                                                           | Obrigatória |
-   | -------------------------------------------------------- | ------------------------------------------------------------------------------- | ----------- |
-   | `NODE_ENV`                                               | `production`                                                                    | sim         |
-   | `DATABASE_URL`                                           | a do Postgres da Railway                                                        | sim         |
-   | `JWT_ACCESS_SECRET`                                      | `openssl rand -base64 48` (guarde; trocar derruba as sessões)                   | sim         |
-   | `COOKIE_SECURE`                                          | `true` (a API **não sobe** com `false` em produção)                             | sim         |
-   | `APP_URL`                                                | o endereço **https** do front na Vercel (a API **não sobe** com http)           | sim         |
-   | `TRUST_PROXY`                                            | `2` (Vercel e Railway estão entre o cliente e a API)                            | sim         |
-   | `RESEND_API_KEY`, `MAIL_FROM`                            | e-mail do resumo e da recuperação de senha (veja Notificações)                  | opcional    |
-   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | push (gere com `pnpm --filter @lifexp/api push:keys`)                           | opcional    |
-   | `SWAGGER_ENABLED`                                        | só `true` se você quiser a documentação pública (padrão em produção: desligada) | opcional    |
+1. Crie a conta e um **projeto** (região mais perto do Render, por exemplo `us-east`/`Ohio` se o Render estiver em Ohio; **a mesma região dos dois reduz a latência**).
+2. Em **Connect**, desligue _Connection pooling_ e copie a string **direta** (o host **sem** `-pooler`). Ela termina com `?sslmode=require`.
+   Use a URL direta porque o `prisma migrate deploy` usa trava de sessão, que o pooler (PgBouncer) não garante.
+3. Guarde a string: ela é o `DATABASE_URL` do passo 2.
 
-   Não defina `PORT` (a Railway define). As migrations rodam **sozinhas** a cada subida (`prisma migrate deploy`, com trava de banco: várias instâncias
-   subindo juntas é seguro). **Settings > Networking > Generate Domain** dá o endereço `https://<nome>.up.railway.app`.
+## 2. Render (API)
 
-### 2. Vercel (front)
+1. **New > Blueprint**, escolha o repositório `claudiondev/lifexp`. O Render lê o `render.yaml`.
+2. Ele pede os valores marcados como `sync: false`. Preencha:
+
+   | Variável                                                 | Valor                                                                            | Obrigatória |
+   | -------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------- |
+   | `DATABASE_URL`                                           | a string **direta** do Neon                                                      | sim         |
+   | `APP_URL`                                                | o endereço **https** do front na Vercel (a API **não sobe** com http)            | sim         |
+   | `RESEND_API_KEY`, `MAIL_FROM`                            | e-mail do resumo e da recuperação de senha                                       | opcional    |
+   | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | push (gere com `pnpm --filter @lifexp/api push:keys`; as duas chaves ou nenhuma) | opcional    |
+
+   Já vêm no `render.yaml`: `NODE_ENV=production`, `COOKIE_SECURE=true`, `TRUST_PROXY=2` (Vercel e Render entre o cliente e a API) e `JWT_ACCESS_SECRET`
+   (gerado pelo Render; trocar derruba as sessões). Não defina `PORT`. Para ligar o Swagger em produção, crie `SWAGGER_ENABLED=true` (padrão: desligado).
+
+3. **Apply.** As migrations rodam **sozinhas** a cada subida (`prisma migrate deploy`, com trava de banco). Anote o endereço `https://lifexp-api.onrender.com`
+   (o nome pode variar se já estiver em uso).
+
+Se o `APP_URL` ainda não existir (a Vercel vem depois), coloque um https provisório e corrija no passo 4.
+
+## 3. Vercel (front)
 
 1. **Add New Project** com o mesmo repositório; **Root Directory** = `apps/web` (deixe ligado _Include source files outside of the Root Directory_).
-2. Antes do deploy, edite `apps/web/vercel.json` e troque `SEU-APP.up.railway.app` pelo endereço da API na Railway (o destino do rewrite de `/api/*`); faça
-   o commit.
-3. Deploy. Depois volte à Railway e coloque o endereço final da Vercel em `APP_URL` (a API reinicia sozinha).
+2. Antes do deploy, edite `apps/web/vercel.json` e troque `SEU-APP.onrender.com` pelo endereço da API no Render (o destino do rewrite de `/api/*`);
+   faça o commit e o push.
+3. Deploy. Anote o endereço final da Vercel.
 
-### 3. Conferir
+## 4. Fechar o circuito
+
+1. No Render, ajuste `APP_URL` para o endereço final da Vercel (a API reinicia sozinha).
+2. **Mantenha a API acordada.** No [UptimeRobot](https://uptimerobot.com) (plano gratuito), crie um monitor HTTP em
+   `https://lifexp-api.onrender.com/api/health` a cada **5 minutos**. Sem isso, a API dorme e o agendador de avisos para.
+3. Confira:
 
 ```bash
 pnpm --filter @lifexp/api smoke:prod https://seu-front.vercel.app
@@ -47,15 +60,16 @@ pnpm --filter @lifexp/api smoke:prod https://seu-front.vercel.app
 Ele confere saúde, prontidão, Swagger desligado, cabeçalhos de segurança, cookie `Secure`/`HttpOnly` e o fluxo cadastro > sessão > exclusão **passando pela Vercel**.
 Depois, no celular: instale o app (Compartilhar > Adicionar à Tela de Início), ative **Configurações > Avisos no celular** e use **Enviar teste**.
 
-### Operação
+## Operação
 
-- **Logs:** em JSON no painel da Railway; `GET /api/health/jobs` mostra se a varredura de avisos e o snapshot das quests estão rodando (`degraded` = 3 falhas seguidas).
+- **Primeira requisição lenta:** se o monitor falhar ou o Render reiniciar, a API leva cerca de um minuto para acordar. Normal no plano gratuito.
+- **Consumo do Neon:** no painel, acompanhe as horas de computação do mês. Se o agendador estourar o teto gratuito, troque só o `DATABASE_URL` por outro
+  Postgres (Supabase, ou o do próprio Render por 30 dias): o código é o mesmo.
+- **Logs:** em JSON no painel do Render; `GET /api/health/jobs` mostra se a varredura de avisos e o snapshot das quests estão rodando (`degraded` = 3 falhas seguidas).
 - **Atualizar:** cada push em `main` redeploya as duas partes. Migrations só avançam: para desfazer uma, escreva uma nova migration (o redeploy da versão anterior
   da API **não** desfaz o banco; mantenha as migrations compatíveis com a versão anterior por um deploy).
-- **Backup:** confira na Railway o que o seu plano inclui; de qualquer forma, `pg_dump` periódico a partir do `DATABASE_URL` é o seguro. A exportação de dados
+- **Backup:** o Neon free guarda só um histórico curto; de qualquer forma, `pg_dump` periódico a partir do `DATABASE_URL` é o seguro. A exportação de dados
   da conta (Configurações) é por pessoa, não é backup.
-- **Custos:** Vercel e Railway têm planos gratuitos ou de entrada com limites, e os preços mudam: confira nos sites antes de criar a conta. O Resend também tem
-  plano gratuito (veja Notificações).
 - **Domínio próprio:** fica para depois. Quando houver, aponte-o à Vercel e atualize `APP_URL`; a API continua só pelo rewrite.
-- **Ainda não feito (decisões suas):** Content-Security-Policy no front (precisa de teste em navegador real para não quebrar fontes e estilos), monitoramento
-  externo de uptime e alertas.
+- **Ainda não feito (decisões suas):** Content-Security-Policy no front (precisa de teste em navegador real para não quebrar fontes e estilos) e alertas além do
+  monitor de uptime.

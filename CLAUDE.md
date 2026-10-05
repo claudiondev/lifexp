@@ -16,7 +16,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   template oficial usa Vitest.) TypeScript 5.9.
 - Datas: **Luxon**. Timestamps em UTC; datas civis
   (`occurrenceDate`, `weekStart`, `deadline`) como `DATE`.
-- CI: GitHub Actions (lint, test, build). Deploy (preparado, ainda não publicado): Vercel com rewrite `/api` → Railway
+- CI: GitHub Actions (lint, test, build). Deploy (preparado, ainda não publicado): Vercel com rewrite `/api` → Render (API) + Neon (Postgres)
   (mesma origem, cookie `SameSite=Strict`).
 
 ## Arquitetura (backend)
@@ -351,13 +351,13 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 
 ## Deploy (decisões)
 
-- Front estático na Vercel (`apps/web/vercel.json`: rewrite `/api/*` > Railway ANTES do fallback `/index.html`; `sw.js` e `push-sw.js` sem cache) e API em
-  Docker na Railway (`Dockerfile` na raiz: estágios base/build/runtime, `pnpm deploy --prod`, `prisma` em `dependencies` porque o `CMD` roda
+- Front estático na Vercel (`apps/web/vercel.json`: rewrite `/api/*` > Render ANTES do fallback `/index.html`; `sw.js` e `push-sw.js` sem cache) e API em
+  Docker no Render (`render.yaml`; banco no Neon, URL direta, sem pooler) (`Dockerfile` na raiz: estágios base/build/runtime, `pnpm deploy --prod`, `prisma` em `dependencies` porque o `CMD` roda
   `prisma migrate deploy`). O `.dockerignore` deixa o front fora da imagem. O contexto de build é a RAIZ; o `package.json` de `apps/web` precisa estar na
   imagem só para o `pnpm` validar o lockfile.
-- Produção só sobe configurada: o `superRefine` do env exige `COOKIE_SECURE=true` e `APP_URL` https. `TRUST_PROXY` é o NÚMERO de proxies (Vercel -> Railway = 2): o
+- Produção só sobe configurada: o `superRefine` do env exige `COOKIE_SECURE=true` e `APP_URL` https. `TRUST_PROXY` é o NÚMERO de proxies (Vercel -> Render = 2): o
   Express usa o IP de N saltos atrás, então o limite por IP não se burla escrevendo X-Forwarded-For. Swagger desligado por padrão em produção.
-- `/api/health` = vivo; `/api/health/ready` = o banco responde (503 senão; é o healthcheck da imagem e da Railway); `/api/health/jobs` = estado dos jobs.
+- `/api/health` = vivo; `/api/health/ready` = o banco responde (503 senão; é o healthcheck da imagem e do Render); `/api/health/jobs` = estado dos jobs.
 - Verificação sem Docker (esta máquina não tem acesso ao socket): `pnpm deploy --prod` + `migrate deploy` num banco vazio + `NODE_ENV=production node dist/main.js` +
   `pnpm --filter @lifexp/api smoke:prod`. O job `docker` do CI é o primeiro build real da imagem.
 - Teste que muda variável de ambiente precisa recarregar os módulos (`vi.resetModules()` + import dinâmico dos helpers): o `ConfigModule` lê o ambiente na

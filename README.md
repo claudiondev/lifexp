@@ -28,7 +28,7 @@ O **LifeXP** é um planejador semanal multiusuário com cara de jogo. Cada pesso
 
 Os princípios do produto valem na interface inteira: **recompensar sem punir**, **descanso conta como progresso** e **sem ranking** entre pessoas.
 
-> **Fase atual:** todas as funcionalidades planejadas (marcos 0 a 4) estão implementadas e testadas. O deploy (Vercel + Railway) está preparado e documentado em [`DEPLOY.md`](DEPLOY.md); falta publicar. 🚀
+> **Fase atual:** todas as funcionalidades planejadas (marcos 0 a 4) estão implementadas e testadas. O deploy (Vercel + Render + Neon) está preparado e documentado em [`DEPLOY.md`](DEPLOY.md); falta publicar. 🚀
 
 Também é um projeto de **aprendizado de TypeScript** (vindo de Java/Spring Boot): as decisões não óbvias estão explicadas e comparadas com o Spring em [`ARQUITETURA.md`](ARQUITETURA.md).
 
@@ -92,7 +92,7 @@ LifeXP/
 │       └── src/features/<x>    Telas, hooks e componentes por funcionalidade
 ├── packages/
 │   └── shared/                 📦 Schemas Zod, tipos e regras puras usados por api e web
-├── Dockerfile                  🐳 Imagem da API (Railway)
+├── Dockerfile                  🐳 Imagem da API (Render)
 ├── docker-compose.yml          🐘 PostgreSQL para desenvolvimento
 └── .github/workflows/ci.yml    ⚙️ Audit, lint, testes, build e imagem Docker
 ```
@@ -120,7 +120,7 @@ Resposta JSON 2xx / 4xx
 - **Bloco é template**, nunca ocorrência salva: a semana é calculada na leitura (`computeWeekOccurrences`).
 - **XP é um ledger imutável** (trigger do banco bloqueia `UPDATE`); totais são caches derivados, com teste de invariante.
 - **Regras puras em `domain/`** com cobertura mínima de 80%, sem dependência de framework.
-- **Mesma origem em produção** (Vercel reescreve `/api/*` para a Railway): cookie `SameSite=Strict` e PWA sem CORS.
+- **Mesma origem em produção** (Vercel reescreve `/api/*` para o Render): cookie `SameSite=Strict` e PWA sem CORS.
 - **Defesa em profundidade:** as regras da aplicação também viram `CHECK` no banco.
 
 ---
@@ -258,9 +258,9 @@ pnpm --filter @lifexp/api exec prisma migrate deploy              # aplica as ex
 
 ---
 
-## ☁️ Deploy (Vercel + Railway)
+## ☁️ Deploy (Vercel + Render + Neon)
 
-O **front** (estático) vai para a **Vercel** e a **API + PostgreSQL** para a **Railway**; a Vercel reescreve `/api/*` para a API, então o navegador vê uma única origem. O passo a passo, as variáveis de ambiente e a conferência final (`smoke:prod`) estão em [`DEPLOY.md`](DEPLOY.md).
+O **front** (estático) vai para a **Vercel** e a **API** para o **Render** e o **PostgreSQL** para o **Neon**; a Vercel reescreve `/api/*` para a API, então o navegador vê uma única origem. O passo a passo, as variáveis de ambiente e a conferência final (`smoke:prod`) estão em [`DEPLOY.md`](DEPLOY.md).
 
 ---
 
@@ -316,7 +316,7 @@ O **front** (estático) vai para a **Vercel** e a **API + PostgreSQL** para a **
 
 ### 🔜 Próximos passos
 
-- ⏳ Publicar na Vercel + Railway
+- ⏳ Publicar na Vercel + Render + Neon
 - ⏳ Conferir PWA, instalação e push em navegador e celular reais
 - ⏳ Content-Security-Policy no front e monitoramento de uptime
 - 💡 Extras opcionais (RF13, RF56), só se o uso justificar

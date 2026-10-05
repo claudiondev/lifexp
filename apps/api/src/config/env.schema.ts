@@ -15,10 +15,10 @@ export const envSchema = z
     ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
     REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(7),
     AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
-    // Atrás de proxy (Vercel/Railway) o IP real vem em X-Forwarded-For; sem isso o rate limit vê só o proxy.
+    // Atrás de proxy (Vercel/Render) o IP real vem em X-Forwarded-For; sem isso o rate limit vê só o proxy.
     // É o NÚMERO de proxies confiáveis entre a internet e a API (0 = nenhum): o Express pega o IP de quem veio
     // `N` saltos antes, então um cliente que escreva o próprio X-Forwarded-For não consegue se passar por outro IP.
-    // "true" vale 1 (compatível com a configuração antiga); "false" vale 0. Vercel -> Railway são 2.
+    // "true" vale 1 (compatível com a configuração antiga); "false" vale 0. Vercel -> Render (ou Railway) são 2.
     TRUST_PROXY: z
       .string()
       .regex(/^(true|false|[0-5])$/, 'use false, true ou o número de proxies (0 a 5)')
