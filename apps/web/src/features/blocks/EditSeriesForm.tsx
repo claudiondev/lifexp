@@ -20,6 +20,7 @@ import { useGoalList } from '../goals/useGoals';
 import { useAreas } from '../areas/useAreas';
 import { useServerError } from '../auth/useAuthForm';
 import { DURATION_OPTIONS, WEEKDAY_OPTIONS } from './blockOptions';
+import { NoteField } from './NoteField';
 import { useBlockMutations } from './useBlockMutations';
 
 interface FormValues {
@@ -30,6 +31,8 @@ interface FormValues {
   date: CivilDate;
   startTime: string;
   durationMin: number;
+  /** Anotação; vazio = sem anotação. */
+  note: string;
 }
 
 interface EditSeriesFormProps {
@@ -62,6 +65,7 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
     date: occurrence.occurrenceDate,
     startTime: occurrence.startTime,
     durationMin: occurrence.durationMin,
+    note: occurrence.note ?? '',
   };
 
   const {
@@ -69,7 +73,7 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
     handleSubmit,
     watch,
     setError,
-    formState: { isSubmitting },
+    formState: { errors, isSubmitting },
   } = useForm<FormValues>({ defaultValues: initial });
 
   const values = watch();
@@ -85,6 +89,8 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
   if (!weekly && values.date !== initial.date) changes.date = values.date;
   if (values.startTime !== initial.startTime) changes.startTime = values.startTime;
   if (duration !== initial.durationMin) changes.durationMin = duration;
+  // Comparação sem espaços das pontas (a API também apara); vazio apaga a anotação.
+  if (values.note.trim() !== initial.note.trim()) changes.note = values.note.trim() || null;
   const hasChanges = Object.keys(changes).length > 0;
 
   // Atividades ativas por área; a atual entra mesmo que tenha sido arquivada depois.
@@ -110,7 +116,10 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
       const payload = { from: occurrence.occurrenceDate, ...changes };
       const parsed = updateBlockSchema.safeParse(payload);
       if (!parsed.success) {
-        setError('startTime', { message: parsed.error.issues[0]?.message ?? 'Dados inválidos' });
+        const issue = parsed.error.issues[0];
+        setError(issue?.path[0] === 'note' ? 'note' : 'startTime', {
+          message: issue?.message ?? 'Dados inválidos',
+        });
         return;
       }
       await edit.mutateAsync({ blockId: occurrence.blockId, input: parsed.data });
@@ -187,6 +196,13 @@ export function EditSeriesForm({ occurrence, activityName, onBack, onDone }: Edi
           </Select>
         </div>
       </div>
+
+      <NoteField
+        id="series-note"
+        value={values.note}
+        error={errors.note?.message}
+        {...register('note')}
+      />
 
       {crossesMidnight && (
         <p role="status" className="text-sm text-destructive">

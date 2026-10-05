@@ -39,6 +39,7 @@ function makeItem(blockId: string, overrides: Partial<TodayItem> = {}): TodayIte
     activityId: ACT_RUN,
     areaId: AREA,
     goalId: null,
+    note: null,
     recurrence: 'weekly',
     skipped: false,
     modified: false,

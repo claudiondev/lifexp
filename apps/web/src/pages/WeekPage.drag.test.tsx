@@ -30,6 +30,7 @@ const occurrence = (overrides: Partial<Occurrence> = {}): Occurrence => ({
   activityId: ACTIVITY_ID,
   areaId: AREA_ID,
   goalId: null,
+  note: null,
   recurrence: 'weekly',
   skipped: false,
   modified: false,

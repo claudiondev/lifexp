@@ -6,6 +6,7 @@ import { AreaBadge } from '../areas/AreaBadge';
 import { AREA_COLOR_CLASSES } from '../areas/areaAppearance';
 import { formatDuration } from '../blocks/blockOptions';
 import { timeRange } from '../blocks/OccurrenceCard';
+import { OccurrenceNote } from '../blocks/OccurrenceNote';
 import { STATUS_LABEL } from './todayModel';
 
 export interface TodayItemView {
@@ -76,6 +77,7 @@ export function TodayItemCard({
               {areaName} · {timeRange(item.startTime, item.durationMin)} ·{' '}
               {formatDuration(item.durationMin)}
             </p>
+            <OccurrenceNote note={item.note} clamp={2} className="mt-1 text-sm" />
             <p className="mt-0.5 font-hud text-[0.7rem] tracking-wider text-muted-foreground uppercase">
               {STATUS_LABEL[status]}
             </p>

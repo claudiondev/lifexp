@@ -7,6 +7,7 @@ import { AREA_COLOR_CLASSES, AREA_ICON_COMPONENTS } from '../areas/areaAppearanc
 import { EventChip } from '../events/EventChip';
 import { formatDuration } from './blockOptions';
 import { timeRange, type OccurrenceDisplay } from './OccurrenceCard';
+import { OccurrenceNote } from './OccurrenceNote';
 
 interface DayViewProps {
   weekStart: CivilDate;
@@ -195,6 +196,7 @@ function AgendaCard({
           {range} · {formatDuration(occurrence.durationMin)}
         </span>
         <span className="block text-xs text-muted-foreground">{areaName}</span>
+        <OccurrenceNote note={occurrence.note} clamp={2} className="mt-1 text-sm" />
       </span>
       {completion && (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-xp/40 bg-xp/10 px-2 py-0.5 font-hud text-xs font-medium text-xp tabular-nums">

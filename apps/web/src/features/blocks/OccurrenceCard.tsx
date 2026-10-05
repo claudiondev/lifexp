@@ -2,6 +2,7 @@ import { minutesToTime, timeToMinutes, type Completion, type Occurrence } from '
 import { Check } from 'lucide-react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { cn } from '@/lib/utils';
+import { OccurrenceNote } from './OccurrenceNote';
 import { AREA_COLOR_CLASSES, AREA_ICON_COMPONENTS } from '../areas/areaAppearance';
 import type { AreaColor, AreaIcon } from '@lifexp/shared';
 
@@ -49,7 +50,7 @@ export function OccurrenceCard({
     <button
       type="button"
       aria-label={label}
-      title={label}
+      title={occurrence.note ? `${label}. ${occurrence.note}` : label}
       style={style}
       onClick={() => onSelect(display)}
       onPointerDown={onDragStart}
@@ -90,6 +91,10 @@ export function OccurrenceCard({
         <p className="mt-0.5 font-hud text-[0.7rem] font-medium text-xp tabular-nums">
           +{completion.xpAmount} XP
         </p>
+      )}
+      {/* Só cabe em cartões altos (a partir de 1h30): nos baixos a anotação fica no painel e no tooltip. */}
+      {!compact && !occurrence.skipped && occurrence.durationMin >= 90 && (
+        <OccurrenceNote note={occurrence.note} clamp={1} className="mt-0.5 text-[0.7rem]" />
       )}
       {!compact && occurrence.skipped && (
         <p className="mt-0.5 text-[0.7rem] font-medium text-muted-foreground">Pulado</p>

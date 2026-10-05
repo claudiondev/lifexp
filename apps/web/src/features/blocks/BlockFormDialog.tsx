@@ -28,6 +28,7 @@ import { useGoalList } from '../goals/useGoals';
 import { useServerError } from '../auth/useAuthForm';
 import { useAreas } from '../areas/useAreas';
 import { DURATION_OPTIONS, WEEKDAY_OPTIONS } from './blockOptions';
+import { NoteField } from './NoteField';
 import {
   DEFAULT_SERIES_WEEKS,
   WEEKDAY_PRESETS,
@@ -56,6 +57,8 @@ interface FormValues {
   date: CivilDate;
   startTime: string;
   durationMin: number;
+  /** Anotação livre; vazio = sem anotação. */
+  note: string;
 }
 
 interface BlockFormDialogProps {
@@ -92,8 +95,12 @@ function toOncePayload(values: FormValues) {
     date: values.date,
     startTime: values.startTime,
     durationMin: Number(values.durationMin),
+    ...notePayload(values.note),
   };
 }
+
+/** Só envia a anotação quando há texto: a API não precisa de campo vazio. */
+const notePayload = (note: string) => (note.trim() ? { note } : {});
 
 const FIELD_NAMES: readonly string[] = [
   'activityId',
@@ -103,6 +110,7 @@ const FIELD_NAMES: readonly string[] = [
   'date',
   'startTime',
   'durationMin',
+  'note',
 ];
 
 const WEEKDAY_SHORT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] as const;
@@ -150,6 +158,7 @@ function BlockForm({
       date: baseDate,
       startTime: '09:00',
       durationMin: 60,
+      note: '',
     },
   });
 
@@ -163,6 +172,7 @@ function BlockForm({
     date,
     startTime,
     durationMin,
+    note,
   ] = watch([
     'recurrence',
     'weekdays',
@@ -173,6 +183,7 @@ function BlockForm({
     'date',
     'startTime',
     'durationMin',
+    'note',
   ]);
 
   // Ao trocar os dias da semana, a data de início acompanha o primeiro deles na semana da tela
@@ -269,6 +280,7 @@ function BlockForm({
         durationMin: Number(values.durationMin),
         validFrom: values.validFrom,
         ...(ended.validUntil ? { validUntil: ended.validUntil } : {}),
+        ...notePayload(values.note),
       });
       if (!parsed.success) {
         showIssues(parsed.error.issues, values.endMode === 'weeks' ? 'endWeeks' : 'endDate');
@@ -517,6 +529,8 @@ function BlockForm({
           {errors.durationMin?.message ?? 'O bloco não pode atravessar a meia-noite.'}
         </p>
       )}
+
+      <NoteField id="block-note" value={note} error={errors.note?.message} {...register('note')} />
 
       <p
         data-testid="block-summary"

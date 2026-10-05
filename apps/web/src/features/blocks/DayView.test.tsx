@@ -23,6 +23,7 @@ const display = (
     activityId: ACTIVITY,
     areaId: AREA,
     goalId: null,
+    note: null,
     recurrence: 'weekly',
     skipped: false,
     modified: false,

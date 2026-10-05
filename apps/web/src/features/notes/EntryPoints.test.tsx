@@ -33,6 +33,7 @@ const OCCURRENCE: Occurrence = {
   activityId: '0192f1a0-7b3c-7000-8000-0000000000a1',
   areaId: '0192f1a0-7b3c-7000-8000-0000000000b1',
   goalId: null,
+  note: null,
   recurrence: 'once',
   skipped: false,
   modified: false,

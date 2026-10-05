@@ -23,6 +23,7 @@ import { WEEKDAY_OPTIONS, formatDuration } from './blockOptions';
 import { EditSeriesForm } from './EditSeriesForm';
 import type { OccurrenceDisplay } from './OccurrenceCard';
 import { timeRange } from './OccurrenceCard';
+import { OccurrenceNote } from './OccurrenceNote';
 import { OverrideForm } from './OverrideForm';
 import { useGoalList } from '../goals/useGoals';
 import { useCompletionMutations } from '../today/useCompletionMutations';
@@ -128,6 +129,18 @@ function OccurrencePanel({
           </p>
         )}
       </dl>
+
+      {occurrence.note && (
+        <section
+          aria-label="Anotação"
+          className="rounded-xl border border-border bg-background/50 p-4 text-sm"
+        >
+          <h3 className="mb-1 font-hud text-[0.65rem] tracking-[0.2em] text-muted-foreground uppercase">
+            Anotação
+          </h3>
+          <OccurrenceNote note={occurrence.note} className="text-foreground" />
+        </section>
+      )}
 
       {mode === 'details' && (
         <Actions display={display} weekly={weekly} onMode={setMode} onClose={onClose} />

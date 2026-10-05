@@ -154,8 +154,6 @@
 /* Animações ambientes do HUD (respeitam prefers-reduced-motion pela regra em @layer base). */
 @theme {
   --animate-rune-breathe: rune-breathe 2.6s ease-in-out infinite;
-  --animate-twinkle: twinkle 5s ease-in-out infinite;
-  --animate-node-glow: node-glow 6s ease-in-out infinite;
 
   @keyframes rune-breathe {
     0%,
@@ -164,24 +162,6 @@
     }
     50% {
       opacity: 1;
-    }
-  }
-  @keyframes twinkle {
-    0%,
-    100% {
-      opacity: 0.15;
-    }
-    50% {
-      opacity: 0.95;
-    }
-  }
-  @keyframes node-glow {
-    0%,
-    100% {
-      opacity: 0.1;
-    }
-    50% {
-      opacity: 0.3;
     }
   }
 }

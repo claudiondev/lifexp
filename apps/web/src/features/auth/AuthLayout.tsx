@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { CharacterCard } from '@/components/game/CharacterCard';
-import { SkyBackdrop } from '@/components/game/SkyBackdrop';
+import { HexBackdrop } from '@/components/game/HexBackdrop';
 import { Wordmark } from '@/components/game/Wordmark';
 
 // O ciclo central do produto (requisitos v2): aqui a numeração é verdadeira, é uma sequência.
@@ -26,7 +26,7 @@ export function AuthLayout({ title, subtitle, children, footer, characterName }:
 
   return (
     <div className="relative min-h-dvh overflow-hidden">
-      <SkyBackdrop />
+      <HexBackdrop />
       <div className="relative mx-auto grid min-h-dvh max-w-6xl content-center gap-6 px-5 py-6 lg:py-8 lg:grid-cols-[1fr_minmax(0,28rem)] lg:items-center lg:gap-20">
         <motion.aside {...enter(0)} className="flex flex-col gap-5 lg:gap-8">
           <Wordmark />
