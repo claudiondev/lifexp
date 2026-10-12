@@ -132,11 +132,14 @@ describe('Geração de notificações (e2e)', () => {
     it('não gera antes da hora, nem depois que o bloco começou', async () => {
       const { user, activity } = await setup();
       await weeklyBlock(user, activity.id);
+      const blockReminders = () =>
+        prisma.notification.count({ where: { userId: user.userId, kind: 'BLOCK' } });
 
-      expect(await scan(user, '2026-10-07T11:44:59.000Z')).toBe(0);
-      expect(await scan(user, '2026-10-07T12:00:30.000Z')).toBe(0);
-      expect(await scan(user, '2026-10-07T13:00:00.000Z')).toBe(0);
-      expect(await prisma.notification.count({ where: { userId: user.userId } })).toBe(0);
+      await scan(user, '2026-10-07T11:44:59.000Z');
+      await scan(user, '2026-10-07T12:00:30.000Z');
+      // 13:00Z é o FIM do bloco (09:00-10:00 locais): gera o check-in (RF41), nunca outro lembrete de início.
+      await scan(user, '2026-10-07T13:00:00.000Z');
+      expect(await blockReminders()).toBe(0);
     });
 
     it('recupera o lembrete de uma queda curta (varredura 5 min atrasada)', async () => {

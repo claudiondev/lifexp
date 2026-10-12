@@ -260,6 +260,9 @@ describe('Central de notificações e preferências (e2e)', () => {
         digestEmailEnabled: false,
         weeklyReportEnabled: true,
         pushEnabled: false,
+        checkinEnabled: true,
+        wrapupEnabled: true,
+        wrapupTime: '21:30',
       });
       expect(await prisma.notificationPreference.count({ where: { userId: user.userId } })).toBe(0);
     });
@@ -291,10 +294,27 @@ describe('Central de notificações e preferências (e2e)', () => {
       expect(await prisma.notificationPreference.count({ where: { userId: user.userId } })).toBe(1);
     });
 
+    it('check-in e fechamento da noite (RF41) também se alteram e persistem', async () => {
+      const user = await registerUser(app);
+
+      const res = await send('put', user, '/api/notification-preferences', {
+        checkinEnabled: false,
+        wrapupTime: '22:00',
+      });
+
+      expect(res.body).toMatchObject({
+        checkinEnabled: false,
+        wrapupTime: '22:00',
+        wrapupEnabled: true,
+      });
+      expect(await get(user)).toMatchObject({ checkinEnabled: false, wrapupTime: '22:00' });
+    });
+
     it.each([
       ['corpo vazio', {}],
       ['antecedência fora da lista', { blockLeadMin: 20 }],
       ['hora inválida', { digestTime: '25:00' }],
+      ['fechamento com hora inválida', { wrapupTime: '24:00' }],
       ['campo desconhecido', { userId: 'x' }],
       ['booleano inválido', { digestEnabled: 'sim' }],
     ])('rejeita %s com 400', async (_name, body) => {

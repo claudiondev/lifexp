@@ -445,6 +445,127 @@ describe('resumo do dia (RF37)', () => {
   });
 });
 
+describe('check-in no fim do bloco (RF41)', () => {
+  // bloco às 09:00-10:00 em São Paulo = 12:00Z-13:00Z; o aviso sai no fim, 13:00Z
+  it('avisa quando o bloco termina', () => {
+    const result = plan('2026-10-07T13:00:20.000Z', { occurrences: [occurrence()] });
+    expect(result).toEqual([
+      {
+        kind: 'CHECKIN',
+        dedupeKey: 'checkin:block-1:2026-10-07',
+        title: 'Corrida terminou',
+        body: 'Cumpriu?',
+        scheduledFor: at('2026-10-07T13:00:00.000Z'),
+        blockId: 'block-1',
+        occurrenceDate: '2026-10-07',
+      },
+    ]);
+  });
+
+  it('não avisa antes do fim nem muito depois (fora da janela de 60 min)', () => {
+    expect(plan('2026-10-07T12:59:00.000Z', { occurrences: [occurrence()] })).toEqual([]);
+    expect(plan('2026-10-07T14:01:00.000Z', { occurrences: [occurrence()] })).toEqual([]);
+  });
+
+  it('bloco pulado ou já concluído não avisa', () => {
+    expect(
+      plan('2026-10-07T13:00:20.000Z', { occurrences: [occurrence({ skipped: true })] }),
+    ).toEqual([]);
+    expect(
+      plan('2026-10-07T13:00:20.000Z', { occurrences: [occurrence({ completed: true })] }),
+    ).toEqual([]);
+  });
+
+  it('desligado nas preferências não gera nada', () => {
+    expect(
+      plan('2026-10-07T13:00:20.000Z', {
+        occurrences: [occurrence()],
+        prefs: { checkinEnabled: false },
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe('fechamento da noite (RF41)', () => {
+  // 21:30 em São Paulo = 00:30Z do dia seguinte (padrão)
+  it('avisa só o que já terminou e ainda não foi marcado', () => {
+    const result = plan('2026-10-08T00:30:20.000Z', {
+      occurrences: [
+        occurrence({ blockId: 'b1', activityName: 'Corrida' }),
+        occurrence({
+          blockId: 'b2',
+          activityName: 'Leitura',
+          startTime: '20:00',
+          durationMin: 30,
+          completed: true,
+        }),
+      ],
+    });
+    expect(result).toEqual([
+      {
+        kind: 'WRAPUP',
+        dedupeKey: 'wrapup:2026-10-07',
+        title: 'Falta marcar 1',
+        body: 'Corrida.',
+        scheduledFor: at('2026-10-08T00:30:00.000Z'),
+      },
+    ]);
+  });
+
+  it('tudo marcado, ou tudo pulado: nenhum aviso', () => {
+    expect(
+      plan('2026-10-08T00:30:20.000Z', { occurrences: [occurrence({ completed: true })] }),
+    ).toEqual([]);
+    expect(
+      plan('2026-10-08T00:30:20.000Z', { occurrences: [occurrence({ skipped: true })] }),
+    ).toEqual([]);
+  });
+
+  it('bloco que ainda não terminou na hora do fechamento não entra na lista', () => {
+    const late = occurrence({ startTime: '21:00', durationMin: 60 }); // termina às 22:00 local
+    expect(plan('2026-10-08T00:30:20.000Z', { occurrences: [late] })).toEqual([]);
+  });
+
+  it('junta os nomes: dois com "e", mais de três resume em "e mais N"', () => {
+    const names = ['Corrida', 'Leitura', 'Estudo', 'Yoga'];
+    const occurrences = names.map((activityName, index) =>
+      occurrence({ blockId: `b${index}`, activityName }),
+    );
+
+    expect(
+      plan('2026-10-08T00:30:20.000Z', { occurrences: occurrences.slice(0, 2) })[0],
+    ).toMatchObject({ title: 'Faltam marcar 2', body: 'Corrida e Leitura.' });
+    expect(plan('2026-10-08T00:30:20.000Z', { occurrences })[0]).toMatchObject({
+      title: 'Faltam marcar 4',
+      body: 'Corrida, Leitura e mais 2.',
+    });
+  });
+
+  it('só sai na hora configurada', () => {
+    const parts = { occurrences: [occurrence()] };
+    expect(plan('2026-10-08T00:29:59.000Z', parts)).toEqual([]);
+    expect(plan('2026-10-08T00:30:00.000Z', parts)).toHaveLength(1);
+  });
+
+  it('acompanha a hora escolhida pela pessoa', () => {
+    expect(
+      plan('2026-10-07T22:30:20.000Z', {
+        occurrences: [occurrence()],
+        prefs: { wrapupTime: '19:30' },
+      }),
+    ).toHaveLength(1);
+  });
+
+  it('desligado nas preferências não gera nada', () => {
+    expect(
+      plan('2026-10-08T00:30:20.000Z', {
+        occurrences: [occurrence()],
+        prefs: { wrapupEnabled: false },
+      }),
+    ).toEqual([]);
+  });
+});
+
 describe('planNotifications: juntando tudo', () => {
   it('lembrete e resumo na mesma janela saem juntos, em ordem', () => {
     const result = plan('2026-10-07T10:15:00.000Z', {

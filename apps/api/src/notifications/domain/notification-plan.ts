@@ -2,6 +2,7 @@ import {
   BLOCK_LEAD_OPTIONS,
   DEFAULT_BLOCK_LEAD_MIN,
   DEFAULT_DIGEST_TIME,
+  DEFAULT_WRAPUP_TIME,
   addDays,
   localDateTimeToUtc,
   todayIn,
@@ -29,6 +30,12 @@ export interface NotificationPreferences {
   weeklyReportEnabled: boolean;
   /** Push no celular (RF41). */
   pushEnabled: boolean;
+  /** "Terminou, cumpriu?" no fim de cada bloco, com botões de ação pelo próprio push. */
+  checkinEnabled: boolean;
+  /** Fechamento da noite: só chega se sobrou bloco de hoje sem marcar. */
+  wrapupEnabled: boolean;
+  /** Hora de relógio (no fuso da pessoa) em que o fechamento da noite sai. */
+  wrapupTime: string;
 }
 
 export const DEFAULT_PREFERENCES: NotificationPreferences = {
@@ -40,6 +47,9 @@ export const DEFAULT_PREFERENCES: NotificationPreferences = {
   digestEmailEnabled: false,
   weeklyReportEnabled: true,
   pushEnabled: false,
+  checkinEnabled: true,
+  wrapupEnabled: true,
+  wrapupTime: DEFAULT_WRAPUP_TIME,
 };
 
 /** Uma ocorrência de bloco já resolvida (exceções aplicadas), pronta para virar lembrete. */
@@ -64,7 +74,7 @@ export interface PlannedEvent {
   remindBeforeMin: number | null;
 }
 
-export type NotificationKind = 'BLOCK' | 'EVENT' | 'DIGEST' | 'REPORT';
+export type NotificationKind = 'BLOCK' | 'EVENT' | 'DIGEST' | 'REPORT' | 'CHECKIN' | 'WRAPUP';
 
 export interface NotificationCandidate {
   kind: NotificationKind;
@@ -216,6 +226,81 @@ function eventReminders(input: PlanInput, prefs: NotificationPreferences): Notif
   return result;
 }
 
+/** O instante em que a ocorrência termina (início + duração), no fuso da pessoa. */
+const occurrenceEnd = (
+  occurrence: Pick<PlannedOccurrence, 'date' | 'startTime' | 'durationMin'>,
+  timezone: string,
+): Date =>
+  new Date(
+    localDateTimeToUtc(occurrence.date, occurrence.startTime, timezone).getTime() +
+      occurrence.durationMin * 60_000,
+  );
+
+/** "Estudo", "Estudo e Leitura", "Estudo, Leitura e mais 2" (fechamento da noite). */
+function joinNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length <= 3) return `${names.slice(0, -1).join(', ')} e ${names.at(-1)}`;
+  return `${names.slice(0, 2).join(', ')} e mais ${names.length - 2}`;
+}
+
+/**
+ * "Terminou, cumpriu?" (RF41): um aviso por bloco não pulado nem concluído, no instante em que ele
+ * termina. Vem com botões de ação no push (quem envia cuida disso); aqui só decide QUANDO e sobre
+ * QUAL ocorrência.
+ */
+function checkinReminders(
+  input: PlanInput,
+  prefs: NotificationPreferences,
+): NotificationCandidate[] {
+  if (!prefs.checkinEnabled) return [];
+  const result: NotificationCandidate[] = [];
+  for (const occurrence of input.occurrences) {
+    if (occurrence.skipped || occurrence.completed) continue;
+    const end = occurrenceEnd(occurrence, input.timezone);
+    if (!inWindow(end, input.window)) continue;
+    result.push({
+      kind: 'CHECKIN',
+      dedupeKey: `checkin:${occurrence.blockId}:${occurrence.occurrenceDate}`,
+      title: `${occurrence.activityName} terminou`,
+      body: 'Cumpriu?',
+      scheduledFor: end,
+      blockId: occurrence.blockId,
+      occurrenceDate: occurrence.occurrenceDate,
+    });
+  }
+  return result;
+}
+
+/**
+ * Fechamento da noite: só avisa se sobrou bloco de hoje já terminado e ainda sem marcar (pulado não
+ * conta: a pessoa já decidiu). Rede de segurança do check-in, não duplica o que já foi marcado.
+ */
+function wrapUp(input: PlanInput, prefs: NotificationPreferences): NotificationCandidate[] {
+  if (!prefs.wrapupEnabled) return [];
+  const today = todayIn(input.timezone, input.window.to);
+  const at = localDateTimeToUtc(today, prefs.wrapupTime, input.timezone);
+  if (!inWindow(at, input.window)) return [];
+
+  const pending = input.occurrences.filter(
+    (occurrence) =>
+      occurrence.date === today &&
+      !occurrence.skipped &&
+      !occurrence.completed &&
+      occurrenceEnd(occurrence, input.timezone).getTime() <= at.getTime(),
+  );
+  if (pending.length === 0) return [];
+
+  return [
+    {
+      kind: 'WRAPUP',
+      dedupeKey: `wrapup:${today}`,
+      title: pending.length === 1 ? 'Falta marcar 1' : `Faltam marcar ${pending.length}`,
+      body: `${joinNames(pending.map((occurrence) => occurrence.activityName))}.`,
+      scheduledFor: at,
+    },
+  ];
+}
+
 function digest(input: PlanInput, prefs: NotificationPreferences): NotificationCandidate[] {
   if (!prefs.digestEnabled) return [];
   const today = todayIn(input.timezone, input.window.to);
@@ -255,8 +340,9 @@ export interface PlanInput {
 
 /**
  * Decide, sem tocar em banco nem relógio, quais notificações a janela da varredura deve gerar
- * (RF37): lembretes de bloco e de evento e o resumo do dia. Cada candidata traz uma chave lógica
- * única (RF55, RN25): quem grava usa essa chave para não duplicar se a varredura repetir.
+ * (RF37): lembretes de bloco e de evento, o resumo do dia, o "cumpriu?" de fim de bloco e o
+ * fechamento da noite. Cada candidata traz uma chave lógica única (RF55, RN25): quem grava usa essa
+ * chave para não duplicar se a varredura repetir.
  *
  * Tudo é calculado no fuso da pessoa (RN37). Blocos pulados ou concluídos não avisam; lembretes
  * de coisas que já começaram há mais de alguns minutos (API fora do ar) são descartados.
@@ -265,6 +351,8 @@ export function planNotifications(input: PlanInput): NotificationCandidate[] {
   return [
     ...blockReminders(input, input.prefs),
     ...eventReminders(input, input.prefs),
+    ...checkinReminders(input, input.prefs),
+    ...wrapUp(input, input.prefs),
     ...digest(input, input.prefs),
   ].sort(
     (a, b) =>
