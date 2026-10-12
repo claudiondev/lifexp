@@ -155,7 +155,7 @@ Todas as rotas ficam sob `/api` e exigem autenticação, exceto as de `/auth` e 
 | 🔍 Revisão      | `/reviews`                                    | Resumo da semana e reflexão                                                                          |
 | 📄 Relatório    | `/reports`                                    | Relatório semanal                                                                                    |
 | 🔔 Avisos       | `/notifications`, `/notification-preferences` | Lista, marcar como lido, preferências                                                                |
-| 📲 Push         | `/push`                                       | Inscrever e remover aparelho                                                                         |
+| 📲 Push         | `/push`, `/push-actions`                      | Inscrever/remover aparelho; "Cumpri"/"Pulei" pelo botão da notificação (pública, sem sessão)         |
 | 🩺 Saúde        | `/health`                                     | Vivo, pronto (`/ready`) e estado dos jobs (`/jobs`)                                                  |
 
 ---
@@ -319,6 +319,11 @@ O **front** (estático) vai para a **Vercel** e a **API** para o **Render** e o 
 ### ✅ Marco 5: Tarefas
 
 - ✅ Tarefas sem horário, Pendentes, checklist e XP com teto diário
+
+### ✅ Check-in pelo push
+
+- ✅ Aviso "cumpriu?" no fim de cada bloco, com botões "Cumpri"/"Pulei" que marcam sem abrir o app
+- ✅ Fechamento da noite: avisa só o que ainda ficou pendente
 
 ### ✅ Transversais
 

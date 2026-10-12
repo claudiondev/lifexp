@@ -372,6 +372,33 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Mutante de banco: ao remover uma CHECK para testar, apague as linhas que a violam ANTES de recriá-la (senão o roteiro quebra e deixa o banco de
   teste sem a restrição).
 
+## Check-in pelo push (decisões)
+
+- Motivação: a pessoa FAZ os blocos, só esquece de voltar ao app para marcar (e em alguns dias nem abre). Dois avisos novos de
+  `NotificationKind`, em migration própria (`CHECKIN`, `WRAPUP`; valor novo de enum sozinho, como de costume): `CHECKIN` no instante em que um
+  bloco não pulado nem concluído TERMINA (`checkinReminders`, mesma forma do lembrete de início, mas no fim); `WRAPUP` à noite (`wrapupTime`,
+  padrão 21:30), só se sobrou bloco de HOJE já terminado e ainda sem marcar (pulado não conta: a pessoa já decidiu). Preferências novas:
+  `checkinEnabled`, `wrapupEnabled`, `wrapupTime` (mesma CHECK de hora que `digestTime`), as três ligadas por padrão.
+- **Botões sem abrir o app:** o push do check-in leva `actions` (`PushPayload.actions`) e um `actionToken` de uso curto, gerado pelo
+  `PushNotifier` SÓ para `CHECKIN` (`actionTokenFor`, uma linha por notificação em `PushActionToken`, `@@unique([notificationId])`: reenviar o
+  mesmo aviso troca o token, não acumula). Como no `PasswordResetToken`: o banco guarda só o SHA-256; o valor em claro vai uma única vez no
+  payload, que já viaja cifrado de ponta a ponta pelo Web Push (RFC 8291) — não precisa de sessão nem de cookie no service worker.
+  - `createdAt` do token vem do `Clock` (não do banco): a CHECK de validade compara contra ele, e testes com relógio fictício divergiriam do
+    `now()` real do Postgres (lição igual à do `XpTransaction`).
+  - `expiresAt` = fim da janela de conclusão da ocorrência (`actionTokenExpiry`, mesma fórmula de `completion-window.ts`, repetida de propósito
+    para `notifications/` não depender de `gamification/` por um detalhe).
+- **`POST /push-actions`** (`@Public()`, `authThrottler`): recebe `{ token, action }` (`complete`|`skip`) e chama os MESMOS serviços do app
+  (`CompletionsService.complete`, `BlocksService.putException({type:'skip'})`), então XP, quest, conquistas, travas e janela de conclusão são
+  idênticos a concluir pelo app. Token alheio, vencido ou de um aviso que não é `CHECKIN` responde 404 (igual a inexistente, RS06); a defesa é
+  em DUAS camadas (tipo errado E origem incompatível), testada isolando cada uma. O corpo da resposta (`checkinResultText`, em
+  `domain/push-action-token.ts`) já traz o título/texto prontos para o service worker mostrar — nenhuma lógica de texto no `push-sw.js`.
+- Front: `push-sw.js` ganhou `runAction` (POST ao token, mostra a confirmação na MESMA etiqueta, ou um aviso de erro se faltar token, a
+  resposta não for OK ou a rede cair) e `notifyClients` (`postMessage({type:'lifexp-checkin'})` para as abas abertas). `PushActionSync`
+  (montado no `App`, não renderiza nada) ouve essa mensagem e invalida `completionAffectedKeys` — a MESMA lista que `useCompletionMutations`
+  usa depois de concluir/desfazer pelo app (exportada dali de propósito, para as duas nunca divergirem).
+- `NotificationPreferencesCard` ganhou os dois interruptores e a hora do fechamento, no mesmo molde do resumo do dia.
+- `PushActionToken` é credencial do aparelho/ação: fica em `EXCLUDED_FROM_EXPORT`, como o `PushSubscription`.
+
 ## Observabilidade (decisões)
 
 - `observability/`: `redact` (rede de segurança contra dado sensível em log e erro), `JsonLogger` (convenção do Nest: contexto = último parâmetro
@@ -456,7 +483,8 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** e **5a (tarefas sem horário e Pendentes)** feitos; próximos:
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** e **5a (tarefas sem horário e Pendentes)** feitos; **check-in pelo push** (avisos "cumpriu?" no
+  fim do bloco e fechamento da noite, com botões "Cumpri"/"Pulei" sem abrir o app) feito; próximos:
   **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy publicado** (Vercel + Render + Neon, em uso). Sobram os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
