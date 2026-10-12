@@ -42,6 +42,9 @@ function setup(patch?: (body: Record<string, unknown>) => Response) {
           digestEmailEnabled: false,
           weeklyReportEnabled: true,
           pushEnabled: false,
+          checkinEnabled: true,
+          wrapupEnabled: true,
+          wrapupTime: '21:30',
         });
       }
       if (url === '/api/users/me' && init?.method === 'PATCH') {

@@ -21,6 +21,9 @@ const DEFAULTS: NotificationPreferencesDto = {
   digestEmailEnabled: false,
   weeklyReportEnabled: true,
   pushEnabled: false,
+  checkinEnabled: true,
+  wrapupEnabled: true,
+  wrapupTime: '21:30',
 };
 
 function setup(
@@ -73,8 +76,39 @@ describe('NotificationPreferencesCard (RF40)', () => {
     expect(screen.getByRole('switch', { name: 'Resumo do dia' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Resumo por e-mail' })).not.toBeChecked();
     expect(screen.getByRole('switch', { name: 'Relatório da semana' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Terminou, cumpriu?' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Fechamento da noite' })).toBeChecked();
     expect(screen.getByLabelText('Quanto antes')).toHaveValue('15');
     expect(screen.getByLabelText('Hora do resumo')).toHaveValue('07:00');
+    expect(screen.getByLabelText('Hora do fechamento')).toHaveValue('21:30');
+  });
+
+  it('check-in e fechamento da noite salvam como os outros interruptores', async () => {
+    const { puts } = setup();
+
+    await userEvent.click(await sw('Terminou, cumpriu?'));
+    await waitFor(() => expect(puts).toEqual([{ checkinEnabled: false }]));
+
+    await userEvent.click(screen.getByRole('switch', { name: 'Fechamento da noite' }));
+    await waitFor(() => expect(puts.at(-1)).toEqual({ wrapupEnabled: false }));
+  });
+
+  it('salva a hora do fechamento ao sair do campo, e só se mudou', async () => {
+    const { puts } = setup();
+    const input = await screen.findByLabelText('Hora do fechamento');
+
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    expect(puts).toEqual([]);
+
+    fireEvent.change(input, { target: { value: '22:00' } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(puts).toEqual([{ wrapupTime: '22:00' }]));
+  });
+
+  it('com o fechamento da noite desligado, a hora fica desabilitada', async () => {
+    setup({ wrapupEnabled: false });
+    expect(await screen.findByLabelText('Hora do fechamento')).toBeDisabled();
   });
 
   it('cada interruptor salva na hora só o seu campo', async () => {

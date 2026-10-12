@@ -74,12 +74,21 @@ function PreferencesForm({
   onSave: (input: UpdateNotificationPreferencesInput) => void;
 }) {
   const [time, setTime] = useState(preferences.digestTime);
+  const [wrapupTime, setWrapupTime] = useState(preferences.wrapupTime);
+  const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
   const saveTime = () => {
-    if (/^([01]\d|2[0-3]):[0-5]\d$/.test(time) && time !== preferences.digestTime) {
+    if (validTime(time) && time !== preferences.digestTime) {
       onSave({ digestTime: time });
     } else {
       setTime(preferences.digestTime); // vazio ou inválido: volta ao valor salvo
+    }
+  };
+  const saveWrapupTime = () => {
+    if (validTime(wrapupTime) && wrapupTime !== preferences.wrapupTime) {
+      onSave({ wrapupTime });
+    } else {
+      setWrapupTime(preferences.wrapupTime);
     }
   };
 
@@ -111,6 +120,15 @@ function PreferencesForm({
       </Row>
 
       <Row
+        id="pref-checkin"
+        label="Terminou, cumpriu?"
+        hint='Um aviso no fim de cada bloco, com botões "Cumpri" e "Pulei" (marcam sem abrir o app).'
+        checked={preferences.checkinEnabled}
+        disabled={busy}
+        onChange={(value) => onSave({ checkinEnabled: value })}
+      />
+
+      <Row
         id="pref-events"
         label="Lembrar dos eventos"
         hint="Usa a antecedência escolhida em cada evento (1 dia antes, por padrão)."
@@ -136,6 +154,27 @@ function PreferencesForm({
             disabled={busy || !preferences.digestEnabled}
             onChange={(event) => setTime(event.target.value)}
             onBlur={saveTime}
+          />
+        </div>
+      </Row>
+
+      <Row
+        id="pref-wrapup"
+        label="Fechamento da noite"
+        hint="Um aviso à noite, só se sobrou bloco de hoje sem marcar."
+        checked={preferences.wrapupEnabled}
+        disabled={busy}
+        onChange={(value) => onSave({ wrapupEnabled: value })}
+      >
+        <div className="flex flex-col gap-1.5 sm:max-w-56">
+          <Label htmlFor="pref-wrapup-time">Hora do fechamento</Label>
+          <Input
+            id="pref-wrapup-time"
+            type="time"
+            value={wrapupTime}
+            disabled={busy || !preferences.wrapupEnabled}
+            onChange={(event) => setWrapupTime(event.target.value)}
+            onBlur={saveWrapupTime}
           />
         </div>
       </Row>

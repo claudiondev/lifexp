@@ -16,22 +16,27 @@ interface OccurrenceRef {
   occurrenceDate: CivilDate;
 }
 
+/**
+ * Tudo que concluir/desfazer muda: a lista de hoje, o XP/nível (HUD, ficha, áreas), o ✓ da Semana,
+ * a quest, o radar, as conquistas e as recompensas. Reaproveitado por `PushActionSync`: marcar pelo
+ * botão da notificação (RF41) precisa invalidar exatamente as mesmas chaves.
+ */
+export const completionAffectedKeys = [
+  todayKey,
+  progressKey,
+  blocksKey,
+  reviewsKey,
+  questKey,
+  balanceKey,
+  achievementsKey,
+  rewardsKey,
+];
+
 export function useCompletionMutations() {
   const queryClient = useQueryClient();
-  // Concluir/desfazer muda a lista de hoje, o XP/nível (HUD, ficha, áreas), o ✓ da Semana, a quest, o radar,
-  // as conquistas e as recompensas.
   const refresh = () =>
     Promise.all(
-      [
-        todayKey,
-        progressKey,
-        blocksKey,
-        reviewsKey,
-        questKey,
-        balanceKey,
-        achievementsKey,
-        rewardsKey,
-      ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+      completionAffectedKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
     );
 
   return {

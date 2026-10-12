@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './features/auth/AuthProvider';
+import { PushActionSync } from './features/push/PushActionSync';
 import { UpdatePrompt } from './features/pwa/UpdatePrompt';
 import { createQueryClient } from './lib/queryClient';
 import { AppRoutes } from './router';
@@ -17,6 +18,7 @@ export function App() {
         </AuthProvider>
       </BrowserRouter>
       <UpdatePrompt />
+      <PushActionSync />
       {/* Cores vêm dos tokens, então o aviso acompanha o tema claro/escuro. */}
       <Toaster
         position="bottom-right"

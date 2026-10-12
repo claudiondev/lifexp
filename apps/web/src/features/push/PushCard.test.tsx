@@ -30,6 +30,9 @@ const prefs = (pushEnabled: boolean) => ({
   digestEmailEnabled: false,
   weeklyReportEnabled: true,
   pushEnabled,
+  checkinEnabled: true,
+  wrapupEnabled: true,
+  wrapupTime: '21:30',
 });
 
 const json = (status: number, body: unknown = {}) =>
