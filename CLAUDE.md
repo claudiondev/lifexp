@@ -16,7 +16,7 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
   template oficial usa Vitest.) TypeScript 5.9.
 - Datas: **Luxon**. Timestamps em UTC; datas civis
   (`occurrenceDate`, `weekStart`, `deadline`) como `DATE`.
-- CI: GitHub Actions (lint, test, build). Deploy (preparado, ainda não publicado): Vercel com rewrite `/api` → Render (API) + Neon (Postgres)
+- CI: GitHub Actions (lint, test, build). Deploy (**publicado e em uso**): Vercel com rewrite `/api` → Render (API) + Neon (Postgres)
   (mesma origem, cookie `SameSite=Strict`).
 
 ## Arquitetura (backend)
@@ -457,7 +457,7 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
   recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** e **5a (tarefas sem horário e Pendentes)** feitos; próximos:
-  **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy preparado** (Dockerfile, Vercel, guia no README). Sobram só o que depende de contas e decisões do usuário (publicar), os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
+  **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy publicado** (Vercel + Render + Neon, em uso). Sobram os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
