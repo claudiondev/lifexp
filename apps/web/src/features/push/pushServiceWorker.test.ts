@@ -43,12 +43,13 @@ function pushEvent(body: string | null) {
   };
 }
 
-function clickEvent(data: unknown) {
+function clickEvent(data: unknown, options: { action?: string; tag?: string } = {}) {
   const waits: Promise<unknown>[] = [];
   const closed = vi.fn();
   return {
     event: {
-      notification: { close: closed, data },
+      action: options.action,
+      notification: { close: closed, data, tag: options.tag },
       waitUntil: (promise: Promise<unknown>) => waits.push(promise),
     },
     closed,
@@ -93,6 +94,31 @@ describe('push-sw.js', () => {
           tag: 'digest:1',
         },
       });
+    });
+
+    it('check-in com token leva os botões e o token (RF41); sem token, nenhum dos dois', async () => {
+      const [withButtons] = await receive(
+        JSON.stringify({
+          title: 'Corrida terminou',
+          body: 'Cumpriu?',
+          tag: 'checkin:1',
+          actionToken: 'token-abc',
+          actions: [
+            { action: 'complete', title: '✓ Cumpri' },
+            { action: 'skip', title: 'Pulei' },
+          ],
+        }),
+      );
+      expect(withButtons!.options['data']).toEqual({ url: '/hoje', token: 'token-abc' });
+      expect(withButtons!.options['actions']).toEqual([
+        { action: 'complete', title: '✓ Cumpri' },
+        { action: 'skip', title: 'Pulei' },
+      ]);
+
+      worker.shown.length = 0;
+      const [noButtons] = await receive(JSON.stringify({ title: 'Seu dia', tag: 'digest:1' }));
+      expect(noButtons!.options['data']).toEqual({ url: '/hoje' });
+      expect('actions' in noButtons!.options).toBe(false);
     });
 
     it('sem título usa "LifeXP"; sem corpo, texto vazio; sem etiqueta, nenhuma', async () => {
@@ -165,6 +191,103 @@ describe('push-sw.js', () => {
       await click({ url: 'https://evil.com' });
       await click({ url: '//evil.com' });
       expect(worker.opened).toEqual(['/hoje', '/hoje', '/hoje']);
+    });
+  });
+
+  describe('notificationclick: botões "Cumpri"/"Pulei" (RF41)', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const click = async (action: string, data: unknown, tag = 'checkin:1') => {
+      const { event, closed, done } = clickEvent(data, { action, tag });
+      worker.listeners.get('notificationclick')!(event);
+      await done();
+      return closed;
+    };
+
+    it('manda o token e a ação para a API, e mostra a confirmação que ela devolver', async () => {
+      const fetchMock = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ title: '✓ Corrida', body: '+30 XP' }),
+      }));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const closed = await click('complete', { token: 'token-abc', url: '/hoje' });
+
+      expect(closed).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith('/api/push-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: 'token-abc', action: 'complete' }),
+      });
+      expect(worker.shown.at(-1)).toEqual({
+        title: '✓ Corrida',
+        options: {
+          body: '+30 XP',
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          tag: 'checkin:1',
+          data: { url: '/hoje' },
+        },
+      });
+    });
+
+    it('manda "skip" quando o botão é "Pulei"', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({ ok: true, json: async () => ({ title: 'Pulado', body: 'Corrida' }) })),
+      );
+
+      await click('skip', { token: 'token-abc' });
+
+      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+        '/api/push-actions',
+        expect.objectContaining({ body: JSON.stringify({ token: 'token-abc', action: 'skip' }) }),
+      );
+    });
+
+    it('avisa as abas abertas depois de marcar (para atualizar Hoje, XP, quest...)', async () => {
+      const postMessage = vi.fn();
+      worker.clientsList.push({ focus: vi.fn(), navigate: vi.fn(), postMessage } as never);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({ ok: true, json: async () => ({ title: 't', body: 'b' }) })),
+      );
+
+      await click('complete', { token: 'token-abc' });
+
+      expect(postMessage).toHaveBeenCalledWith({ type: 'lifexp-checkin' });
+    });
+
+    it('sem token (dado corrompido), falha sem chamar a API', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+
+      await click('complete', { url: '/hoje' }); // sem "token"
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(worker.shown.at(-1)).toMatchObject({ title: 'Não consegui marcar' });
+    });
+
+    it('resposta não-OK ou falha de rede: mostra erro, e o toque abre Hoje', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({ ok: false })),
+      );
+      await click('complete', { token: 'token-abc' });
+      expect(worker.shown.at(-1)).toMatchObject({
+        title: 'Não consegui marcar',
+        options: { data: { url: '/hoje' } },
+      });
+
+      worker.shown.length = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          throw new Error('offline');
+        }),
+      );
+      await click('complete', { token: 'token-abc' });
+      expect(worker.shown.at(-1)).toMatchObject({ title: 'Não consegui marcar' });
     });
   });
 });
