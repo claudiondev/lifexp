@@ -6,9 +6,22 @@ import { civilDateSchema, timeOfDaySchema } from './primitives.js';
 export const BLOCK_LEAD_OPTIONS = [5, 10, 15, 30, 60] as const;
 export const DEFAULT_BLOCK_LEAD_MIN = 15;
 export const DEFAULT_DIGEST_TIME = '07:00';
+/** Hora padrão do fechamento da noite: depois do jantar, antes de dormir. */
+export const DEFAULT_WRAPUP_TIME = '21:30';
 
-export const NOTIFICATION_KINDS = ['block', 'event', 'digest', 'report'] as const;
+export const NOTIFICATION_KINDS = [
+  'block',
+  'event',
+  'digest',
+  'report',
+  'checkin',
+  'wrapup',
+] as const;
 export const notificationKindSchema = z.enum(NOTIFICATION_KINDS);
+
+/** Ações do botão da notificação de check-in (RF41): "Cumpri" ou "Pulei", sem abrir o app. */
+export const PUSH_ACTIONS = ['complete', 'skip'] as const;
+export const pushActionSchema = z.enum(PUSH_ACTIONS);
 
 const blockLeadSchema = z.union([
   z.literal(5),
@@ -70,6 +83,11 @@ export const notificationPreferencesSchema = z.object({
   weeklyReportEnabled: z.boolean(),
   /** Receber os avisos também como push no celular (RF41); precisa de um aparelho inscrito. */
   pushEnabled: z.boolean(),
+  /** "Terminou, cumpriu?" no fim de cada bloco, com botões de ação pelo próprio push. */
+  checkinEnabled: z.boolean(),
+  /** Fechamento da noite: só chega se sobrou bloco de hoje sem marcar. */
+  wrapupEnabled: z.boolean(),
+  wrapupTime: timeOfDaySchema,
 });
 
 // strictObject: campos desconhecidos viram erro 400 (RS07).
@@ -83,9 +101,24 @@ export const updateNotificationPreferencesSchema = z
     digestEmailEnabled: z.boolean(),
     weeklyReportEnabled: z.boolean(),
     pushEnabled: z.boolean(),
+    checkinEnabled: z.boolean(),
+    wrapupEnabled: z.boolean(),
+    wrapupTime: timeOfDaySchema,
   })
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para alterar');
+
+/** O que o botão da notificação de check-in manda (RF41): o token de uso único e a ação escolhida. */
+export const pushActionRequestSchema = z.strictObject({
+  token: z.string().min(1),
+  action: pushActionSchema,
+});
+
+/** O que o servidor devolve para o service worker mostrar no lugar do aviso original. */
+export const pushActionResultSchema = z.object({
+  title: z.string(),
+  body: z.string(),
+});
 
 export type NotificationKindApi = z.infer<typeof notificationKindSchema>;
 export type AppNotification = z.infer<typeof notificationSchema>;
@@ -94,3 +127,6 @@ export type NotificationPreferencesDto = z.infer<typeof notificationPreferencesS
 export type UpdateNotificationPreferencesInput = z.infer<
   typeof updateNotificationPreferencesSchema
 >;
+export type PushActionInput = z.infer<typeof pushActionSchema>;
+export type PushActionRequest = z.infer<typeof pushActionRequestSchema>;
+export type PushActionResult = z.infer<typeof pushActionResultSchema>;

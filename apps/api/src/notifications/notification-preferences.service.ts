@@ -25,6 +25,9 @@ export class NotificationPreferencesService {
       digestEmailEnabled: row.digestEmailEnabled,
       weeklyReportEnabled: row.weeklyReportEnabled,
       pushEnabled: row.pushEnabled,
+      checkinEnabled: row.checkinEnabled,
+      wrapupEnabled: row.wrapupEnabled,
+      wrapupTime: row.wrapupTime,
     };
   }
 
