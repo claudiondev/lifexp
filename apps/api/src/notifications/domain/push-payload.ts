@@ -20,18 +20,30 @@ export function pushUrl(kind: NotificationKind, occurrenceDate: CivilDate | null
   return '/hoje';
 }
 
-export function toPushPayload(notification: {
-  kind: NotificationKind;
-  title: string;
-  body: string;
-  dedupeKey: string;
-  occurrenceDate: CivilDate | null;
-}): PushPayload {
+/** Os dois botões do aviso de check-in (RF41): o rótulo é só o que aparece no botão do sistema. */
+const CHECKIN_ACTIONS: NonNullable<PushPayload['actions']> = [
+  { action: 'complete', title: '✓ Cumpri' },
+  { action: 'skip', title: 'Pulei' },
+];
+
+export function toPushPayload(
+  notification: {
+    kind: NotificationKind;
+    title: string;
+    body: string;
+    dedupeKey: string;
+    occurrenceDate: CivilDate | null;
+  },
+  // Só o check-in leva botões, e só quando quem envia conseguiu gerar o token de ação (RF41).
+  actionToken?: string,
+): PushPayload {
   return {
     title: cut(notification.title, MAX_PUSH_TITLE),
     body: cut(notification.body, MAX_PUSH_BODY),
     url: pushUrl(notification.kind, notification.occurrenceDate),
     // A mesma etiqueta substitui o aviso anterior: se o push for reenviado, não empilha.
     tag: notification.dedupeKey,
+    ...(notification.kind === 'CHECKIN' &&
+      actionToken && { actions: CHECKIN_ACTIONS, actionToken }),
   };
 }

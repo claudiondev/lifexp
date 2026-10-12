@@ -6,6 +6,10 @@ export interface PushPayload {
   url: string;
   /** Avisos com a mesma etiqueta se substituem em vez de empilhar. */
   tag: string;
+  /** Botões do aviso de check-in (RF41): "Cumpri" e "Pulei", sem abrir o app. */
+  actions?: { action: 'complete' | 'skip'; title: string }[];
+  /** Token de uso único que o botão manda a `POST /push-actions`; viaja cifrado pelo próprio Web Push. */
+  actionToken?: string;
 }
 
 /** O aparelho inscrito: o endereço do serviço de push do navegador e as chaves que criptografam a mensagem. */

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { vi } from 'vitest';
 import request from 'supertest';
+import { hashActionToken } from '../src/notifications/domain/push-action-token.js';
 import { NotificationGenerator } from '../src/notifications/notification-generator.service.js';
 import { NotificationsScheduler } from '../src/notifications/notifications.scheduler.js';
 import {
@@ -291,6 +292,79 @@ describe('Push dos avisos (e2e, RF41)', () => {
 
     expect(summary.failed).toBe(0);
     expect(sentTo(endpoints)).toHaveLength(1);
+  });
+
+  describe('check-in no fim do bloco (RF41)', () => {
+    // bloco das 08:00 às 09:00 locais = 11:00Z-12:00Z; o aviso de check-in sai no fim, 12:00Z.
+    const checkinOf = async (user: TestUser) => {
+      await generator.scanUser(user.userId, new Date('2026-10-07T12:00:20.000Z'));
+      return prisma.notification.findFirstOrThrow({
+        where: { userId: user.userId, kind: 'CHECKIN' },
+      });
+    };
+    // Completar pela rota pública usa o Clock injetado (não o `at` passado a `send`): avança-o para
+    // dentro da janela do bloco e devolve ao padrão do arquivo, para não afetar os testes seguintes.
+    afterEach(() => clock.set(DIGEST_Z));
+
+    it('o push leva os botões "Cumpri"/"Pulei" e um token de ação próprio', async () => {
+      const { user, endpoints } = await setup();
+      const checkin = await checkinOf(user);
+
+      await send('2026-10-07T12:00:30.000Z');
+
+      const [entry] = sentTo(endpoints);
+      expect(entry!.payload).toMatchObject({
+        title: checkin.title,
+        body: 'Cumpriu?',
+        url: '/hoje',
+        tag: checkin.dedupeKey,
+        actions: [
+          { action: 'complete', title: '✓ Cumpri' },
+          { action: 'skip', title: 'Pulei' },
+        ],
+      });
+      expect(typeof entry!.payload.actionToken).toBe('string');
+
+      const stored = await prisma.pushActionToken.findUniqueOrThrow({
+        where: { notificationId: checkin.id },
+      });
+      expect(stored.tokenHash).toBe(hashActionToken(entry!.payload.actionToken!));
+    });
+
+    it('o token do push funciona de ponta a ponta na rota pública de ações', async () => {
+      const { user, endpoints } = await setup();
+      const checkin = await checkinOf(user);
+      await send('2026-10-07T12:00:30.000Z');
+      const [entry] = sentTo(endpoints);
+      const activityName = checkin.title.replace(' terminou', '');
+      clock.set('2026-10-07T12:00:30.000Z'); // 09:00 locais: o bloco das 08:00 já terminou
+
+      const res = await request(server())
+        .post('/api/push-actions')
+        .send({ token: entry!.payload.actionToken, action: 'complete' });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ title: `✓ ${activityName}`, body: '+60 XP' });
+    });
+
+    it('reenviar o mesmo aviso (nova tentativa) troca o token anterior pelo novo', async () => {
+      const { user, endpoints } = await setup();
+      const checkin = await checkinOf(user);
+      const hashOf = async () =>
+        (await prisma.pushActionToken.findUniqueOrThrow({ where: { notificationId: checkin.id } }))
+          .tokenHash;
+
+      sender.defaultOutcome = 'failed'; // força uma 2ª tentativa no minuto seguinte
+      await send('2026-10-07T12:00:30.000Z');
+      const firstHash = await hashOf();
+
+      sender.defaultOutcome = 'sent';
+      await send('2026-10-07T12:01:30.000Z');
+      const [entry] = sentTo(endpoints);
+
+      expect(await hashOf()).not.toBe(firstHash);
+      expect(await hashOf()).toBe(hashActionToken(entry!.payload.actionToken!));
+    });
   });
 
   it(

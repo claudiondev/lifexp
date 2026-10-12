@@ -35,6 +35,7 @@ export const EXCLUDED_FROM_EXPORT = {
   PasswordResetToken: 'credenciais: guarda o hash do token de recuperação',
   PushSubscription:
     'credenciais do aparelho: guarda as chaves de criptografia e o endereço do push',
+  PushActionToken: 'credenciais de ação: guarda o hash do token de "Cumpri"/"Pulei" pelo push',
 } as const;
 
 /** Colunas `DATE` (data civil, sem fuso): saem como "AAAA-MM-DD", não como instante UTC. */

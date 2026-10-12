@@ -64,6 +64,7 @@ describe('modelos exportados', () => {
   it('as credenciais nunca são exportadas (inclusive as chaves de push do aparelho)', () => {
     expect(Object.keys(EXCLUDED_FROM_EXPORT).sort()).toEqual([
       'PasswordResetToken',
+      'PushActionToken',
       'PushSubscription',
       'Session',
     ]);

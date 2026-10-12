@@ -7,6 +7,8 @@ describe('pushUrl', () => {
     expect(pushUrl('EVENT', null)).toBe('/calendario');
     expect(pushUrl('DIGEST', null)).toBe('/hoje');
     expect(pushUrl('REPORT', null)).toBe('/revisao');
+    expect(pushUrl('CHECKIN', '2026-10-14')).toBe('/hoje');
+    expect(pushUrl('WRAPUP', null)).toBe('/hoje');
   });
 
   it('bloco sem data (dado incompleto) cai em Hoje, nunca num link quebrado', () => {
@@ -64,5 +66,26 @@ describe('toPushPayload', () => {
     });
     expect(payload.title).toBe('T'.repeat(MAX_PUSH_TITLE));
     expect(payload.body).toBe('b'.repeat(MAX_PUSH_BODY));
+  });
+
+  it('sem token de ação, mesmo um check-in não leva botões', () => {
+    const payload = toPushPayload({ ...base, kind: 'CHECKIN' });
+    expect(payload.actions).toBeUndefined();
+    expect(payload.actionToken).toBeUndefined();
+  });
+
+  it('check-in com token leva os botões "Cumpri" e "Pulei"', () => {
+    const payload = toPushPayload({ ...base, kind: 'CHECKIN' }, 'token-123');
+    expect(payload.actionToken).toBe('token-123');
+    expect(payload.actions).toEqual([
+      { action: 'complete', title: '✓ Cumpri' },
+      { action: 'skip', title: 'Pulei' },
+    ]);
+  });
+
+  it('outro tipo com token (não deveria acontecer) ainda assim não leva botões', () => {
+    const payload = toPushPayload({ ...base, kind: 'DIGEST' }, 'token-123');
+    expect(payload.actions).toBeUndefined();
+    expect(payload.actionToken).toBeUndefined();
   });
 });

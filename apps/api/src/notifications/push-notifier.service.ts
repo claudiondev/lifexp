@@ -1,7 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { CivilDate } from '@lifexp/shared';
 import { toCivil } from '../blocks/blocks.mapper.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PUSH_SENDER, type PushSender } from '../push/push-sender.js';
+import {
+  actionTokenExpiry,
+  generateActionToken,
+  hashActionToken,
+} from './domain/push-action-token.js';
 import { toPushPayload } from './domain/push-payload.js';
 
 /** Tentativas por aviso: uma falha do serviço de push é repetida no minuto seguinte, até este limite. */
@@ -49,7 +55,7 @@ export class PushNotifier {
           pushSubscriptions: { some: {} },
         },
       },
-      include: { user: { select: { pushSubscriptions: true } } },
+      include: { user: { select: { pushSubscriptions: true, timezone: true } } },
       orderBy: { id: 'asc' },
       take: BATCH,
     });
@@ -62,13 +68,28 @@ export class PushNotifier {
       // A conta pode ter sido excluída entre a leitura e agora (RS15): não há mais para quem avisar.
       if (claimed.count === 0) continue;
 
-      const payload = toPushPayload({
-        kind: notification.kind,
-        title: notification.title,
-        body: notification.body,
-        dedupeKey: notification.dedupeKey,
-        occurrenceDate: notification.occurrenceDate ? toCivil(notification.occurrenceDate) : null,
-      });
+      const occurrenceDate = notification.occurrenceDate
+        ? toCivil(notification.occurrenceDate)
+        : null;
+      const actionToken =
+        notification.kind === 'CHECKIN' && occurrenceDate
+          ? await this.actionTokenFor(
+              notification.id,
+              occurrenceDate,
+              notification.user.timezone,
+              now,
+            )
+          : undefined;
+      const payload = toPushPayload(
+        {
+          kind: notification.kind,
+          title: notification.title,
+          body: notification.body,
+          dedupeKey: notification.dedupeKey,
+          occurrenceDate,
+        },
+        actionToken,
+      );
       let delivered = false;
       const gone: string[] = [];
       for (const subscription of notification.user.pushSubscriptions) {
@@ -103,5 +124,29 @@ export class PushNotifier {
       }
     }
     return summary;
+  }
+
+  /**
+   * Gera (ou renova) o token de ação do check-in (RF41): o valor em claro só existe aqui, pouco
+   * antes de ir para o payload; no banco fica só o hash. Reenviar o mesmo aviso troca o token
+   * anterior por um novo, com a mesma expiração recalculada.
+   */
+  private async actionTokenFor(
+    notificationId: string,
+    occurrenceDate: CivilDate,
+    timezone: string,
+    now: Date,
+  ): Promise<string> {
+    const token = generateActionToken();
+    const tokenHash = hashActionToken(token);
+    const expiresAt = actionTokenExpiry(occurrenceDate, timezone);
+    // createdAt vem do Clock, não do banco (como no XpTransaction): a CHECK de validade compara
+    // contra este instante, e o relógio de teste não bate com o "agora" real do Postgres.
+    await this.prisma.pushActionToken.upsert({
+      where: { notificationId },
+      create: { notificationId, tokenHash, expiresAt, createdAt: now },
+      update: { tokenHash, expiresAt, createdAt: now },
+    });
+    return token;
   }
 }
