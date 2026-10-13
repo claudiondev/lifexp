@@ -235,6 +235,19 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
     ).body;
     await send('post', user, `/api/tasks/${task.id}/items`, { title: 'Pegar o código de barras' });
     await send('post', user, `/api/tasks/${task.id}/complete`);
+    // lazer cadastrado e uma sessão de cronômetro
+    const leisureOption = await prisma.leisureOption.create({
+      data: { userId: user.userId, name: 'Instagram', icon: 'smartphone' },
+    });
+    await prisma.leisureSession.create({
+      data: {
+        userId: user.userId,
+        optionId: leisureOption.id,
+        startedAt: clock.now(),
+        limitMin: 30,
+        stoppedAt: new Date(clock.now().getTime() + 10 * 60_000),
+      },
+    });
     return { user, areaId, goal, once, weekly };
   };
 
@@ -303,6 +316,8 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         questItems: await prisma.questItem.count({ where: { quest: { userId: user.userId } } }),
         tasks: await prisma.task.count({ where: { userId: user.userId } }),
         taskItems: await prisma.taskItem.count({ where: { task: { userId: user.userId } } }),
+        leisureOptions: await prisma.leisureOption.count({ where: { userId: user.userId } }),
+        leisureSessions: await prisma.leisureSession.count({ where: { userId: user.userId } }),
       };
       for (const [key, count] of Object.entries(expected)) {
         expect([key, data[key]!.length]).toEqual([key, count]);
@@ -342,6 +357,8 @@ describe('Conta: exportar e excluir os próprios dados (e2e, RF06, RS15)', () =>
         xpAwarded: 40,
       });
       expect(data.taskItems![0]).toMatchObject({ title: 'Pegar o código de barras' });
+      expect(data.leisureOptions![0]).toMatchObject({ name: 'Instagram', icon: 'smartphone' });
+      expect(data.leisureSessions![0]).toMatchObject({ limitMin: 30 });
       expect(data.calendarEvents![0]).toMatchObject({
         title: 'Consulta',
         date: '2026-10-20',

@@ -51,6 +51,10 @@ const READERS: Record<ExportedModel, Reader> = {
   // Sem userId próprio: pertence à pessoa pela tarefa.
   TaskItem: (tx, userId) =>
     tx.taskItem.findMany({ where: { task: { userId } }, orderBy: { id: 'asc' } }),
+  LeisureOption: (tx, userId) =>
+    tx.leisureOption.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
+  LeisureSession: (tx, userId) =>
+    tx.leisureSession.findMany({ where: { userId }, orderBy: { id: 'asc' } }),
 };
 
 export interface ExportResult {

@@ -25,6 +25,8 @@ export const EXPORT_KEYS = {
   Reward: 'rewards',
   Task: 'tasks',
   TaskItem: 'taskItems',
+  LeisureOption: 'leisureOptions',
+  LeisureSession: 'leisureSessions',
 } as const;
 
 export type ExportedModel = keyof typeof EXPORT_KEYS;
