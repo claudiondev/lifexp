@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { queryBooleanSchema } from './query.js';
 import { weekStartSchema } from './primitives.js';
 
 /**
@@ -52,6 +53,8 @@ export const updateLeisureOptionSchema = z
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'Informe ao menos um campo para alterar');
 
+export const listLeisureOptionsQuerySchema = z.object({ includeArchived: queryBooleanSchema });
+
 export const startLeisureSessionSchema = z.strictObject({ optionId: z.uuid() });
 
 const nonNegativeInt = z.number().int().min(0);
@@ -97,6 +100,7 @@ export const leisureSummarySchema = z.object({
 export type LeisureOption = z.infer<typeof leisureOptionSchema>;
 export type CreateLeisureOptionInput = z.infer<typeof createLeisureOptionSchema>;
 export type UpdateLeisureOptionInput = z.infer<typeof updateLeisureOptionSchema>;
+export type ListLeisureOptionsQuery = z.infer<typeof listLeisureOptionsQuerySchema>;
 export type StartLeisureSessionInput = z.infer<typeof startLeisureSessionSchema>;
 export type LeisureSession = z.infer<typeof leisureSessionSchema>;
 export type LeisureByActivity = z.infer<typeof leisureByActivitySchema>;
