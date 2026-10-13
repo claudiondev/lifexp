@@ -44,17 +44,13 @@ export class WebPushSender implements PushSender {
       return 'sent';
     } catch (error) {
       const status = (error as { statusCode?: number }).statusCode;
-      const body = (error as { body?: unknown }).body;
-      // DIAGNÓSTICO TEMPORÁRIO (remover depois): loga tudo, inclusive 404/410, para achar a causa real.
-      this.logger.warn(
-        `[DIAG] push a ${maskEndpoint(target.endpoint)} status=${status ?? 'sem resposta'} body=${
-          typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body)
-        } nome=${error instanceof Error ? error.name : 'erro desconhecido'} msg=${
-          error instanceof Error ? error.message.slice(0, 300) : ''
-        }`,
-      );
       // 404 e 410: o navegador cancelou a inscrição (o app foi desinstalado, a permissão revogada).
       if (status === 404 || status === 410) return 'gone';
+      this.logger.warn(
+        `Falha ao enviar push a ${maskEndpoint(target.endpoint)} (${status ?? 'sem resposta'}): ${
+          error instanceof Error ? error.name : 'erro desconhecido'
+        }`,
+      );
       return 'failed';
     }
   }
