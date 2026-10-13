@@ -5,6 +5,7 @@ import { blocksKey } from '../blocks/useWeek';
 import { completeOccurrence, undoCompletion } from './todayApi';
 import { achievementsKey } from '../achievements/useAchievements';
 import { balanceKey } from '../balance/useBalance';
+import { leisureKey } from '../leisure/useLeisure';
 import { questKey } from '../quest/useQuest';
 import { reviewsKey } from '../reviews/useReviews';
 import { rewardsKey } from '../rewards/useRewards';
@@ -30,6 +31,7 @@ export const completionAffectedKeys = [
   balanceKey,
   achievementsKey,
   rewardsKey,
+  leisureKey,
 ];
 
 export function useCompletionMutations() {

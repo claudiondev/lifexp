@@ -14,6 +14,8 @@ import { EventChip } from '@/features/events/EventChip';
 import { EventDialog } from '@/features/events/EventDialog';
 import { EventFormDialog } from '@/features/events/EventFormDialog';
 import { useEvents } from '@/features/events/useEvents';
+import { LeisureCard } from '@/features/leisure/LeisureCard';
+import { formatLeisure } from '@/features/leisure/leisureFormat';
 import { QuestCard } from '@/features/quest/QuestCard';
 import { TasksSection } from '@/features/tasks/TasksSection';
 import { hasQuest } from '@/features/quest/questModel';
@@ -116,6 +118,9 @@ export function TodayPage() {
       toast.success(`+${result.xpAwarded} XP`, { description: `“${name}” concluído.` });
       if (result.questBonusXp > 0) {
         toast.success(`Quest da semana cumprida! +${result.questBonusXp} XP de bônus`);
+      }
+      if (result.leisureEarnedMin > 0) {
+        toast.success(`+${formatLeisure(result.leisureEarnedMin)} de tempo de lazer`);
       }
       announceUnlocks(result);
       if (result.levelAfter > result.levelBefore) setLevelUp(result.levelAfter);
@@ -318,6 +323,8 @@ export function TodayPage() {
               <QuestCard quest={quest.data} />
             </div>
           )}
+
+          <LeisureCard />
         </aside>
       </div>
 

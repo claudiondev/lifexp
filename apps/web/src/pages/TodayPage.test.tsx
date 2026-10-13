@@ -397,6 +397,55 @@ describe('TodayPage', () => {
     expect(await screen.findByTestId('hud')).toHaveTextContent('190 XP');
   });
 
+  describe('tempo de lazer', () => {
+    const completedWith = (leisureEarnedMin?: number) => () =>
+      json(200, {
+        completion: {
+          blockId: BLOCK_1,
+          occurrenceDate: '2026-10-07',
+          completedAt: '2026-10-07T13:00:00.000Z',
+          xpAmount: 90,
+        },
+        alreadyCompleted: false,
+        xpAwarded: 90,
+        ...(leisureEarnedMin !== undefined && { leisureEarnedMin }),
+        levelBefore: 2,
+        levelAfter: 2,
+        total: level(190, 2),
+        area: { areaId: AREA, ...level(190, 2) },
+      });
+
+    it('concluir um bloco que rende lazer avisa do tempo ganho e refaz o saldo', async () => {
+      const { calls } = setup({
+        items: [makeItem(BLOCK_1)],
+        completeResponse: completedWith(90),
+      });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Concluir/ }),
+      );
+
+      await waitFor(() => expect(toast.success).toHaveBeenCalledWith('+1h30 de tempo de lazer'));
+      await waitFor(() => {
+        const gets = calls.filter((c) => c.method === 'GET' && c.url === '/api/leisure');
+        expect(gets.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    it('bloco que não rende lazer não mostra aviso de lazer', async () => {
+      setup({ items: [makeItem(BLOCK_1)], completeResponse: completedWith() });
+      await userEvent.click(
+        within(await card('Corrida')).getByRole('button', { name: /Concluir/ }),
+      );
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('+90 XP', {
+          description: '“Corrida” concluído.',
+        }),
+      );
+      expect(toast.success).not.toHaveBeenCalledWith(expect.stringContaining('lazer'));
+    });
+  });
+
   describe('conquistas e recompensas', () => {
     it('concluir um bloco que desbloqueia conquista e recompensa avisa dos dois', async () => {
       setup({
