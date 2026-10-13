@@ -338,6 +338,7 @@ enum NotificationKind {
   REPORT // relatório semanal pronto
   CHECKIN // "cumpriu?" no fim do bloco, com botões de ação pelo push
   WRAPUP // fechamento da noite: o que ainda ficou pendente hoje
+  LEISURE_END // o tempo de lazer do cronômetro acabou
 }
 
 // Central de avisos (RF37, RF38). Uma linha por aviso gerado pela varredura.

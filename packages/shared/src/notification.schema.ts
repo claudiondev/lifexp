@@ -16,6 +16,7 @@ export const NOTIFICATION_KINDS = [
   'report',
   'checkin',
   'wrapup',
+  'leisure_end',
 ] as const;
 export const notificationKindSchema = z.enum(NOTIFICATION_KINDS);
 

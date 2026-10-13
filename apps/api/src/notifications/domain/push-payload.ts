@@ -17,6 +17,7 @@ export function pushUrl(kind: NotificationKind, occurrenceDate: CivilDate | null
   if (kind === 'BLOCK' && occurrenceDate) return `/semana?inicio=${occurrenceDate}`;
   if (kind === 'EVENT') return '/calendario';
   if (kind === 'REPORT') return '/revisao';
+  if (kind === 'LEISURE_END') return '/lazer';
   return '/hoje';
 }
 

@@ -7,6 +7,7 @@ import {
   daysAheadText,
   inWindow,
   leadText,
+  minutesText,
   planNotifications,
   planWeeklyReport,
   reportNotificationText,
@@ -719,5 +720,60 @@ describe('reportNotificationText', () => {
     expect(
       reportNotificationText(report({ planned: 0, completed: 0, skipped: 5, adherence: null })),
     ).toBeNull();
+  });
+});
+
+describe('fim do tempo de lazer', () => {
+  const session = {
+    id: 'session-1',
+    optionName: 'Instagram',
+    startedAt: at('2026-10-07T15:00:00Z'),
+    limitMin: 30,
+  };
+  // O limite chega às 15:30Z.
+  const kinds = (now: string, parts: PlanParts = {}) =>
+    plan(now, { leisureSessions: [session], ...parts }).filter((c) => c.kind === 'LEISURE_END');
+
+  it('avisa quando o limite chega e a pessoa não parou', () => {
+    const [notice] = kinds('2026-10-07T15:30:00Z');
+    expect(notice).toMatchObject({
+      kind: 'LEISURE_END',
+      dedupeKey: 'leisure:session-1',
+      title: 'Seu tempo de lazer acabou',
+      scheduledFor: at('2026-10-07T15:30:00Z'),
+    });
+    expect(notice!.body).toContain('Instagram');
+    expect(notice!.body).toContain('30 min');
+  });
+
+  it('não avisa antes do limite (parar antes nunca dispara o aviso)', () => {
+    expect(kinds('2026-10-07T15:29:59Z')).toHaveLength(0);
+  });
+
+  it('tolera alguns minutos de atraso da varredura, mas não um aviso velho', () => {
+    expect(kinds(`2026-10-07T15:${30 + STALE_GRACE_MIN}:00Z`)).toHaveLength(1);
+    expect(kinds(`2026-10-07T15:${30 + STALE_GRACE_MIN + 1}:00Z`)).toHaveLength(0);
+  });
+
+  it('a chave identifica a sessão, então repetir a varredura não duplica', () => {
+    const first = kinds('2026-10-07T15:30:00Z')[0]!;
+    const later = kinds('2026-10-07T15:33:00Z')[0]!;
+    expect(later.dedupeKey).toBe(first.dedupeKey);
+  });
+
+  it('sem sessões não gera nada', () => {
+    expect(plan('2026-10-07T15:30:00Z').filter((c) => c.kind === 'LEISURE_END')).toHaveLength(0);
+  });
+});
+
+describe('minutesText', () => {
+  it.each([
+    [5, '5 min'],
+    [45, '45 min'],
+    [60, '1h'],
+    [90, '1h30'],
+    [125, '2h05'],
+  ])('%i min vira "%s"', (minutes, text) => {
+    expect(minutesText(minutes)).toBe(text);
   });
 });

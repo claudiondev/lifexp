@@ -67,6 +67,25 @@ describe('Restrições do banco para notificações e preferências (defesa em p
       }
     });
 
+    it('o aviso de fim do tempo de lazer não aponta para bloco nem evento (como o resumo)', async () => {
+      const ctx = await setup();
+      await expect(
+        notification(ctx, { kind: 'LEISURE_END', dedupeKey: 'leisure:s1' }),
+      ).resolves.toBeDefined();
+      for (const origin of [
+        { blockId: 'b', occurrenceDate: utc('2026-10-07') },
+        { eventId: 'e' },
+      ]) {
+        await expect(
+          notification(ctx, {
+            kind: 'LEISURE_END',
+            dedupeKey: `leisure:${JSON.stringify(origin)}`,
+            ...origin,
+          }),
+        ).rejects.toThrow(/Notification_origin_check/);
+      }
+    });
+
     it('as tentativas de push ficam entre 0 e 5, como as de e-mail', async () => {
       const ctx = await setup();
       for (const pushAttempts of [-1, 6]) {

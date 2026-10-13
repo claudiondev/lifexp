@@ -9,6 +9,7 @@ import {
   reportNotificationText,
   scanWindow,
   type NotificationCandidate,
+  type OpenLeisureSession,
   type PlannedEvent,
   type PlannedOccurrence,
 } from './domain/notification-plan.js';
@@ -76,12 +77,15 @@ export class NotificationGenerator {
     const occurrences = await this.occurrences(userId, first, addDays(last, 1));
     const events = await this.events(userId, first, addDays(last, 2));
 
+    const leisureSessions = await this.leisureSessions(userId, window.from);
+
     const candidates = planNotifications({
       window,
       timezone: user.timezone,
       prefs,
       occurrences,
       events,
+      leisureSessions,
     });
     const report = await this.reportCandidate(userId, window, user.timezone, prefs);
     const all = report ? [...candidates, report] : candidates;
@@ -167,6 +171,24 @@ export class NotificationGenerator {
       activityName: nameById.get(occurrence.activityId) ?? 'Bloco',
       skipped: occurrence.skipped,
       completed: completed.has(`${occurrence.blockId}|${occurrence.occurrenceDate}`),
+    }));
+  }
+
+  /** Sessões de lazer não paradas que podem acabar na janela (o limite máximo de uma sessão é uma semana). */
+  private async leisureSessions(userId: string, since: Date): Promise<OpenLeisureSession[]> {
+    const rows = await this.prisma.leisureSession.findMany({
+      where: {
+        userId,
+        stoppedAt: null,
+        startedAt: { gte: new Date(since.getTime() - 7 * 24 * 60 * 60 * 1000) },
+      },
+      select: { id: true, startedAt: true, limitMin: true, option: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      optionName: row.option.name,
+      startedAt: row.startedAt,
+      limitMin: row.limitMin,
     }));
   }
 

@@ -14,6 +14,7 @@ const KIND_TO_API = {
   REPORT: 'report',
   CHECKIN: 'checkin',
   WRAPUP: 'wrapup',
+  LEISURE_END: 'leisure_end',
 } as const;
 
 export function toNotificationResponse(row: NotificationEntity): AppNotification {

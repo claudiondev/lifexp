@@ -9,6 +9,7 @@ describe('pushUrl', () => {
     expect(pushUrl('REPORT', null)).toBe('/revisao');
     expect(pushUrl('CHECKIN', '2026-10-14')).toBe('/hoje');
     expect(pushUrl('WRAPUP', null)).toBe('/hoje');
+    expect(pushUrl('LEISURE_END', null)).toBe('/lazer');
   });
 
   it('bloco sem data (dado incompleto) cai em Hoje, nunca num link quebrado', () => {

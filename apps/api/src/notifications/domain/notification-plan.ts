@@ -74,7 +74,16 @@ export interface PlannedEvent {
   remindBeforeMin: number | null;
 }
 
-export type NotificationKind = 'BLOCK' | 'EVENT' | 'DIGEST' | 'REPORT' | 'CHECKIN' | 'WRAPUP';
+export type NotificationKind =
+  'BLOCK' | 'EVENT' | 'DIGEST' | 'REPORT' | 'CHECKIN' | 'WRAPUP' | 'LEISURE_END';
+
+/** Uma sessão do cronômetro de lazer que ainda não foi parada pela pessoa (o fim dela é `startedAt + limitMin`). */
+export interface OpenLeisureSession {
+  id: string;
+  optionName: string;
+  startedAt: Date;
+  limitMin: number;
+}
 
 export interface NotificationCandidate {
   kind: NotificationKind;
@@ -330,12 +339,42 @@ function digest(input: PlanInput, prefs: NotificationPreferences): NotificationC
   ];
 }
 
+/** "45 min", "1h", "1h30": minutos em texto curto. */
+export function minutesText(totalMin: number): string {
+  const hours = Math.floor(totalMin / 60);
+  const minutes = totalMin % 60;
+  if (hours === 0) return `${minutes} min`;
+  return minutes === 0 ? `${hours}h` : `${hours}h${String(minutes).padStart(2, '0')}`;
+}
+
+/**
+ * O cronômetro de lazer chegou ao limite sem a pessoa parar. Só avisa DEPOIS do limite (parar antes nunca dispara) e
+ * descarta o que já passou há mais de alguns minutos (API fora do ar). Tom de boa notícia: aproveitou, sem cobrança.
+ */
+function leisureEnds(input: PlanInput): NotificationCandidate[] {
+  const result: NotificationCandidate[] = [];
+  for (const session of input.leisureSessions ?? []) {
+    const end = new Date(session.startedAt.getTime() + session.limitMin * 60_000);
+    if (!inWindow(end, input.window) || isStale(end, input.window.to, STALE_GRACE_MIN)) continue;
+    result.push({
+      kind: 'LEISURE_END',
+      dedupeKey: `leisure:${session.id}`,
+      title: 'Seu tempo de lazer acabou',
+      body: `${session.optionName}: ${minutesText(session.limitMin)} aproveitados. Ganhe mais cumprindo seus blocos.`,
+      scheduledFor: end,
+    });
+  }
+  return result;
+}
+
 export interface PlanInput {
   window: ScanWindow;
   timezone: string;
   prefs: NotificationPreferences;
   occurrences: readonly PlannedOccurrence[];
   events: readonly PlannedEvent[];
+  /** Sessões de lazer não paradas: o aviso sai quando o limite chega e ninguém parou. */
+  leisureSessions?: readonly OpenLeisureSession[];
 }
 
 /**
@@ -354,6 +393,7 @@ export function planNotifications(input: PlanInput): NotificationCandidate[] {
     ...checkinReminders(input, input.prefs),
     ...wrapUp(input, input.prefs),
     ...digest(input, input.prefs),
+    ...leisureEnds(input),
   ].sort(
     (a, b) =>
       a.scheduledFor.getTime() - b.scheduledFor.getTime() || a.dedupeKey.localeCompare(b.dedupeKey),
