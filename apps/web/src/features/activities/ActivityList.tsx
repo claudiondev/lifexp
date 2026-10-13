@@ -5,6 +5,7 @@ import type { Activity, Area } from '@lifexp/shared';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ActivityFormDialog } from './ActivityFormDialog';
+import { LEISURE_RATIO_SHORT } from '../leisure/leisureFormat';
 import { formatWeight } from './formatWeight';
 import { useActivityMutations } from './useActivities';
 
@@ -79,6 +80,15 @@ export function ActivityList({ area, activities }: ActivityListProps) {
                     <span className="ml-2 text-xs text-muted-foreground">(arquivada)</span>
                   )}
                 </span>
+                {activity.leisurePercent !== null && (
+                  <span
+                    className="font-hud text-xs text-mana tabular-nums"
+                    title="Cumprir esta atividade rende tempo de lazer"
+                    aria-label={`Gera lazer: ${LEISURE_RATIO_SHORT[activity.leisurePercent]}`}
+                  >
+                    {LEISURE_RATIO_SHORT[activity.leisurePercent]}
+                  </span>
+                )}
                 <span
                   className="font-hud text-xs text-xp tabular-nums"
                   title="Peso do XP"

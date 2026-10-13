@@ -1,6 +1,7 @@
 import { Hourglass } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,9 +17,10 @@ import { useNow } from './useNow';
 
 /**
  * O tempo de lazer ganho na semana e o cronômetro. É um EXTRA da tela Hoje: se a consulta falha, o cartão some e a tela
- * segue sem ele. Aparece quando há lazer cadastrado, saldo ou uma sessão correndo.
+ * segue sem ele. Aparece quando há lazer cadastrado, saldo ou uma sessão correndo. `showLinks` liga aos detalhes e ao
+ * cadastro (desligado na própria página de lazer).
  */
-export function LeisureCard() {
+export function LeisureCard({ showLinks = true }: { showLinks?: boolean }) {
   const summary = useLeisure();
   const options = useLeisureOptions(true);
   const { start, stop } = useLeisureMutations();
@@ -93,6 +95,14 @@ export function LeisureCard() {
         </p>
       </div>
 
+      {showLinks && (
+        <p className="mt-2 text-xs">
+          <Link to="/lazer" className="text-muted-foreground underline underline-offset-2">
+            Ver detalhes
+          </Link>
+        </p>
+      )}
+
       {active ? (
         <div className="mt-4 flex items-center justify-between gap-3">
           <p
@@ -109,9 +119,17 @@ export function LeisureCard() {
             Parar
           </Button>
         </div>
+      ) : data.balanceMin > 0 && usable.length === 0 ? (
+        showLinks && (
+          <p className="mt-4 text-sm">
+            <Link to="/lazer" className="underline underline-offset-2">
+              Cadastre um lazer
+            </Link>{' '}
+            para usar o seu tempo.
+          </p>
+        )
       ) : (
-        data.balanceMin > 0 &&
-        usable.length > 0 && (
+        data.balanceMin > 0 && (
           <ul aria-label="Usar o tempo de lazer" className="mt-4 flex flex-wrap gap-2">
             {usable.map((option) => (
               <li key={option.id}>

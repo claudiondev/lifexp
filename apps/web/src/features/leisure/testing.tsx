@@ -1,5 +1,10 @@
 import { vi } from 'vitest';
-import type { LeisureOption, LeisureSession, LeisureSummary } from '@lifexp/shared';
+import type {
+  LeisureByActivity,
+  LeisureOption,
+  LeisureSession,
+  LeisureSummary,
+} from '@lifexp/shared';
 import { json } from '../tasks/testing';
 
 export { renderWithProviders } from '../tasks/testing';
@@ -37,6 +42,10 @@ interface FakeOptions {
   /** Minutos de lazer já ganhos na semana. */
   earnedMin?: number;
   options?: LeisureOption[];
+  /** O que cada atividade rendeu na semana (o servidor calcula; aqui é fixo). */
+  byActivity?: LeisureByActivity[];
+  /** Fuso da pessoa logada (padrão: São Paulo). */
+  timezone?: string;
   /** Falha forçada da consulta do saldo (status). */
   summaryStatus?: number;
   /** Falha forçada de uma escrita: "MÉTODO url" -> { status, message }. */
@@ -84,7 +93,7 @@ export function setupFakeLeisure(fakeOptions: FakeOptions = {}) {
       usedMin: used,
       balanceMin: balance(now),
       activeSession: active ? toSession(active, now) : null,
-      byActivity: [],
+      byActivity: fakeOptions.byActivity ?? [],
       sessions: state.sessions.map((s) => toSession(s, now)),
     };
   };
@@ -105,7 +114,7 @@ export function setupFakeLeisure(fakeOptions: FakeOptions = {}) {
             id: '0192f1a0-7b3c-7000-8000-000000000001',
             name: 'Ana',
             email: 'ana@mail.com',
-            timezone: 'America/Sao_Paulo',
+            timezone: fakeOptions.timezone ?? 'America/Sao_Paulo',
             avatarKey: 'swords',
             createdAt: '2026-10-01T12:00:00.000Z',
           },

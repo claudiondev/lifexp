@@ -1,4 +1,18 @@
-import type { LeisureSession } from '@lifexp/shared';
+import type { LeisurePercent, LeisureSession } from '@lifexp/shared';
+
+/** Como a proporção da atividade é dita à pessoa: quanto cumprir para ganhar 1 hora de lazer. */
+export const LEISURE_RATIO_LABEL: Record<LeisurePercent, string> = {
+  25: '4h cumpridas rendem 1h de lazer',
+  50: '2h cumpridas rendem 1h de lazer',
+  100: '1h cumprida rende 1h de lazer',
+};
+
+/** Versão curta, para a lista de atividades. */
+export const LEISURE_RATIO_SHORT: Record<LeisurePercent, string> = {
+  25: '4h → 1h',
+  50: '2h → 1h',
+  100: '1h → 1h',
+};
 
 /** "45 min", "1h", "1h30": minutos em texto curto (o mesmo do aviso que o servidor manda). */
 export function formatLeisure(totalMin: number): string {

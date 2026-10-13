@@ -11,6 +11,13 @@ describe('NAV_GROUPS', () => {
     expect(items.find((item) => item.to === '/pendentes')!.label).toBe('Pendentes');
   });
 
+  it('Lazer fica no grupo Jogar, logo depois de Pendentes', () => {
+    const play = NAV_GROUPS.find((group) => group.title === 'Jogar')!;
+    const paths = play.items.map((item) => item.to);
+    expect(paths.indexOf('/lazer')).toBe(paths.indexOf('/pendentes') + 1);
+    expect(items.find((item) => item.to === '/lazer')!.label).toBe('Lazer');
+  });
+
   it('nenhum destino se repete', () => {
     const paths = items.map((item) => item.to);
     expect(new Set(paths).size).toBe(paths.length);

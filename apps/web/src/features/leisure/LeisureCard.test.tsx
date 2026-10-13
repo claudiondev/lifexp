@@ -37,6 +37,30 @@ describe('LeisureCard (tempo de lazer na tela Hoje)', () => {
     expect(within(region).getByRole('button', { name: 'Série' })).toBeInTheDocument();
   });
 
+  it('liga aos detalhes; com saldo e sem lazer cadastrado, convida a cadastrar', async () => {
+    setupFakeLeisure({ earnedMin: 45, options: [] });
+    renderWithProviders(<LeisureCard />);
+
+    const region = await card();
+    expect(within(region).getByRole('link', { name: 'Ver detalhes' })).toHaveAttribute(
+      'href',
+      '/lazer',
+    );
+    expect(within(region).getByRole('link', { name: 'Cadastre um lazer' })).toHaveAttribute(
+      'href',
+      '/lazer',
+    );
+    expect(within(region).queryByRole('button')).toBeNull();
+  });
+
+  it('na própria página de lazer (showLinks desligado) não aponta para si mesma', async () => {
+    setupFakeLeisure({ earnedMin: 45, options: [] });
+    renderWithProviders(<LeisureCard showLinks={false} />);
+
+    const region = await card();
+    expect(within(region).queryByRole('link')).toBeNull();
+  });
+
   it('sem saldo, mostra como ganhar (tom positivo) e nenhum botão de usar', async () => {
     setupFakeLeisure({ earnedMin: 0 });
     renderWithProviders(<LeisureCard />);

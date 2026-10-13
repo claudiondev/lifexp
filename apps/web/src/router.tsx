@@ -11,6 +11,7 @@ import { AreasPage } from './pages/AreasPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { GoalDetailPage } from './pages/GoalDetailPage';
 import { GoalsPage } from './pages/GoalsPage';
+import { LeisurePage } from './pages/LeisurePage';
 import { PendingPage } from './pages/PendingPage';
 import { HomePage } from './pages/HomePage';
 import { NoteEditorPage } from './pages/NoteEditorPage';
@@ -43,6 +44,7 @@ export function AppRoutes() {
           <Route path="/notas/nova" element={<NoteEditorPage />} />
           <Route path="/notas/:noteId" element={<NoteEditorPage />} />
           <Route path="/pendentes" element={<PendingPage />} />
+          <Route path="/lazer" element={<LeisurePage />} />
           <Route path="/metas" element={<GoalsPage />} />
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
           <Route path="/historico" element={<XpHistoryPage />} />

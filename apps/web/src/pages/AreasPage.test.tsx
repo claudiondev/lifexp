@@ -305,7 +305,12 @@ describe('AreasPage: atividades', () => {
 
     expect(await within(card).findByText('Revisão')).toBeInTheDocument();
     const post = api.calls.find((c) => c.method === 'POST' && c.url === '/api/activities');
-    expect(post?.body).toEqual({ areaId: area2.id, name: 'Revisão', xpWeight: 1.5 });
+    expect(post?.body).toEqual({
+      areaId: area2.id,
+      name: 'Revisão',
+      xpWeight: 1.5,
+      leisurePercent: null,
+    });
     expect(toast.success).toHaveBeenCalledWith('Atividade “Revisão” criada');
   });
 
@@ -370,6 +375,100 @@ describe('AreasPage: atividades', () => {
     expect(api.calls.find((c) => c.method === 'PATCH')?.body).toEqual({
       name: 'Reunião de equipe',
       xpWeight: 2,
+      leisurePercent: null,
+    });
+  });
+
+  describe('tempo de lazer da atividade', () => {
+    it('o campo começa em "Não gera" e as três proporções são oferecidas', async () => {
+      fakeApi([area1]);
+      renderPage();
+      const card = await screen.findByRole('article', { name: 'Trabalho' });
+
+      await userEvent.click(within(card).getByRole('button', { name: /Adicionar atividade/ }));
+      const select = await screen.findByLabelText('Gera tempo de lazer');
+      expect(select).toHaveValue('');
+      expect(
+        within(select)
+          .getAllByRole('option')
+          .map((o) => o.textContent),
+      ).toEqual([
+        'Não gera',
+        '4h cumpridas rendem 1h de lazer',
+        '2h cumpridas rendem 1h de lazer',
+        '1h cumprida rende 1h de lazer',
+      ]);
+    });
+
+    it('cria uma atividade que gera lazer e mostra a proporção na lista', async () => {
+      const api = fakeApi([area1]);
+      renderPage();
+      const card = await screen.findByRole('article', { name: 'Trabalho' });
+
+      await userEvent.click(within(card).getByRole('button', { name: /Adicionar atividade/ }));
+      await userEvent.type(await screen.findByLabelText('Nome'), 'Estudo da Bíblia');
+      await userEvent.selectOptions(screen.getByLabelText('Gera tempo de lazer'), '50');
+      await userEvent.click(screen.getByRole('button', { name: 'Criar atividade' }));
+
+      expect(await within(card).findByText('Estudo da Bíblia')).toBeInTheDocument();
+      expect(api.calls.find((c) => c.method === 'POST')?.body).toMatchObject({
+        leisurePercent: 50,
+      });
+      expect(within(card).getByLabelText('Gera lazer: 2h → 1h')).toBeInTheDocument();
+    });
+
+    it('editar só o nome mantém a proporção que já estava (não apaga sem querer)', async () => {
+      const api = fakeApi(
+        [area1],
+        [makeActivity(1, area1.id, { name: 'Inglês', leisurePercent: 25 })],
+      );
+      renderPage();
+      const card = await screen.findByRole('article', { name: 'Trabalho' });
+
+      await userEvent.click(
+        await within(card).findByRole('button', { name: 'Editar atividade Inglês' }),
+      );
+      expect(await screen.findByLabelText('Gera tempo de lazer')).toHaveValue('25');
+      const name = screen.getByLabelText('Nome');
+      await userEvent.clear(name);
+      await userEvent.type(name, 'Inglês técnico');
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      await within(card).findByText('Inglês técnico');
+      expect(api.calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
+        name: 'Inglês técnico',
+        leisurePercent: 25,
+      });
+    });
+
+    it('desliga o lazer da atividade escolhendo "Não gera"', async () => {
+      const api = fakeApi(
+        [area1],
+        [makeActivity(1, area1.id, { name: 'Inglês', leisurePercent: 100 })],
+      );
+      renderPage();
+      const card = await screen.findByRole('article', { name: 'Trabalho' });
+
+      await userEvent.click(
+        await within(card).findByRole('button', { name: 'Editar atividade Inglês' }),
+      );
+      await userEvent.selectOptions(await screen.findByLabelText('Gera tempo de lazer'), '');
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+
+      await waitFor(() =>
+        expect(api.calls.find((c) => c.method === 'PATCH')?.body).toMatchObject({
+          leisurePercent: null,
+        }),
+      );
+      await waitFor(() => expect(within(card).queryByLabelText(/^Gera lazer/)).toBeNull());
+    });
+
+    it('atividade que não gera lazer não mostra proporção na lista', async () => {
+      fakeApi([area1], [makeActivity(1, area1.id, { name: 'Reunião' })]);
+      renderPage();
+      const card = await screen.findByRole('article', { name: 'Trabalho' });
+      await within(card).findByText('Reunião');
+      expect(within(card).queryByLabelText(/^Gera lazer/)).toBeNull();
     });
   });
 

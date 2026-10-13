@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
+  LEISURE_PERCENTS,
   createActivitySchema,
   XP_WEIGHT_DEFAULT,
   XP_WEIGHT_MAX,
@@ -13,14 +14,15 @@ import type { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
+import { LEISURE_RATIO_LABEL } from '../leisure/leisureFormat';
 import { TextField } from '../auth/TextField';
 import { useServerError } from '../auth/useAuthForm';
 import { formatWeight } from './formatWeight';
 import { useActivityMutations } from './useActivities';
 
 // A área vem do cartão em que o diálogo foi aberto; não é um campo do formulário.
-// O campo "Gera lazer" entra no formulário na tela de lazer; até lá o formulário não toca na proporção da atividade.
-const formSchema = createActivitySchema.omit({ areaId: true, leisurePercent: true });
+const formSchema = createActivitySchema.omit({ areaId: true });
 type FormInput = z.input<typeof formSchema>;
 type FormOutput = z.output<typeof formSchema>;
 
@@ -75,6 +77,7 @@ function ActivityForm({
     defaultValues: {
       name: activity?.name ?? '',
       xpWeight: activity?.xpWeight ?? XP_WEIGHT_DEFAULT,
+      leisurePercent: activity?.leisurePercent ?? null,
     },
   });
 
@@ -134,6 +137,35 @@ function ActivityForm({
             {errors.xpWeight && (
               <span className="text-sm text-destructive">{errors.xpWeight.message}</span>
             )}
+          </div>
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="leisurePercent"
+        render={({ field }) => (
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="leisure-percent">Gera tempo de lazer</Label>
+            <Select
+              id="leisure-percent"
+              value={field.value == null ? '' : String(field.value)}
+              onChange={(event) =>
+                field.onChange(event.target.value === '' ? null : Number(event.target.value))
+              }
+              aria-describedby="leisure-percent-help"
+            >
+              <option value="">Não gera</option>
+              {LEISURE_PERCENTS.map((percent) => (
+                <option key={percent} value={percent}>
+                  {LEISURE_RATIO_LABEL[percent]}
+                </option>
+              ))}
+            </Select>
+            <p id="leisure-percent-help" className="text-sm text-muted-foreground">
+              Cumprir blocos desta atividade rende minutos para usar no seu lazer (redes sociais,
+              série...) durante a semana.
+            </p>
           </div>
         )}
       />
