@@ -8,6 +8,8 @@ import {
   startLeisureSessionSchema,
   updateLeisureOptionSchema,
 } from './leisure.schema.js';
+import { activitySchema, createActivitySchema, updateActivitySchema } from './activity.schema.js';
+import { completionResultSchema } from './completion.schema.js';
 
 const areaId = '0192b3f4-0000-7000-8000-000000000001';
 
@@ -74,5 +76,36 @@ describe('leisureSessionSchema', () => {
     };
     expect(leisureSessionSchema.safeParse(base).success).toBe(true);
     expect(leisureSessionSchema.safeParse({ ...base, limitMin: 0 }).success).toBe(false);
+  });
+});
+
+describe('leisurePercent na atividade', () => {
+  it('a criação assume nulo (não gera lazer) e aceita 50', () => {
+    expect(createActivitySchema.parse({ areaId, name: 'Inglês' }).leisurePercent).toBeNull();
+    expect(
+      createActivitySchema.parse({ areaId, name: 'Inglês', leisurePercent: 50 }).leisurePercent,
+    ).toBe(50);
+  });
+  it('a edição aceita nulo (desliga) e recusa valor fora da lista', () => {
+    expect(updateActivitySchema.safeParse({ leisurePercent: null }).success).toBe(true);
+    expect(updateActivitySchema.safeParse({ leisurePercent: 60 }).success).toBe(false);
+  });
+  it('a leitura tolera API antiga sem o campo', () => {
+    const parsed = activitySchema.parse({
+      id: areaId,
+      areaId,
+      name: 'x',
+      xpWeight: 1,
+      archivedAt: null,
+    });
+    expect(parsed.leisurePercent).toBeNull();
+  });
+});
+
+describe('completionResultSchema', () => {
+  it('leisureEarnedMin tem padrão 0 na leitura e não aceita negativo', () => {
+    const field = completionResultSchema.shape.leisureEarnedMin;
+    expect(field.parse(undefined)).toBe(0);
+    expect(field.safeParse(-1).success).toBe(false);
   });
 });

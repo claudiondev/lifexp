@@ -19,7 +19,8 @@ import { formatWeight } from './formatWeight';
 import { useActivityMutations } from './useActivities';
 
 // A área vem do cartão em que o diálogo foi aberto; não é um campo do formulário.
-const formSchema = createActivitySchema.omit({ areaId: true });
+// O campo "Gera lazer" entra no formulário na tela de lazer; até lá o formulário não toca na proporção da atividade.
+const formSchema = createActivitySchema.omit({ areaId: true, leisurePercent: true });
 type FormInput = z.input<typeof formSchema>;
 type FormOutput = z.output<typeof formSchema>;
 

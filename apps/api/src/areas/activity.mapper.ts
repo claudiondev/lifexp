@@ -7,6 +7,7 @@ export function toActivityResponse(activity: ActivityEntity): Activity {
     areaId: activity.areaId,
     name: activity.name,
     xpWeight: activity.xpWeight,
+    leisurePercent: activity.leisurePercent as Activity['leisurePercent'],
     archivedAt: activity.archivedAt?.toISOString() ?? null,
   };
 }

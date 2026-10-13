@@ -75,6 +75,8 @@ export const completionResultSchema = z.object({
   questBonusXp: nonNegativeInt.default(0),
   /** Conquistas que ESTA conclusão desbloqueou (RF23); vazio quando nenhuma. */
   achievementsUnlocked: z.array(achievementKeySchema).default([]),
+  /** Minutos de tempo de lazer que ESTA conclusão rendeu (a atividade precisa gerar lazer); 0 quando não houve. */
+  leisureEarnedMin: nonNegativeInt.default(0),
   /** Recompensas reais cujo gatilho esta conclusão atingiu (RF25); vazio quando nenhuma. */
   rewardsReached: z.array(rewardRefSchema).default([]),
 });

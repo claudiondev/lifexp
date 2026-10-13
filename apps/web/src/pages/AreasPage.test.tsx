@@ -27,6 +27,7 @@ const makeActivity = (n: number, areaId: string, overrides: Partial<Activity> = 
   areaId,
   name: `Atividade ${n}`,
   xpWeight: 1,
+  leisurePercent: null,
   archivedAt: null,
   ...overrides,
 });

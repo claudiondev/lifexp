@@ -25,6 +25,7 @@ import {
   type CompletionWindow,
 } from './domain/completion-window.js';
 import { toCompletionDto } from './completion.mapper.js';
+import { earnedLeisure } from '../leisure/domain/leisure-rules.js';
 
 const NOT_AN_OCCURRENCE = 'Essa data não é uma ocorrência deste bloco';
 const COMPLETE_BLOCKED: Record<CompleteBlockedReason, string> = {
@@ -74,6 +75,8 @@ export class CompletionsService {
         durationMin: resolved.durationMin,
         xpWeight: block.activity.xpWeight,
       });
+      // Tempo de lazer que o bloco rende, congelado como o XP: mudar a proporção da atividade depois não muda o passado.
+      const leisureMin = earnedLeisure(resolved.durationMin, block.activity.leisurePercent);
       const snapshot = {
         completedAt: now,
         undoneAt: null,
@@ -81,6 +84,7 @@ export class CompletionsService {
         areaId: block.activity.areaId,
         durationMin: resolved.durationMin,
         xpAmount: xp,
+        leisureMin,
       };
 
       // Refazer depois de desfazer reaproveita a mesma linha (a conclusão é única por bloco + data).
@@ -114,6 +118,7 @@ export class CompletionsService {
         total: quest.result?.total ?? total,
         area: area!,
         questBonusXp: quest.awarded,
+        leisureEarnedMin: leisureMin,
         achievementsUnlocked: unlocks.achievements,
         rewardsReached: unlocks.rewards,
       };
@@ -207,6 +212,7 @@ export class CompletionsService {
       total: levelProgress(user.cachedTotalXp),
       area: { areaId: completion.areaId, ...levelProgress(progress?.cachedXp ?? 0) },
       questBonusXp: 0,
+      leisureEarnedMin: 0,
       achievementsUnlocked: [],
       rewardsReached: [],
     };

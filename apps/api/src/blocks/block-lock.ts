@@ -16,7 +16,7 @@ export async function lockAndLoadBlock(tx: Prisma.TransactionClient, userId: str
   return tx.block.findUniqueOrThrow({
     where: { id },
     include: {
-      activity: { select: { areaId: true, xpWeight: true } },
+      activity: { select: { areaId: true, xpWeight: true, leisurePercent: true } },
       exceptions: true,
     },
   });
