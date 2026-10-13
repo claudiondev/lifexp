@@ -76,7 +76,7 @@ Também é um projeto de **aprendizado de TypeScript** (vindo de Java/Spring Boo
 - ✅ **Notas** em markdown com tags, busca e vínculo a área, meta ou evento (renderização segura)
 - ✅ **Revisão semanal** com resumo automático e campos de reflexão
 - ✅ **Relatório semanal** (e aviso quando fica pronto)
-- ✅ **Notificações** dentro do app, por **e-mail** (resumo diário) e **push no celular**
+- ✅ **Notificações** dentro do app, por **e-mail** (resumo diário) e **push no celular**, com botões **"Cumpri"/"Pulei"** que marcam o bloco direto no aviso (sem abrir o app) e um fechamento da noite para o que ficou pendente
 
 ### 📱 PWA
 
@@ -104,7 +104,7 @@ LifeXP/
 └── .github/workflows/ci.yml    ⚙️ Audit, lint, testes, build e imagem Docker
 ```
 
-Módulos da API: `auth`, `users`, `areas`, `blocks`, `gamification`, `goals`, `events`, `notifications`, `push`, `notes`, `reviews`, `observability`, `health`.
+Módulos da API: `auth`, `users`, `areas`, `blocks`, `tasks`, `leisure`, `gamification`, `goals`, `events`, `notifications`, `push`, `notes`, `reviews`, `observability`, `health`.
 
 ### 📊 Fluxo de Dados
 

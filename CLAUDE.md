@@ -450,6 +450,12 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Teste que muda variável de ambiente precisa recarregar os módulos (`vi.resetModules()` + import dinâmico dos helpers): o `ConfigModule` lê o ambiente na
   importação do `AppModule` (ver `test/production-setup.e2e-spec.ts`).
 - `apps/web` fixa `typescript` 5.9.3 (igual ao raiz): sem isso o `pnpm` ligava o `tsc` 6.x vindo de um peer opcional e o `tsc -b` do build quebrava com TS5101.
+- **Publicado e em uso** (Vercel + Render + Neon). Lição do Render: o painel guarda cada variável numa caixa de texto
+  MULTI-LINHA; colar um valor nela pode deixar uma quebra de linha no fim sem aparecer na tela. Foi exatamente isso que
+  quebrou o push em produção (o `web-push` recusa a chave VAPID com esse caractere a mais, com um erro sem `status`,
+  antes de qualquer resposta do serviço de push) — por isso `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT`
+  levam `.trim()` no `env.schema.ts`, não só confiam que a pessoa colou certo. Vale o mesmo cuidado para qualquer
+  variável nova colada por lá.
 
 ## Convenções de teste
 
@@ -515,6 +521,11 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
   **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy publicado** (Vercel + Render + Neon, em uso). Sobram os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;
   push só com aprovação do usuário.
+- Mais de um agente pode trabalhar no MESMO diretório/repositório git local ao mesmo tempo (sessões diferentes). Antes
+  de commitar, confira `git status`/`git log` para notar commits ou mudanças não commitadas de outra sessão; `git add`
+  só os arquivos da própria tarefa (nunca `-A`/`.` às cegas), para não misturar ou atropelar o trabalho alheio. Um
+  `git push` leva junto qualquer commit já presente localmente antes do seu, então ele pode publicar (e disparar
+  deploy de) trabalho de outra sessão que ainda não foi revisado — avise a pessoa antes.
 - Estrutura: `apps/api/src/<modulo>/{controller,service,dto,domain}`; web por feature em
   `apps/web/src/features/<feature>`.
 
