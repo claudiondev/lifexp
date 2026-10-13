@@ -109,6 +109,33 @@ decisões não óbvias, comparando com Spring quando ajudar. Responda em portugu
 - Lição de teste: a página usa o relógio real (`todayIn`), então o teste fixa a data com `vi.useFakeTimers({ toFake: ['Date'] })`; e os ids de passo nos fixtures precisam ser UUID e `doneAt` ISO
   (senão o zod recusa a resposta e a seção mostra erro).
 
+## Tempo de lazer (decisões do 6a)
+
+- Atividades "produtivas" rendem minutos de lazer que a pessoa gasta com um cronômetro (ex.: estudar 2 h rende 1 h de Instagram). `Activity.leisurePercent`
+  é nulo (não gera, padrão) ou 25/50/100 (`LEISURE_PERCENTS` em `@lifexp/shared`; 4h→1h, 2h→1h, 1h→1h). Só BLOCO concluído gera (tarefa não tem duração):
+  `floor(durationMin × percent / 100)` (`earnedLeisure`, puro em `leisure/domain/leisure-rules.ts`).
+- **Foto na conclusão:** `Completion.leisureMin` é gravado ao concluir (como `xpAmount`); mudar a proporção da atividade depois NÃO muda o passado, e refazer após desfazer
+  recalcula com a proporção de agora. Desfazer (`undoneAt`) tira os minutos do saldo. `CompletionResult.leisureEarnedMin` (`.default(0)`).
+- **Saldo único, em minutos, DERIVADO** (nada é gravado na virada): ganho da semana (conclusões ativas, pelo `completedAt`, NÃO pela data do bloco) − usado (sessões, pelo
+  `startedAt`). Semana = `[segunda 00:00 local, próxima segunda 00:00 local)` (`leisureWeek`, reaproveita `weekRangeUtc` da revisão); zera na segunda. O saldo mostrado nunca
+  é negativo: estorno depois do uso deixa 0 e não vira dívida na semana seguinte.
+- **Cronômetro no servidor, sem job:** `LeisureSession` guarda só `startedAt` (do `Clock`) e `limitMin` (= saldo no início); o fim é calculado: `min(stoppedAt, startedAt +
+limitMin)`. Uma sessão aberta por pessoa (checado sob `lockUser`), iniciar sem saldo ou com lazer arquivado = 409; parar é idempotente e parar depois do limite grava o próprio
+  limite. Uma sessão que atravessa a virada da semana conta na semana em que COMEÇOU e continua aparecendo como ativa na nova (a consulta olha 7 dias para trás).
+- `LeisureOption` (nome 1..40 único entre ativos sem diferenciar maiúsculas, até 20 ativos, ícone = CHAVE de `LEISURE_ICONS` com CHECK espelhando a lista): arquivar, nunca
+  excluir (a FK da sessão é `Restrict`). Os dois modelos entram em `EXPORT_KEYS` e no `fullAccount` do teste de conta.
+- **Aviso de fim** (`NotificationKind.LEISURE_END`, chave `leisure:<sessionId>`): `planNotifications` recebe as sessões NÃO paradas e só avisa DEPOIS do limite (tolera
+  `STALE_GRACE_MIN`), então parar antes nunca dispara. A CHECK `Notification_origin_check` foi reescrita (migration própria, depois da do valor do enum) incluindo `LEISURE_END`
+  como "sem origem". Lição: ao criar tipo novo de aviso, o e2e acusa na CHECK de origem; o push leva a `/lazer`.
+- Lazer NÃO dá nem tira XP e não afeta streak, quest, radar nem conquistas. Sem bloqueio real de apps (sistema de honra com cronômetro).
+- Front: `features/leisure` (`leisureApi`, `useLeisure` com `leisureKey` e refetch de 60 s, `leisureFormat`, `leisureAppearance` com `Record` exaustivo de ícones, `useNow`,
+  `LeisureCard` na Hoje como EXTRA que some se falha, `LeisureOptionDialog`, `LeisureOptionsManager`, `LeisureWeekSummary`), `LeisurePage` em `/lazer` (menu Jogar, depois de
+  Pendentes). A contagem regressiva é calculada no cliente a partir de `endsAt` (`role="timer"`; o `aria-live` só muda a cada minuto). `leisureKey` está em
+  `completionAffectedKeys`. O formulário de atividade ganhou "Gera tempo de lazer" (cuidado: `createActivitySchema.omit(...)` agora inclui `leisurePercent`, e editar só o nome
+  precisa reenviar o valor atual para não apagá-lo; há teste). Teste de tela: `features/leisure/testing.tsx` tem a API falsa em memória; o relógio é falso só em `Date`.
+- Lição de migration: `prisma migrate dev --create-only` se recusou (migration já aplicada foi editada no banco de desenvolvimento); o SQL saiu de `migrate diff
+--from-config-datasource` contra um banco temporário migrado, sem tocar no banco de desenvolvimento.
+
 ## Hoje, XP e níveis (decisões do 1d)
 
 - XP = `round(durationMin × xpWeight × multiplicador)`, teto 300; curva `xpToReachLevel(n)=round(100·(n−1)^1.5)`
@@ -483,7 +510,7 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Segredos só em `.env` (ignorado pelo git); só o `.env.example` com placeholders é versionado.
 - Não implementar nada de marcos futuros antes de combinado. Marcos concluídos: **0 (Fundação)**, **1a (Autenticação)**, **1b (Perfil, áreas e atividades)** e
   **1c (Blocos e Semana)** e **1d (Hoje, XP e níveis)** e **1e (streak)** e **1f (PWA)**: **Marco 1 completo**. **2a (Metas)**, **2b (Eventos)**, **2c (Notificações)** e **2d (extras: arrastar e soltar, histórico de XP,
-  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** e **5a (tarefas sem horário e Pendentes)** feitos; **check-in pelo push** (avisos "cumpriu?" no
+  recuperar senha)** feitos: **Marco 2 completo**. **2e (blocos em vários dias, com fim)** feito. **3a (sessões e conta)**, **3c (revisão semanal)** e **3b (notas)** feitos: **Marco 3 completo**. **4a (quest semanal)**, **4b (radar de equilíbrio e coringa de streak)** e **4c (conquistas, títulos e recompensas reais)** e **4d (push no celular e relatório semanal)** e **5a (tarefas sem horário e Pendentes)** e **6a (tempo de lazer)** feitos; **check-in pelo push** (avisos "cumpriu?" no
   fim do bloco e fechamento da noite, com botões "Cumpri"/"Pulei" sem abrir o app) feito; próximos:
   **transversais feitos** (logs estruturados, monitor de jobs, audit/Dependabot, fumaça de desempenho) e **deploy publicado** (Vercel + Render + Neon, em uso). Sobram os extras opcionais RF13/RF56 (só se o uso justificar) e conferências em navegador real.
   Regra de trabalho: por sub-marco, back primeiro e depois o front que o consome; plano aprovado antes de codar;

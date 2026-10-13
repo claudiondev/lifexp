@@ -18,6 +18,31 @@ Decisões e detalhes de cada marco (movidos do README para ele ficar enxuto). O 
 - Login e cadastro têm rate limit por IP (`AUTH_RATE_LIMIT_PER_MINUTE`). Rotas são privadas por padrão;
   as públicas usam `@Public()`.
 
+## Tempo de lazer (Marco 6a)
+
+Estudar rende minutos para gastar no que a pessoa gosta ("estudei 2 h, posso usar 1 h de Instagram"). É um prêmio real, no mesmo espírito das recompensas, mas medido em
+tempo e renovado toda semana.
+
+| Método | Rota                             | O que faz                                                                        |
+| ------ | -------------------------------- | -------------------------------------------------------------------------------- |
+| GET    | `/api/leisure`                   | Saldo da semana atual, ganho por atividade, sessão ativa e sessões da semana     |
+| GET    | `/api/leisure/options`           | Os lazeres cadastrados (`?includeArchived=true` traz os arquivados)              |
+| POST   | `/api/leisure/options`           | Cadastra um lazer (nome único entre ativos, até 20, ícone de lista fixa)         |
+| PATCH  | `/api/leisure/options/:id`       | Renomeia, troca o ícone, arquiva ou restaura (`archived`)                        |
+| POST   | `/api/leisure/sessions`          | Inicia o cronômetro; o limite é o saldo de agora (409 sem saldo ou se já correr) |
+| POST   | `/api/leisure/sessions/:id/stop` | Para o cronômetro (idempotente)                                                  |
+
+- **Quem gera e quanto:** cada atividade tem `leisurePercent` (nulo = não gera; 25, 50 ou 100). Só bloco **concluído** gera: `floor(duração × percent / 100)`. O valor
+  fica gravado na conclusão (`Completion.leisureMin`), então mudar a proporção depois não reescreve o passado; desfazer a conclusão devolve os minutos.
+- **Saldo derivado:** ganho da semana (pelo instante da conclusão) menos o usado nas sessões; a semana vai de segunda 00:00 a segunda 00:00 no fuso da pessoa e o saldo zera
+  sozinho (nada é gravado na virada). Se um estorno vier depois do uso, o saldo mostra 0 e não vira dívida.
+- **Cronômetro sem job:** a sessão guarda o início e o limite; o fim é `min(parada, início + limite)`, então ela "acaba" sozinha e nenhuma rotina precisa fechá-la. Uma
+  sessão por vez, protegida pela mesma trava por pessoa do XP (cinco inícios em paralelo abrem só uma). A tela conta regressivamente no cliente a partir do fim.
+- **Aviso:** a varredura de notificações gera `LEISURE_END` quando o limite chega e ninguém parou (nunca antes; parar antes não dispara). Vai ao sino e ao push, e leva a `/lazer`.
+- **Fora do escopo:** lazer não dá XP, não afeta streak, quest, radar nem conquistas, e não bloqueia apps (sistema de honra).
+- **Para quem vem de Spring:** é como um saldo calculado por `@Query` com `SUM` em vez de uma coluna mantida (veja o histórico de XP): menos risco de divergir, ao custo de
+  uma consulta por leitura. Aqui a consulta é uma só (teste de contagem de queries).
+
 ### Relatório semanal (Marco 4d, RF47)
 
 Na **Revisão**, a seção **"Relatório da semana"** resume o que foi planejado e cumprido de segunda a domingo, gerado no backend a cada
