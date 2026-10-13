@@ -51,6 +51,19 @@ describe('validateEnv', () => {
     );
   });
 
+  it('as chaves VAPID vêm sem espaço nem quebra de linha nas pontas (caixa de texto do painel de deploy)', () => {
+    const keys = { VAPID_PUBLIC_KEY: 'P'.repeat(60), VAPID_PRIVATE_KEY: 'k'.repeat(30) };
+    const env = validateEnv({
+      ...base,
+      VAPID_PUBLIC_KEY: `  ${keys.VAPID_PUBLIC_KEY}\n`,
+      VAPID_PRIVATE_KEY: `${keys.VAPID_PRIVATE_KEY}\n`,
+      VAPID_SUBJECT: ' mailto:eu@exemplo.com \n',
+    });
+    expect(env.VAPID_PUBLIC_KEY).toBe(keys.VAPID_PUBLIC_KEY);
+    expect(env.VAPID_PRIVATE_KEY).toBe(keys.VAPID_PRIVATE_KEY);
+    expect(env.VAPID_SUBJECT).toBe('mailto:eu@exemplo.com');
+  });
+
   it('o subject do push é mailto: ou https:', () => {
     const keys = { VAPID_PUBLIC_KEY: 'P'.repeat(60), VAPID_PRIVATE_KEY: 'k'.repeat(30) };
     expect(

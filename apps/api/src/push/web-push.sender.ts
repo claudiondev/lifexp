@@ -1,7 +1,6 @@
 import { Logger } from '@nestjs/common';
 import webpush from 'web-push';
 import { maskEndpoint } from './log-push.sender.js';
-import { redact, truncate } from '../observability/redact.js';
 import type { PushOutcome, PushPayload, PushSender, PushTarget } from './push-sender.js';
 
 /** Quanto o serviço de push guarda a mensagem se o aparelho estiver desligado: avisos velhos não valem. */
@@ -45,17 +44,13 @@ export class WebPushSender implements PushSender {
       return 'sent';
     } catch (error) {
       const status = (error as { statusCode?: number }).statusCode;
-      const body = (error as { body?: unknown }).body;
-      // DIAGNÓSTICO TEMPORÁRIO (remover depois): `error.message` passa pelo `redact()` (o mesmo usado
-      // no JobMonitor) antes de logar, então endereço e chaves saem mascarados mesmo se aparecerem nela.
-      const message = error instanceof Error ? truncate(redact(error.message), 300) : '';
-      this.logger.warn(
-        `[DIAG] push a ${maskEndpoint(target.endpoint)} status=${status ?? 'sem resposta'} body=${
-          typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body ?? null)
-        } nome=${error instanceof Error ? error.name : 'erro desconhecido'} msg=${message}`,
-      );
       // 404 e 410: o navegador cancelou a inscrição (o app foi desinstalado, a permissão revogada).
       if (status === 404 || status === 410) return 'gone';
+      this.logger.warn(
+        `Falha ao enviar push a ${maskEndpoint(target.endpoint)} (${status ?? 'sem resposta'}): ${
+          error instanceof Error ? error.name : 'erro desconhecido'
+        }`,
+      );
       return 'failed';
     }
   }

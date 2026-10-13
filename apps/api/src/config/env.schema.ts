@@ -39,10 +39,13 @@ export const envSchema = z
     MAIL_FROM: z.string().min(3).default('LifeXP <nao-responda@lifexp.app>'),
     // Push no celular (RF41), por Web Push com chaves VAPID: sem as DUAS chaves o recurso fica desligado. Gere o par com
     // `pnpm --filter @lifexp/api push:keys`. O subject identifica quem envia aos serviços de push (mailto: ou https:).
-    VAPID_PUBLIC_KEY: z.string().min(40).optional(),
-    VAPID_PRIVATE_KEY: z.string().min(20).optional(),
+    // `.trim()`: o painel de deploy guarda a variável numa caixa de texto multi-linha, e colar nela pode deixar uma
+    // quebra de linha no fim sem ninguém perceber; o `web-push` recusa a chave com esse caractere a mais.
+    VAPID_PUBLIC_KEY: z.string().trim().min(40).optional(),
+    VAPID_PRIVATE_KEY: z.string().trim().min(20).optional(),
     VAPID_SUBJECT: z
       .string()
+      .trim()
       .regex(
         /^(mailto:[^\s@]+@[^\s@]+|https:\/\/\S+)$/,
         'use mailto:voce@exemplo.com ou https://seusite',
