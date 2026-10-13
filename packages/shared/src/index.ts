@@ -27,3 +27,4 @@ export * from './title.js';
 export * from './push.schema.js';
 export * from './report.schema.js';
 export * from './task.schema.js';
+export * from './leisure.schema.js';
