@@ -52,6 +52,81 @@ export function layoutDay<T extends Positionable>(items: readonly T[]): Laid<T>[
   return result;
 }
 
+/** Quantas colunas lado a lado a grade mostra: acima disso o texto fica ilegível (~100 px por dia). */
+export const MAX_VISIBLE_LANES = 2;
+
+export interface HiddenGroup<T extends Positionable> {
+  /** Blocos escondidos de um mesmo grupo de sobreposição, na ordem em que aparecem. */
+  items: T[];
+  /** Onde o indicador "+N" fica: do início do primeiro ao fim do último bloco escondido. */
+  startMinutes: number;
+  endMinutes: number;
+}
+
+export interface CollapsedDay<T extends Positionable> {
+  /** Blocos que continuam desenhados, já com `lanes` limitado a `maxLanes`. */
+  visible: Laid<T>[];
+  hidden: HiddenGroup<T>[];
+}
+
+/**
+ * Limita as colunas de cada grupo de sobreposição: o que passa de `maxLanes` sai da grade e vira um
+ * grupo "+N" (nada se perde: a lista do grupo abre todos os escondidos). Grupos pequenos não mudam.
+ */
+export function collapseLanes<T extends Positionable>(
+  laid: readonly Laid<T>[],
+  maxLanes: number = MAX_VISIBLE_LANES,
+): CollapsedDay<T> {
+  const ordered = [...laid].sort(
+    (a, b) =>
+      timeToMinutes(a.item.startTime) - timeToMinutes(b.item.startTime) ||
+      a.lane - b.lane ||
+      b.item.durationMin - a.item.durationMin,
+  );
+
+  const visible: Laid<T>[] = [];
+  const hidden: HiddenGroup<T>[] = [];
+  let cluster: Laid<T>[] = [];
+  let clusterEnd = -1;
+
+  const flush = () => {
+    const lanes = cluster[0]?.lanes ?? 0;
+    if (lanes <= maxLanes) {
+      visible.push(...cluster);
+    } else {
+      const hiddenEntries = cluster.filter((entry) => entry.lane >= maxLanes);
+      for (const entry of cluster) {
+        if (entry.lane < maxLanes) visible.push({ ...entry, lanes: maxLanes });
+      }
+      hidden.push({
+        items: hiddenEntries.map((entry) => entry.item),
+        startMinutes: Math.min(
+          ...hiddenEntries.map((entry) => timeToMinutes(entry.item.startTime)),
+        ),
+        endMinutes: Math.max(
+          ...hiddenEntries.map(
+            (entry) => timeToMinutes(entry.item.startTime) + entry.item.durationMin,
+          ),
+        ),
+      });
+    }
+    cluster = [];
+  };
+
+  for (const entry of ordered) {
+    const start = timeToMinutes(entry.item.startTime);
+    if (cluster.length > 0 && start >= clusterEnd) {
+      flush();
+      clusterEnd = -1;
+    }
+    cluster.push(entry);
+    clusterEnd = Math.max(clusterEnd, start + entry.item.durationMin);
+  }
+  if (cluster.length > 0) flush();
+
+  return { visible, hidden };
+}
+
 export interface HourRange {
   /** Primeira hora exibida (inclusive). */
   start: number;

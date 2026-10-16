@@ -6,11 +6,12 @@ import {
   type CivilDate,
 } from '@lifexp/shared';
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { dayOfMonth, longDate, weekdayLong, weekdayShort } from '@/lib/civilFormat';
 import { EventChip } from '../events/EventChip';
 import { computeDrop, dropOffset, isDrag, type DragInput } from './dragGeometry';
-import { layoutDay, visibleHourRange } from './layoutDay';
+import { collapseLanes, layoutDay, visibleHourRange } from './layoutDay';
 import type { MoveTarget } from './useMoveOccurrence';
 import { OccurrenceCard, timeRange, type OccurrenceDisplay } from './OccurrenceCard';
 
@@ -84,6 +85,10 @@ export function WeekGrid({
     latest.current = { dates, onMove };
   });
   const tracking = drag !== null;
+  // Blocos que não cabem lado a lado num horário cheio ficam numa lista aberta pelo "+N".
+  const [overflow, setOverflow] = useState<{ date: CivilDate; items: OccurrenceDisplay[] } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!tracking) return;
@@ -225,7 +230,9 @@ export function WeekGrid({
           {dates.map((date, dayIndex) => {
             const isToday = date === today;
             const dayItems = items.filter(({ occurrence }) => occurrence.date === date);
-            const laid = layoutDay(dayItems.map((item) => ({ ...item, ...item.occurrence })));
+            const { visible: laid, hidden } = collapseLanes(
+              layoutDay(dayItems.map((item) => ({ ...item, ...item.occurrence }))),
+            );
 
             return (
               <section
@@ -290,6 +297,23 @@ export function WeekGrid({
                   })}
                 </ol>
 
+                {hidden.map((group) => {
+                  const count = group.items.length;
+                  const bottom = ((group.endMinutes - rangeStartMin) / 60) * hourPx;
+                  return (
+                    <button
+                      key={`${group.startMinutes}-${count}`}
+                      type="button"
+                      aria-label={`Mais ${count} ${count === 1 ? 'bloco' : 'blocos'} em ${weekdayLong(date)}, ${minutesToTime(group.startMinutes)} às ${minutesToTime(group.endMinutes)}: ver lista`}
+                      onClick={() => setOverflow({ date, items: group.items })}
+                      className="absolute right-1 z-10 -translate-y-full cursor-pointer rounded-full border border-border bg-background px-1.5 py-0.5 font-hud text-[0.7rem] font-semibold text-foreground shadow-md hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                      style={{ top: bottom }}
+                    >
+                      +{count}
+                    </button>
+                  );
+                })}
+
                 {isToday && nowMinutes >= rangeStartMin && nowMinutes <= range.end * 60 && (
                   <div
                     aria-hidden
@@ -305,6 +329,37 @@ export function WeekGrid({
           })}
         </div>
       </div>
+
+      <Dialog open={overflow !== null} onOpenChange={(open) => !open && setOverflow(null)}>
+        <DialogContent>
+          {overflow && (
+            <>
+              <DialogTitle>Mais blocos neste horário</DialogTitle>
+              <DialogDescription>{longDate(overflow.date)}</DialogDescription>
+              <ul className="mt-2 flex flex-col gap-2">
+                {overflow.items.map((item) => (
+                  <li key={keyOf(item)}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOverflow(null);
+                        select(item);
+                      }}
+                      className="flex w-full flex-col rounded-xl border border-border bg-card/60 px-3 py-2 text-left hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                    >
+                      <span className="font-semibold">{item.activityName}</span>
+                      <span className="font-hud text-xs text-muted-foreground tabular-nums">
+                        {timeRange(item.occurrence.startTime, item.occurrence.durationMin)} ·{' '}
+                        {item.areaName}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
