@@ -11,6 +11,7 @@ export * from './civil-date.js';
 export * from './block.schema.js';
 export * from './xp.js';
 export * from './completion.schema.js';
+export * from './consistency.schema.js';
 export * from './today.schema.js';
 export * from './goal.schema.js';
 export * from './event.schema.js';

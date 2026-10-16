@@ -6,6 +6,8 @@ import { BalanceController } from './balance.controller.js';
 import { BalanceService } from './balance.service.js';
 import { CacheRebuildService } from './cache-rebuild.service.js';
 import { CompletionsController } from './completions.controller.js';
+import { ConsistencyController } from './consistency.controller.js';
+import { ConsistencyService } from './consistency.service.js';
 import { CompletionsService } from './completions.service.js';
 import { OccurrenceHistoryService } from './occurrence-history.service.js';
 import { ProgressController } from './progress.controller.js';
@@ -29,6 +31,7 @@ import { XpHistoryService } from './xp-history.service.js';
     AchievementsController,
     BalanceController,
     CompletionsController,
+    ConsistencyController,
     ProgressController,
     QuestsController,
     RewardsController,
@@ -41,6 +44,7 @@ import { XpHistoryService } from './xp-history.service.js';
     StreakService,
     OccurrenceHistoryService,
     BalanceService,
+    ConsistencyService,
     AchievementsService,
     RewardsService,
     TodayService,
