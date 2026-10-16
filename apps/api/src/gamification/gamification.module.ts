@@ -18,6 +18,8 @@ import { RewardsService } from './rewards.service.js';
 import { StreakService } from './streak.service.js';
 import { XpLedgerService } from './xp-ledger.service.js';
 import { TodayService } from './today.service.js';
+import { XpEvolutionController } from './xp-evolution.controller.js';
+import { XpEvolutionService } from './xp-evolution.service.js';
 import { XpHistoryController } from './xp-history.controller.js';
 import { XpHistoryService } from './xp-history.service.js';
 
@@ -30,6 +32,7 @@ import { XpHistoryService } from './xp-history.service.js';
     ProgressController,
     QuestsController,
     RewardsController,
+    XpEvolutionController,
     XpHistoryController,
   ],
   providers: [
@@ -44,6 +47,7 @@ import { XpHistoryService } from './xp-history.service.js';
     CacheRebuildService,
     XpLedgerService,
     XpHistoryService,
+    XpEvolutionService,
     QuestService,
     QuestsScheduler,
   ],
