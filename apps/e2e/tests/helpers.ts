@@ -55,6 +55,7 @@ export async function registerViaApi(request: APIRequestContext, user: TestUser)
 
 export interface ApiActivity {
   id: string;
+  areaId: string;
   name: string;
 }
 
