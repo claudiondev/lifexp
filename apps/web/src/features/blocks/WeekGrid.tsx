@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { dayOfMonth, longDate, weekdayLong, weekdayShort } from '@/lib/civilFormat';
 import { EventChip } from '../events/EventChip';
 import { computeDrop, dropOffset, isDrag, type DragInput } from './dragGeometry';
+import { AreaStrip, DaySummaryLine } from './DaySummaryBar';
+import { summarizeDay } from './daySummary';
 import { collapseLanes, layoutDay, visibleHourRange } from './layoutDay';
 import type { MoveTarget } from './useMoveOccurrence';
 import { OccurrenceCard, timeRange, type OccurrenceDisplay } from './OccurrenceCard';
@@ -182,6 +184,15 @@ export function WeekGrid({
                 >
                   {dayOfMonth(date)}
                 </span>
+                {(() => {
+                  const summary = summarizeDay(items, date);
+                  return (
+                    <>
+                      <DaySummaryLine summary={summary} />
+                      <AreaStrip summary={summary} className="w-4/5" />
+                    </>
+                  );
+                })()}
               </div>
             );
           })}
