@@ -31,6 +31,7 @@ import {
   CreateWeeklyBlocksDto,
   DeleteBlockQueryDto,
   PutExceptionDto,
+  RangeQueryDto,
   UpdateBlockDto,
   WeekQueryDto,
   WeekResponseDto,
@@ -48,6 +49,16 @@ export class BlocksController {
   @ZodResponse({ type: WeekResponseDto })
   week(@CurrentUser() user: AuthenticatedUser, @Query() query: WeekQueryDto) {
     return this.blocksService.getWeek(user.id, query.weekStart);
+  }
+
+  @Get('range')
+  @ApiOperation({
+    summary:
+      'Ocorrências de várias semanas seguidas (até 6) a partir de uma segunda-feira, para o calendário do mês',
+  })
+  @ZodResponse({ type: WeekResponseDto })
+  range(@CurrentUser() user: AuthenticatedUser, @Query() query: RangeQueryDto) {
+    return this.blocksService.getRange(user.id, query.weekStart, query.weeks);
   }
 
   @Post()

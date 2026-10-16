@@ -6,6 +6,7 @@ import {
   createWeeklyBlocksSchema,
   deleteBlockQuerySchema,
   putExceptionSchema,
+  rangeQuerySchema,
   updateBlockSchema,
   weekQuerySchema,
   weekResponseSchema,
@@ -25,3 +26,4 @@ export const PutExceptionDto = createZodDto(putExceptionSchema);
 export class BlockExceptionDto extends createZodDto(blockExceptionSchema) {}
 export class WeekQueryDto extends createZodDto(weekQuerySchema) {}
 export class WeekResponseDto extends createZodDto(weekResponseSchema) {}
+export class RangeQueryDto extends createZodDto(rangeQuerySchema) {}

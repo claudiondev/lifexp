@@ -254,6 +254,18 @@ export const weekResponseSchema = z.object({
   completions: z.array(completionSchema).default([]),
 });
 
+/** Quantas semanas seguidas um intervalo pode ter: um mês na grade do calendário ocupa até 6. */
+export const BLOCKS_RANGE_MAX_WEEKS = 6;
+
+/** Várias semanas seguidas a partir de uma segunda-feira (o calendário do mês). `weeks` vem da URL, por isso `coerce`. */
+export const rangeQuerySchema = z.object({
+  weekStart: weekStartSchema,
+  weeks: z.coerce.number().int().min(1).max(BLOCKS_RANGE_MAX_WEEKS),
+});
+
+/** Como a semana, mas `weekEnd` é o último dia da última semana do intervalo. */
+export const rangeResponseSchema = weekResponseSchema;
+
 export type Block = z.infer<typeof blockSchema>;
 export type CreateBlockInput = z.infer<typeof createBlockSchema>;
 export type CreateWeeklyBlocksInput = z.infer<typeof createWeeklyBlocksSchema>;
@@ -262,4 +274,5 @@ export type PutExceptionInput = z.infer<typeof putExceptionSchema>;
 export type BlockException = z.infer<typeof blockExceptionSchema>;
 export type Occurrence = z.infer<typeof occurrenceSchema>;
 export type WeekResponse = z.infer<typeof weekResponseSchema>;
+export type RangeQuery = z.infer<typeof rangeQuerySchema>;
 export type { CivilDate };
