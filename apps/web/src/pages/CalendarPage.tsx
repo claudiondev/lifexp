@@ -1,10 +1,24 @@
-import { groupEventsByDate, todayIn, type CalendarEvent, type CivilDate } from '@lifexp/shared';
+import {
+  groupEventsByDate,
+  todayIn,
+  weekStartOf,
+  type CalendarEvent,
+  type CivilDate,
+} from '@lifexp/shared';
 import { CalendarPlus, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/useAuth';
+import { useActivities } from '@/features/activities/useActivities';
+import { useAreas } from '@/features/areas/useAreas';
+import { formatDuration } from '@/features/blocks/blockOptions';
+import { AreaStrip, DaySummaryLine } from '@/features/blocks/DaySummaryBar';
+import { summarizeDay } from '@/features/blocks/daySummary';
+import { toOccurrenceDisplays } from '@/features/blocks/occurrenceDisplays';
+import { timeRange, type OccurrenceDisplay } from '@/features/blocks/OccurrenceCard';
 import { useNow } from '@/features/blocks/useNow';
+import { useRange } from '@/features/blocks/useWeek';
 import { AREA_COLOR_CLASSES } from '@/features/areas/areaAppearance';
 import { EventChip } from '@/features/events/EventChip';
 import { EventDialog } from '@/features/events/EventDialog';
@@ -46,6 +60,21 @@ export function CalendarPage() {
   const gridEnd = weeks.at(-1)![6]!;
 
   const events = useEvents(gridStart, gridEnd);
+  // Blocos do mês (as semanas da grade, numa consulta só). São um EXTRA: se falharem, o mês segue só com os eventos.
+  const range = useRange(gridStart, weeks.length);
+  const activities = useActivities(true);
+  const areas = useAreas(true);
+  const blocks = useMemo<OccurrenceDisplay[]>(
+    () =>
+      range.data && activities.data && areas.data
+        ? toOccurrenceDisplays(range.data, activities.data, areas.data)
+        : [],
+    [range.data, activities.data, areas.data],
+  );
+  const blocksOf = (date: CivilDate) =>
+    blocks
+      .filter(({ occurrence }) => occurrence.date === date)
+      .sort((a, b) => a.occurrence.startTime.localeCompare(b.occurrence.startTime));
   const byDate = useMemo(() => groupEventsByDate(events.data ?? []), [events.data]);
 
   // Dia aberto: o escolhido, se ainda é do mês exibido; senão hoje (no mês atual) ou o dia 1.
@@ -53,6 +82,7 @@ export function CalendarPage() {
   const selectedDay =
     pickedDay !== null && inMonth(pickedDay) ? pickedDay : inMonth(today) ? today : month;
   const dayEvents = byDate.get(selectedDay) ?? [];
+  const dayBlocks = blocksOf(selectedDay);
 
   const goTo = (target: CivilDate) => {
     if (target === currentMonth) setParams({}, { replace: true });
@@ -64,7 +94,7 @@ export function CalendarPage() {
       <PageHeader
         eyebrow="Calendário"
         title={capitalize(monthLabel(month))}
-        description="Consultas, viagens, aniversários e prazos do mês."
+        description="Seus blocos, consultas, viagens, aniversários e prazos do mês."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => setCreating(true)}>
@@ -143,6 +173,8 @@ export function CalendarPage() {
               const inThisMonth = inMonth(date);
               const isToday = date === today;
               const selected = date === selectedDay;
+              const summary = summarizeDay(blocks, date);
+              const blockCount = summary.planned;
               return (
                 <div
                   key={date}
@@ -155,7 +187,7 @@ export function CalendarPage() {
                   <button
                     type="button"
                     onClick={() => setPickedDay(date)}
-                    aria-label={`${weekdayLong(date)}, ${longDate(date)}${isToday ? ' (hoje)' : ''}, ${items.length} ${items.length === 1 ? 'evento' : 'eventos'}`}
+                    aria-label={`${weekdayLong(date)}, ${longDate(date)}${isToday ? ' (hoje)' : ''}, ${items.length} ${items.length === 1 ? 'evento' : 'eventos'}${blockCount > 0 ? `, ${blockCount} ${blockCount === 1 ? 'bloco' : 'blocos'}` : ''}`}
                     aria-pressed={selected}
                     className={cn(
                       'grid size-7 place-items-center self-start rounded-full font-display text-sm font-bold transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
@@ -164,6 +196,13 @@ export function CalendarPage() {
                   >
                     {dayOfMonth(date)}
                   </button>
+
+                  {blockCount > 0 && (
+                    <div className="flex min-w-0 flex-col gap-0.5 px-0.5">
+                      {isDesktop && <DaySummaryLine summary={summary} />}
+                      <AreaStrip summary={summary} />
+                    </div>
+                  )}
 
                   {isDesktop ? (
                     <ul className="flex min-w-0 flex-col gap-0.5">
@@ -202,6 +241,23 @@ export function CalendarPage() {
             })}
           </div>
         ))}
+      </section>
+
+      <section aria-label="Blocos do dia" className="mt-6">
+        <h2 className="font-display text-xl font-bold">Blocos do dia</h2>
+        {dayBlocks.length === 0 ? (
+          <p className="mt-3 rounded-2xl border border-dashed border-border bg-card/40 p-6 text-muted-foreground">
+            Nenhum bloco neste dia.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {dayBlocks.map((display) => (
+              <li key={`${display.occurrence.blockId}-${display.occurrence.occurrenceDate}`}>
+                <DayBlockLink display={display} />
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section aria-label="Eventos do dia" className="mt-6">
@@ -249,5 +305,42 @@ export function CalendarPage() {
         defaultDate={selectedDay}
       />
     </main>
+  );
+}
+
+/** Um bloco do dia aberto: leva para a Semana em que ele está (lá se conclui, pula e edita). */
+function DayBlockLink({ display }: { display: OccurrenceDisplay }) {
+  const { occurrence, activityName, areaName, areaColor, completion } = display;
+  const colors = AREA_COLOR_CLASSES[areaColor];
+  return (
+    <Link
+      to={`/semana?inicio=${weekStartOf(occurrence.date)}`}
+      className={cn(
+        'flex items-center gap-3 rounded-2xl border border-l-4 p-3 transition-[filter] hover:brightness-125 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        colors.soft,
+        colors.border,
+        occurrence.skipped && 'border-dashed opacity-60',
+      )}
+    >
+      <span className="min-w-0 flex-1">
+        <span className={cn('block truncate font-semibold', occurrence.skipped && 'line-through')}>
+          {activityName}
+        </span>
+        <span className="block font-hud text-sm text-muted-foreground tabular-nums">
+          {timeRange(occurrence.startTime, occurrence.durationMin)} ·{' '}
+          {formatDuration(occurrence.durationMin)} · {areaName}
+        </span>
+      </span>
+      {completion && (
+        <span className="shrink-0 rounded-full border border-xp/40 bg-xp/10 px-2 py-0.5 font-hud text-xs font-medium text-xp tabular-nums">
+          +{completion.xpAmount} XP
+        </span>
+      )}
+      {occurrence.skipped && (
+        <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          Pulado
+        </span>
+      )}
+    </Link>
   );
 }

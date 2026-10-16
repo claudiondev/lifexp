@@ -39,6 +39,7 @@ import {
   saveGridDensity,
   type GridDensity,
 } from '@/features/blocks/gridDensity';
+import { toOccurrenceDisplays } from '@/features/blocks/occurrenceDisplays';
 import { useNow } from '@/features/blocks/useNow';
 import { useWeek, weekQueryOptions } from '@/features/blocks/useWeek';
 import { WeekGrid } from '@/features/blocks/WeekGrid';
@@ -98,30 +99,13 @@ export function WeekPage() {
     void queryClient.prefetchQuery(weekQueryOptions(addDays(weekStart, 7)));
   }, [queryClient, weekStart]);
 
-  const items = useMemo<OccurrenceDisplay[]>(() => {
-    if (!week.data || !activities.data || !areas.data) return [];
-    const activityById = new Map(activities.data.map((activity) => [activity.id, activity]));
-    const areaById = new Map(areas.data.map((area) => [area.id, area]));
-    const completionByOccurrence = new Map(
-      week.data.completions.map((completion) => [
-        `${completion.blockId}:${completion.occurrenceDate}`,
-        completion,
-      ]),
-    );
-    return week.data.occurrences.map((occurrence) => {
-      const area = areaById.get(occurrence.areaId);
-      return {
-        occurrence,
-        activityName: activityById.get(occurrence.activityId)?.name ?? 'Atividade',
-        areaName: area?.name ?? 'Área',
-        areaColor: area?.color ?? 'slate',
-        areaIcon: area?.icon ?? 'star',
-        completion: completionByOccurrence.get(
-          `${occurrence.blockId}:${occurrence.occurrenceDate}`,
-        ),
-      };
-    });
-  }, [week.data, activities.data, areas.data]);
+  const items = useMemo<OccurrenceDisplay[]>(
+    () =>
+      week.data && activities.data && areas.data
+        ? toOccurrenceDisplays(week.data, activities.data, areas.data)
+        : [],
+    [week.data, activities.data, areas.data],
+  );
 
   const goTo = (target: CivilDate) => {
     if (target === currentWeek) setParams({}, { replace: true });
