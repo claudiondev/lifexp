@@ -475,6 +475,16 @@ createdAt`); `createdAt`/`updatedAt` vêm do `Clock`. O resumo NÃO é gravado: 
 - Ao encadear verificações em script, NÃO use `| tail` no meio: ele mascara o código de saída. Use
   `set -o pipefail` ou redirecione para arquivo e confira `$?` antes de commitar.
 
+## E2E no navegador (Playwright)
+
+- `apps/e2e` (`@lifexp/e2e`): navegador real, API compilada e front pelo Vite (proxy `/api`, mesma origem de produção). O script `scripts/start-api.mjs` cria o banco
+  `E2E_DATABASE_URL` (o nome PRECISA terminar em `_e2e`, senão recusa), aplica as migrations e zera `Session`/`User` antes de subir a API. Cada teste cria a própria
+  pessoa (`newUser`), então rodam em paralelo; atalhos de cenário pela API em `tests/helpers.ts`. O script se chama `e2e` (não `test`) para o `pnpm test` não exigir navegador.
+- Rodar: `pnpm build` (precisa de shared e api compilados), depois `E2E_DATABASE_URL=postgresql://lifexp:SENHA@localhost:5433/lifexp_e2e pnpm --filter @lifexp/e2e e2e`
+  (primeira vez: `pnpm --filter @lifexp/e2e exec playwright install chromium`; onde já existe um Chromium, `PW_CHROMIUM_PATH`). Job `e2e` no CI com Postgres de serviço.
+- Bloco só conclui depois de começar: teste que conclui cria o bloco de HOJE às 00:00 no fuso `America/Sao_Paulo` (o mesmo do navegador do teste; `today()` em `helpers.ts`).
+- O e2e já achou um bug real: o login mandava sempre para a home porque o `GuestRoute` redirecionava antes do `navigate(from)` (corrigido no próprio `GuestRoute`).
+
 ## Design system (front)
 
 - Direção: **HUD de RPG moderno** em **azul, preto e branco** (redesign a partir do Figma). Escuro por padrão (azul-noite `#05070D`), claro
