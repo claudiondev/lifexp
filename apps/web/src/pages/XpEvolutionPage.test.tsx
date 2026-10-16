@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { XpEvolution, XpEvolutionWeek } from '@lifexp/shared';
+import type { Consistency, XpEvolution, XpEvolutionWeek } from '@lifexp/shared';
 import { json } from '@/features/goals/testing';
 import { setAccessToken } from '@/lib/apiClient';
 import { XpEvolutionPage } from './XpEvolutionPage';
@@ -36,8 +36,23 @@ const week = (
 };
 
 /** Devolve as últimas `weeks` semanas de `all` (a API real corta a janela no servidor). */
-function setup(all: XpEvolutionWeek[], options: { failTimes?: number } = {}) {
+const consistencyCalls: string[] = [];
+const CONSISTENCY: Consistency = {
+  start: '2026-10-05',
+  end: '2026-10-14',
+  days: Array.from({ length: 10 }, (_, i) => ({
+    date: `2026-10-${String(5 + i).padStart(2, '0')}`,
+    planned: i < 3 ? 2 : 0,
+    completed: i < 3 ? 1 : 0,
+  })),
+};
+
+function setup(
+  all: XpEvolutionWeek[],
+  options: { failTimes?: number; consistencyFails?: boolean } = {},
+) {
   setAccessToken('token');
+  consistencyCalls.length = 0;
   const calls: string[] = [];
   let failures = options.failTimes ?? 0;
   vi.stubGlobal(
@@ -45,6 +60,11 @@ function setup(all: XpEvolutionWeek[], options: { failTimes?: number } = {}) {
     vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
       calls.push(url);
+      if (url.startsWith('/api/consistency')) {
+        consistencyCalls.push(url);
+        if (options.consistencyFails) return json(500, { message: 'falhou' });
+        return json(200, CONSISTENCY);
+      }
       if (!url.startsWith('/api/xp/evolution')) return json(404);
       if (failures > 0) {
         failures -= 1;
@@ -91,7 +111,9 @@ describe('XpEvolutionPage', () => {
   it('mostra o gráfico com uma coluna por semana, 8 por padrão, e a atual por último', async () => {
     const { calls } = setup(WEEKS);
     expect(await screen.findAllByTestId('xp-bar')).toHaveLength(8);
-    expect(calls[0]).toBe('/api/xp/evolution?weeks=8');
+    expect(calls.filter((url) => url.startsWith('/api/xp/evolution'))).toEqual([
+      '/api/xp/evolution?weeks=8',
+    ]);
     const bars = screen.getAllByTestId('xp-bar');
     expect(bars.at(-1)).toHaveAttribute('data-week', mondays[11]);
     expect(screen.getByText('Atual')).toBeInTheDocument();
@@ -163,5 +185,25 @@ describe('XpEvolutionPage', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(await screen.findAllByTestId('xp-bar')).toHaveLength(8);
+  });
+
+  it('mostra a constância das últimas 26 semanas embaixo do gráfico', async () => {
+    setup(WEEKS);
+    const section = await screen.findByRole('region', { name: /Constância/ });
+    expect(section).toHaveTextContent('últimas 26 semanas');
+    expect(await within(section).findByText(/3 blocos concluídos em 3 dias/)).toBeInTheDocument();
+    expect(consistencyCalls).toEqual(['/api/consistency?weeks=26']);
+  });
+
+  it('se a constância falhar, só ela avisa: o gráfico continua e dá para tentar de novo', async () => {
+    setup(WEEKS, { consistencyFails: true });
+    expect(await screen.findAllByTestId('xp-bar')).toHaveLength(8);
+    const section = await screen.findByRole('region', { name: /Constância/ });
+    expect(
+      await within(section).findByText(/Não foi possível carregar a constância/),
+    ).toBeInTheDocument();
+    expect(within(section).getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument();
+    // nenhum alerta global: é um extra
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

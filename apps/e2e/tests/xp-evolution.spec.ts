@@ -51,3 +51,33 @@ test('evolução do XP: conta nova convida a concluir um bloco', async ({ page, 
   await page.goto('/evolucao');
   await expect(page.getByText(/Nenhum XP neste período ainda/)).toBeVisible();
 });
+
+test('constância: o bloco concluído hoje acende o quadrado de hoje no mapa', async ({
+  page,
+  request,
+}) => {
+  const user = newUser('constancia');
+  const token = await registerViaApi(request, user);
+  const [activity] = await listActivities(request, token);
+  await completeOccurrence(request, token, {
+    activityId: activity!.id,
+    date: today(),
+    startTime: '00:00',
+    durationMin: 60,
+  });
+
+  await loginViaUi(page, user);
+  await page.goto('/evolucao');
+
+  const section = page.getByRole('region', { name: /Constância/ });
+  await expect(
+    section.getByText('1 bloco concluído em 1 dia (de 1 dia com plano).').first(),
+  ).toBeVisible();
+
+  // O último quadrado com dados é o de hoje: plano de 1 bloco, 1 concluído = tudo concluído.
+  const cells = section.getByTestId('heat-cell');
+  await expect(cells.last()).toHaveAttribute('data-level', 'full');
+  await expect(cells.last()).toHaveAttribute('title', /1 de 1 bloco concluído/);
+  // Os outros dias (sem plano) ficam como dia livre, sem nenhuma marca de falta.
+  await expect(cells.first()).toHaveAttribute('data-level', 'rest');
+});

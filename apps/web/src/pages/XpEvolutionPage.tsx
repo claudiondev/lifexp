@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { AREA_COLOR_CLASSES } from '@/features/areas/areaAppearance';
+import { ConsistencySection } from '@/features/consistency/ConsistencySection';
 import { useXpEvolution } from '@/features/xp-evolution/useXpEvolution';
 import { XpEvolutionChart } from '@/features/xp-evolution/XpEvolutionChart';
 import {
@@ -136,6 +137,10 @@ export function XpEvolutionPage() {
             <Summary data={data} />
           </>
         )}
+      </div>
+
+      <div className="mt-10">
+        <ConsistencySection />
       </div>
     </main>
   );
