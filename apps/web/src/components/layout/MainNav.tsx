@@ -13,6 +13,7 @@ import {
   Shapes,
   Swords,
   Target,
+  TrendingUp,
   Trophy,
   type LucideIcon,
 } from 'lucide-react';
@@ -52,6 +53,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/metas', label: 'Metas', icon: Target },
       { to: '/conquistas', label: 'Conquistas', icon: Trophy },
       { to: '/recompensas', label: 'Recompensas', icon: Gift },
+      { to: '/evolucao', label: 'Evolução', icon: TrendingUp },
       { to: '/historico', label: 'Histórico de XP', icon: History },
       { to: '/revisao', label: 'Revisão', icon: ScrollText },
     ],

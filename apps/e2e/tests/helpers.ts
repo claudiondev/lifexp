@@ -81,3 +81,21 @@ export async function createOnceBlock(
   });
   expect(response.status()).toBe(201);
 }
+
+/** Conclui pela API a ocorrência de um bloco avulso (o XP cai no livro-caixa como se fosse pelo app). */
+export async function completeOccurrence(
+  request: APIRequestContext,
+  token: string,
+  block: { activityId: string; date: string; startTime: string; durationMin: number },
+): Promise<void> {
+  const created = await request.post('/api/blocks', {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { recurrence: 'once', ...block },
+  });
+  expect(created.status()).toBe(201);
+  const { id } = (await created.json()) as { id: string };
+  const done = await request.post(`/api/blocks/${id}/occurrences/${block.date}/completion`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(done.ok()).toBe(true);
+}
