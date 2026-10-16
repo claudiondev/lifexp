@@ -30,6 +30,8 @@ interface WeekGridProps {
   onSelectEvent?: (event: CalendarEvent) => void;
   /** Soltar um bloco em outro dia/horário (RF18). Sem isto a grade não aceita arrasto. */
   onMove?: (display: OccurrenceDisplay, target: MoveTarget) => void;
+  /** Altura de uma hora, em pixels (densidade escolhida pela pessoa). */
+  hourPx?: number;
 }
 
 const keyOf = ({ occurrence }: OccurrenceDisplay) =>
@@ -58,11 +60,12 @@ export function WeekGrid({
   events,
   onSelectEvent,
   onMove,
+  hourPx = HOUR_PX,
 }: WeekGridProps) {
   const dates = weekDates(weekStart);
   const range = visibleHourRange(items.map(({ occurrence }) => occurrence));
   const hours = Array.from({ length: range.end - range.start }, (_, index) => range.start + index);
-  const totalHeight = hours.length * HOUR_PX;
+  const totalHeight = hours.length * hourPx;
   const rangeStartMin = range.start * 60;
 
   // O arrasto vive num ref (os ouvintes da janela leem sempre o valor atual) e é espelhado no estado
@@ -137,7 +140,7 @@ export function WeekGrid({
           startMinutes: timeToMinutes(display.occurrence.startTime),
           durationMin: display.occurrence.durationMin,
           columnWidth: column?.getBoundingClientRect().width ?? 0,
-          hourPx: HOUR_PX,
+          hourPx,
           range,
         },
         deltaX: 0,
@@ -152,9 +155,9 @@ export function WeekGrid({
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card/60 backdrop-blur">
-      <div className="min-w-[44rem]">
+      <div className="min-w-[56rem]">
         <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-border">
-          <div />
+          <div className="sticky left-0 z-10 bg-card" />
           {dates.map((date) => {
             const isToday = date === today;
             return (
@@ -185,7 +188,7 @@ export function WeekGrid({
             aria-label="Eventos da semana"
             className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))] border-b border-border"
           >
-            <span className="pt-2 pr-2 text-right font-hud text-[0.6rem] tracking-wider text-muted-foreground uppercase">
+            <span className="sticky left-0 z-10 bg-card pt-2 pr-2 text-right font-hud text-[0.6rem] tracking-wider text-muted-foreground uppercase">
               Eventos
             </span>
             {dates.map((date) => (
@@ -207,12 +210,12 @@ export function WeekGrid({
         )}
 
         <div className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
-          <div aria-hidden className="relative" style={{ height: totalHeight }}>
+          <div aria-hidden className="sticky left-0 z-10 bg-card" style={{ height: totalHeight }}>
             {hours.map((hour, index) => (
               <span
                 key={hour}
                 className="absolute right-2 -translate-y-1/2 font-hud text-[0.65rem] text-muted-foreground tabular-nums"
-                style={{ top: index * HOUR_PX }}
+                style={{ top: index * hourPx }}
               >
                 {index === 0 ? '' : pad(hour)}
               </span>
@@ -236,7 +239,7 @@ export function WeekGrid({
                     <div
                       key={hour}
                       className="border-t border-border/60"
-                      style={{ height: HOUR_PX }}
+                      style={{ height: hourPx }}
                     />
                   ))}
                 </div>
@@ -270,14 +273,14 @@ export function WeekGrid({
                             occurrence.startTime,
                             occurrence.durationMin,
                           )}${occurrence.skipped ? ', pulado' : ''}${item.completion ? ', concluído' : ''}`}
-                          compact={(occurrence.durationMin / 60) * HOUR_PX < 40}
+                          compact={(occurrence.durationMin / 60) * hourPx < 40}
                           onSelect={() => select(item)}
                           style={{
                             ...(offset && {
                               transform: `translate(${offset.x}px, ${offset.y}px)`,
                             }),
-                            top: ((start - rangeStartMin) / 60) * HOUR_PX,
-                            height: Math.max((occurrence.durationMin / 60) * HOUR_PX, MIN_CARD_PX),
+                            top: ((start - rangeStartMin) / 60) * hourPx,
+                            height: Math.max((occurrence.durationMin / 60) * hourPx, MIN_CARD_PX),
                             left: `calc(${(lane / lanes) * 100}% + 2px)`,
                             width: `calc(${100 / lanes}% - 4px)`,
                           }}
@@ -292,7 +295,7 @@ export function WeekGrid({
                     aria-hidden
                     data-testid="now-line"
                     className="pointer-events-none absolute inset-x-0 z-10 h-px bg-xp shadow-[0_0_8px_var(--xp)]"
-                    style={{ top: ((nowMinutes - rangeStartMin) / 60) * HOUR_PX }}
+                    style={{ top: ((nowMinutes - rangeStartMin) / 60) * hourPx }}
                   >
                     <span className="absolute -top-1 -left-1 size-2 rounded-full bg-xp" />
                   </div>

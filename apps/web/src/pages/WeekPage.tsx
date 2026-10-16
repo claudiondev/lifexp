@@ -33,6 +33,12 @@ import { DayView } from '@/features/blocks/DayView';
 import { OccurrenceDialog } from '@/features/blocks/OccurrenceDialog';
 import type { OccurrenceDisplay } from '@/features/blocks/OccurrenceCard';
 import { useMoveOccurrence } from '@/features/blocks/useMoveOccurrence';
+import {
+  GRID_DENSITIES,
+  loadGridDensity,
+  saveGridDensity,
+  type GridDensity,
+} from '@/features/blocks/gridDensity';
 import { useNow } from '@/features/blocks/useNow';
 import { useWeek, weekQueryOptions } from '@/features/blocks/useWeek';
 import { WeekGrid } from '@/features/blocks/WeekGrid';
@@ -58,6 +64,11 @@ export function WeekPage() {
   const [selected, setSelected] = useState<OccurrenceDisplay | null>(null);
   const [pickedDay, setPickedDay] = useState<CivilDate | null>(null);
   const isDesktop = useIsDesktop();
+  const [density, setDensity] = useState<GridDensity>(loadGridDensity);
+  const chooseDensity = (next: GridDensity) => {
+    setDensity(next);
+    saveGridDensity(next);
+  };
 
   const timezone = state.status === 'authenticated' ? state.user.timezone : 'UTC';
   const today = todayIn(timezone, now);
@@ -216,6 +227,29 @@ export function WeekPage() {
                 Nenhum bloco nesta semana.
               </p>
             )}
+            {isDesktop && (
+              <div
+                role="group"
+                aria-label="Densidade da grade"
+                className="mb-3 flex items-center justify-end gap-1"
+              >
+                <span className="mr-1 font-hud text-[0.7rem] tracking-wider text-muted-foreground uppercase">
+                  Altura das horas
+                </span>
+                {(Object.keys(GRID_DENSITIES) as GridDensity[]).map((key) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    size="sm"
+                    variant={key === density ? 'default' : 'secondary'}
+                    aria-pressed={key === density}
+                    onClick={() => chooseDensity(key)}
+                  >
+                    {GRID_DENSITIES[key].label}
+                  </Button>
+                ))}
+              </div>
+            )}
             {isDesktop ? (
               <WeekGrid
                 weekStart={weekStart}
@@ -226,6 +260,7 @@ export function WeekPage() {
                 events={eventsByDate}
                 onSelectEvent={setSelectedEvent}
                 onMove={(display, target) => void moveOccurrence(display.occurrence, target)}
+                hourPx={GRID_DENSITIES[density].hourPx}
               />
             ) : (
               <DayView

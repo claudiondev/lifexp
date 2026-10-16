@@ -79,6 +79,12 @@ export function OccurrenceCard({
         )}
       >
         <Icon aria-hidden className={cn('size-3 shrink-0', colors.text)} />
+        {/* Cartão baixo não tem segunda linha: o horário vai antes do nome. */}
+        {compact && !occurrence.skipped && (
+          <span className="shrink-0 font-hud text-[0.7rem] font-normal text-muted-foreground tabular-nums">
+            {occurrence.startTime}
+          </span>
+        )}
         <span className="truncate">{activityName}</span>
         {completion && <Check aria-hidden className="ml-auto size-3.5 shrink-0 text-xp" />}
       </p>
