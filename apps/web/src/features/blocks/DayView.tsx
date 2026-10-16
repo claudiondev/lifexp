@@ -6,6 +6,8 @@ import { dayOfMonth, longDate, weekdayLong, weekdayShort } from '@/lib/civilForm
 import { AREA_COLOR_CLASSES, AREA_ICON_COMPONENTS } from '../areas/areaAppearance';
 import { EventChip } from '../events/EventChip';
 import { formatDuration } from './blockOptions';
+import { AreaStrip, DaySummaryLine } from './DaySummaryBar';
+import { summarizeDay } from './daySummary';
 import { timeRange, type OccurrenceDisplay } from './OccurrenceCard';
 import { OccurrenceNote } from './OccurrenceNote';
 
@@ -100,10 +102,7 @@ export function DayView({
               >
                 {dayOfMonth(date)}
               </span>
-              <span
-                aria-hidden
-                className={cn('h-1 w-1 rounded-full', count > 0 ? 'bg-xp' : 'bg-transparent')}
-              />
+              <AreaStrip summary={summarizeDay(items, date)} className="w-4/5" />
             </button>
           );
         })}
@@ -116,6 +115,15 @@ export function DayView({
         aria-label={`${weekdayLong(selectedDate)}, ${longDate(selectedDate)}`}
         className="flex flex-col gap-3"
       >
+        {selectedItems.length > 0 && (
+          <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-card/50 px-3 py-2">
+            <p className="flex items-center justify-between font-hud text-xs text-muted-foreground">
+              <span className="uppercase tracking-wider">Resumo do dia</span>
+              <DaySummaryLine summary={summarizeDay(items, selectedDate)} />
+            </p>
+            <AreaStrip summary={summarizeDay(items, selectedDate)} className="h-1.5" />
+          </div>
+        )}
         {selectedEvents.length > 0 && onSelectEvent && (
           <ul aria-label="Eventos do dia" className="flex flex-col gap-2">
             {selectedEvents.map((event) => (

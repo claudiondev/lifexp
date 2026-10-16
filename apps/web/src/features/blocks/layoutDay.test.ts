@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_HOUR_RANGE, layoutDay, visibleHourRange } from './layoutDay';
+import {
+  collapseLanes,
+  DEFAULT_HOUR_RANGE,
+  layoutDay,
+  MAX_VISIBLE_LANES,
+  sharesTimeWithHidden,
+  visibleHourRange,
+} from './layoutDay';
 
 const block = (name: string, startTime: string, durationMin: number) => ({
   name,
@@ -133,5 +140,119 @@ describe('visibleHourRange', () => {
 
   it('bloco que termina na hora cheia não amplia a faixa', () => {
     expect(visibleHourRange([block('a', '20:00', 120)]).end).toBe(22);
+  });
+});
+
+describe('collapseLanes', () => {
+  const collapse = (blocks: ReturnType<typeof block>[], max?: number) =>
+    collapseLanes(layoutDay(blocks), max);
+  const names = (laid: { item: { name: string } }[]) => laid.map((entry) => entry.item.name).sort();
+
+  it('por padrão mostra no máximo 2 colunas', () => {
+    expect(MAX_VISIBLE_LANES).toBe(2);
+  });
+
+  it('grupo com até 2 colunas não muda e não esconde nada', () => {
+    const laid = layoutDay([block('a', '09:00', 60), block('b', '09:30', 60)]);
+    const { visible, hidden } = collapseLanes(laid);
+    expect(hidden).toEqual([]);
+    expect(visible).toEqual(laid);
+  });
+
+  it('3 blocos juntos: 2 ficam na grade (meia largura) e 1 vira "+1"', () => {
+    const { visible, hidden } = collapse([
+      block('a', '09:00', 60),
+      block('b', '09:00', 60),
+      block('c', '09:00', 60),
+    ]);
+    expect(visible).toHaveLength(2);
+    expect(visible.every((entry) => entry.lanes === 2)).toBe(true);
+    expect(hidden).toHaveLength(1);
+    expect(hidden[0]!.items).toHaveLength(1);
+    // nenhum bloco some: visíveis + escondidos = todos
+    expect(
+      names(visible)
+        .concat(hidden[0]!.items.map((item) => item.name))
+        .sort(),
+    ).toEqual(['a', 'b', 'c']);
+  });
+
+  it('o grupo escondido cobre do início do primeiro ao fim do último', () => {
+    const { hidden } = collapse([
+      block('a', '09:00', 120),
+      block('b', '09:00', 120),
+      block('c', '09:30', 30),
+      block('d', '10:00', 60),
+    ]);
+    expect(hidden).toHaveLength(1);
+    const group = hidden[0]!;
+    expect(group.items.map((item) => item.name)).toContain('c');
+    expect(group.startMinutes).toBe(9 * 60 + 30);
+    expect(group.endMinutes).toBeGreaterThanOrEqual(10 * 60);
+  });
+
+  it('cada grupo de sobreposição é contado separado', () => {
+    const { hidden, visible } = collapse([
+      block('a', '08:00', 60),
+      block('b', '08:00', 60),
+      block('c', '08:00', 60),
+      block('d', '14:00', 60),
+      block('e', '14:00', 60),
+      block('f', '14:00', 60),
+      block('g', '14:00', 60),
+    ]);
+    expect(hidden.map((group) => group.items.length)).toEqual([1, 2]);
+    expect(visible).toHaveLength(4);
+  });
+
+  it('bloco sozinho entre grupos grandes continua com a largura toda', () => {
+    const { visible } = collapse([
+      block('a', '08:00', 60),
+      block('b', '08:00', 60),
+      block('c', '08:00', 60),
+      block('solo', '12:00', 60),
+    ]);
+    expect(visible.find((entry) => entry.item.name === 'solo')).toMatchObject({
+      lane: 0,
+      lanes: 1,
+    });
+  });
+
+  it('respeita um limite diferente de 2', () => {
+    const { visible, hidden } = collapse(
+      [
+        block('a', '09:00', 60),
+        block('b', '09:00', 60),
+        block('c', '09:00', 60),
+        block('d', '09:00', 60),
+      ],
+      3,
+    );
+    expect(visible).toHaveLength(3);
+    expect(hidden[0]!.items).toHaveLength(1);
+  });
+
+  it('sem blocos, nada a mostrar', () => {
+    expect(collapseLanes([])).toEqual({ visible: [], hidden: [] });
+  });
+});
+
+describe('sharesTimeWithHidden', () => {
+  const group = { items: [], startMinutes: 9 * 60 + 30, endMinutes: 10 * 60 + 30 };
+
+  it('bloco que cruza o intervalo do grupo cede a faixa', () => {
+    expect(sharesTimeWithHidden(block('a', '09:00', 60), [group])).toBe(true);
+    expect(sharesTimeWithHidden(block('a', '10:00', 120), [group])).toBe(true);
+    expect(sharesTimeWithHidden(block('a', '09:45', 15), [group])).toBe(true);
+  });
+
+  it('bloco que só encosta (fim = início, ou início = fim) não cede', () => {
+    expect(sharesTimeWithHidden(block('a', '08:30', 60), [group])).toBe(false);
+    expect(sharesTimeWithHidden(block('a', '10:30', 60), [group])).toBe(false);
+  });
+
+  it('bloco em outro horário não cede, e sem grupos nunca cede', () => {
+    expect(sharesTimeWithHidden(block('a', '14:00', 60), [group])).toBe(false);
+    expect(sharesTimeWithHidden(block('a', '09:30', 60), [])).toBe(false);
   });
 });

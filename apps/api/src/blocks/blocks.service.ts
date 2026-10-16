@@ -75,13 +75,27 @@ export class BlocksService {
    * Uma única consulta traz os blocos que podem tocar a semana, com as exceções da semana e a área
    * da atividade (RNF04). As ocorrências são calculadas em memória pela regra de domínio.
    */
-  async getWeek(
+  getWeek(
     userId: string,
     weekStart: string,
     // Dentro de uma transação, quem chama passa o `tx`: assim a leitura enxerga o que ela já gravou.
     db: Prisma.TransactionClient = this.prisma,
   ): Promise<WeekResponse> {
-    const weekEnd = addDays(weekStart, 6);
+    return this.getRange(userId, weekStart, 1, db);
+  }
+
+  /**
+   * `weeks` semanas seguidas a partir de `weekStart` (uma segunda-feira), para o calendário do mês. Continua UMA
+   * consulta, não importa quantas semanas: blocos, exceções, conclusões e áreas vêm juntos, e cada semana é
+   * calculada em memória pela mesma regra de domínio da semana (`computeWeekOccurrences`).
+   */
+  async getRange(
+    userId: string,
+    weekStart: string,
+    weeks: number,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<WeekResponse> {
+    const weekEnd = addDays(weekStart, weeks * 7 - 1);
     const start = fromCivil(weekStart);
     const end = fromCivil(weekEnd);
 
@@ -102,20 +116,19 @@ export class BlocksService {
       include: {
         activity: { select: { areaId: true } },
         exceptions: { where: { occurrenceDate: { gte: start, lte: end } } },
-        // Conclusões ativas (não desfeitas) da semana: vêm junto, sem query extra.
+        // Conclusões ativas (não desfeitas) do intervalo: vêm junto, sem query extra.
         completions: { where: { occurrenceDate: { gte: start, lte: end }, undoneAt: null } },
       },
     });
 
-    const occurrences = computeWeekOccurrences(
-      weekStart,
-      blocks.map((block) => toBlockTemplate(block, block.activity.areaId)),
-      blocks.flatMap((block) => block.exceptions.map(toExceptionRule)),
-    );
+    const templates = blocks.map((block) => toBlockTemplate(block, block.activity.areaId));
+    const exceptions = blocks.flatMap((block) => block.exceptions.map(toExceptionRule));
     return {
       weekStart,
       weekEnd,
-      occurrences,
+      occurrences: Array.from({ length: weeks }, (_, index) =>
+        computeWeekOccurrences(addDays(weekStart, index * 7), templates, exceptions),
+      ).flat(),
       completions: blocks.flatMap((block) => block.completions.map(toCompletionDto)),
     };
   }

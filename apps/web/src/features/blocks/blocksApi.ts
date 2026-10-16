@@ -17,6 +17,10 @@ import { apiFetch, apiJson } from '../../lib/apiClient';
 export const getWeek = (weekStart: CivilDate): Promise<WeekResponse> =>
   apiJson(`/blocks/week?weekStart=${weekStart}`, weekResponseSchema);
 
+/** `weeks` semanas seguidas a partir de uma segunda-feira (o mês na grade do calendário). */
+export const getRange = (weekStart: CivilDate, weeks: number): Promise<WeekResponse> =>
+  apiJson(`/blocks/range?weekStart=${weekStart}&weeks=${weeks}`, weekResponseSchema);
+
 export const createBlock = (input: CreateBlockInput): Promise<Block> =>
   apiJson('/blocks', blockSchema, { method: 'POST', json: input });
 

@@ -1,0 +1,25 @@
+{
+  "name": "@lifexp/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Testes de ponta a ponta (Playwright): navegador real, front e API de verdade, banco de teste.",
+  "scripts": {
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report",
+    "typecheck": "tsc --noEmit",
+    "screenshots": "playwright test -c playwright.screenshots.config.ts"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@lifexp/shared": "workspace:^",
+    "@playwright/test": "1.56.1",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.23.1",
+    "sharp": "0.35.5",
+    "typescript": "5.9.3"
+  }
+}

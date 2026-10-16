@@ -21,6 +21,7 @@ import { RewardsPage } from './pages/RewardsPage';
 import { ReviewPage } from './pages/ReviewPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { WeekPage } from './pages/WeekPage';
+import { XpEvolutionPage } from './pages/XpEvolutionPage';
 import { XpHistoryPage } from './pages/XpHistoryPage';
 
 export function AppRoutes() {
@@ -47,6 +48,7 @@ export function AppRoutes() {
           <Route path="/lazer" element={<LeisurePage />} />
           <Route path="/metas" element={<GoalsPage />} />
           <Route path="/metas/:goalId" element={<GoalDetailPage />} />
+          <Route path="/evolucao" element={<XpEvolutionPage />} />
           <Route path="/historico" element={<XpHistoryPage />} />
           <Route path="/conquistas" element={<AchievementsPage />} />
           <Route path="/recompensas" element={<RewardsPage />} />
