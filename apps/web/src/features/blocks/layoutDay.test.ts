@@ -4,6 +4,7 @@ import {
   DEFAULT_HOUR_RANGE,
   layoutDay,
   MAX_VISIBLE_LANES,
+  sharesTimeWithHidden,
   visibleHourRange,
 } from './layoutDay';
 
@@ -233,5 +234,25 @@ describe('collapseLanes', () => {
 
   it('sem blocos, nada a mostrar', () => {
     expect(collapseLanes([])).toEqual({ visible: [], hidden: [] });
+  });
+});
+
+describe('sharesTimeWithHidden', () => {
+  const group = { items: [], startMinutes: 9 * 60 + 30, endMinutes: 10 * 60 + 30 };
+
+  it('bloco que cruza o intervalo do grupo cede a faixa', () => {
+    expect(sharesTimeWithHidden(block('a', '09:00', 60), [group])).toBe(true);
+    expect(sharesTimeWithHidden(block('a', '10:00', 120), [group])).toBe(true);
+    expect(sharesTimeWithHidden(block('a', '09:45', 15), [group])).toBe(true);
+  });
+
+  it('bloco que só encosta (fim = início, ou início = fim) não cede', () => {
+    expect(sharesTimeWithHidden(block('a', '08:30', 60), [group])).toBe(false);
+    expect(sharesTimeWithHidden(block('a', '10:30', 60), [group])).toBe(false);
+  });
+
+  it('bloco em outro horário não cede, e sem grupos nunca cede', () => {
+    expect(sharesTimeWithHidden(block('a', '14:00', 60), [group])).toBe(false);
+    expect(sharesTimeWithHidden(block('a', '09:30', 60), [])).toBe(false);
   });
 });

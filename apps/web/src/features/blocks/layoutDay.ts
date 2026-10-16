@@ -127,6 +127,19 @@ export function collapseLanes<T extends Positionable>(
   return { visible, hidden };
 }
 
+/** Largura (px) da faixa lateral onde fica o "+N": os cartões que dividem horário com ele cedem esse espaço. */
+export const OVERFLOW_GUTTER_PX = 22;
+
+/** O bloco divide horário com um grupo escondido? Se sim, a coluna dele precisa deixar a faixa do "+N" livre. */
+export function sharesTimeWithHidden<T extends Positionable>(
+  item: Positionable,
+  hidden: readonly HiddenGroup<T>[],
+): boolean {
+  const start = timeToMinutes(item.startTime);
+  const end = start + item.durationMin;
+  return hidden.some((group) => start < group.endMinutes && end > group.startMinutes);
+}
+
 export interface HourRange {
   /** Primeira hora exibida (inclusive). */
   start: number;

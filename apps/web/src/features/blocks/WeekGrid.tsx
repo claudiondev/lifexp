@@ -13,7 +13,13 @@ import { EventChip } from '../events/EventChip';
 import { computeDrop, dropOffset, isDrag, type DragInput } from './dragGeometry';
 import { AreaStrip, DaySummaryLine } from './DaySummaryBar';
 import { summarizeDay } from './daySummary';
-import { collapseLanes, layoutDay, visibleHourRange } from './layoutDay';
+import {
+  collapseLanes,
+  layoutDay,
+  OVERFLOW_GUTTER_PX,
+  sharesTimeWithHidden,
+  visibleHourRange,
+} from './layoutDay';
 import type { MoveTarget } from './useMoveOccurrence';
 import { OccurrenceCard, timeRange, type OccurrenceDisplay } from './OccurrenceCard';
 
@@ -51,6 +57,14 @@ interface DragState {
   /** Passou do limiar: deixou de ser um clique. */
   active: boolean;
 }
+
+/** Posição e largura da coluna `lane` de `lanes`; `gutter` px à direita ficam livres (para o "+N"). */
+const laneLeft = (lane: number, lanes: number, gutter: number) =>
+  gutter === 0
+    ? `calc(${(lane / lanes) * 100}% + 2px)`
+    : `calc(${lane / lanes} * (100% - ${gutter}px) + 2px)`;
+const laneWidth = (lanes: number, gutter: number) =>
+  gutter === 0 ? `calc(${100 / lanes}% - 4px)` : `calc((100% - ${gutter}px) / ${lanes} - 4px)`;
 
 const pad = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 
@@ -266,6 +280,10 @@ export function WeekGrid({
                   {laid.map(({ item, lane, lanes }) => {
                     const { occurrence, activityName } = item;
                     const start = timeToMinutes(occurrence.startTime);
+                    // Quem divide horário com um "+N" deixa a faixa da direita livre para ele.
+                    const gutter = sharesTimeWithHidden(occurrence, hidden)
+                      ? OVERFLOW_GUTTER_PX
+                      : 0;
                     const movable = onMove && !item.completion && !occurrence.skipped;
                     const dragging = drag?.active === true && keyOf(drag.display) === keyOf(item);
                     // Durante o arrasto o cartão já aparece no destino encaixado, com o novo horário.
@@ -299,8 +317,8 @@ export function WeekGrid({
                             }),
                             top: ((start - rangeStartMin) / 60) * hourPx,
                             height: Math.max((occurrence.durationMin / 60) * hourPx, MIN_CARD_PX),
-                            left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                            width: `calc(${100 / lanes}% - 4px)`,
+                            left: laneLeft(lane, lanes, gutter),
+                            width: laneWidth(lanes, gutter),
                           }}
                         />
                       </li>
@@ -310,15 +328,20 @@ export function WeekGrid({
 
                 {hidden.map((group) => {
                   const count = group.items.length;
-                  const bottom = ((group.endMinutes - rangeStartMin) / 60) * hourPx;
+                  const top = ((group.startMinutes - rangeStartMin) / 60) * hourPx;
+                  const height = ((group.endMinutes - group.startMinutes) / 60) * hourPx;
                   return (
                     <button
                       key={`${group.startMinutes}-${count}`}
                       type="button"
                       aria-label={`Mais ${count} ${count === 1 ? 'bloco' : 'blocos'} em ${weekdayLong(date)}, ${minutesToTime(group.startMinutes)} às ${minutesToTime(group.endMinutes)}: ver lista`}
                       onClick={() => setOverflow({ date, items: group.items })}
-                      className="absolute right-1 z-10 -translate-y-full cursor-pointer rounded-full border border-border bg-background px-1.5 py-0.5 font-hud text-[0.7rem] font-semibold text-foreground shadow-md hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                      style={{ top: bottom }}
+                      className="absolute right-0.5 z-10 flex cursor-pointer items-start justify-center rounded-md border border-border bg-muted pt-1 font-hud text-[0.7rem] font-semibold text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                      style={{
+                        top,
+                        height: Math.max(height, MIN_CARD_PX),
+                        width: OVERFLOW_GUTTER_PX - 4,
+                      }}
                     >
                       +{count}
                     </button>

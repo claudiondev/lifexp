@@ -91,6 +91,16 @@ describe('WeekGrid: blocos sobrepostos', () => {
     ]);
   });
 
+  it('os cartões que dividem horário com o "+N" deixam a faixa dele livre', () => {
+    renderGrid([display(1), display(2), display(3), display(4, '14:00')]);
+    const shared = screen.getAllByRole('button', { name: /Atividade [12]/ });
+    for (const card of shared) expect(card.style.width).toContain('22px');
+    // quem está sozinho em outro horário mantém a largura toda
+    expect(screen.getByRole('button', { name: /Atividade 4/ }).style.width).toBe(
+      'calc(100% - 4px)',
+    );
+  });
+
   it('blocos em horários diferentes não geram "+N"', () => {
     renderGrid([display(1, '08:00'), display(2, '10:00'), display(3, '12:00')]);
     expect(screen.queryByRole('button', { name: /ver lista/ })).not.toBeInTheDocument();
