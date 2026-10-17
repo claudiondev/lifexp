@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@lifexp/shared": "workspace:^",
-    "@playwright/test": "1.56.1",
+    "@playwright/test": "1.64.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.23.1",
     "sharp": "0.35.5",
