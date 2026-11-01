@@ -104,7 +104,7 @@ jobs:
         id: playwright
         run: echo "version=$(pnpm --filter @lifexp/e2e exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         id: browsers
         with:
           path: ~/.cache/ms-playwright
